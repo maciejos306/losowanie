@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Losowanie Pytania</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        .question-box {
+            margin: 20px 0;
+            font-size: 18px;
+            padding: 10px;
+            background-color: #e9e9e9;
+            border-radius: 4px;
+            min-height: 40px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Losowanie Pytania</h1>
+        <div id="question-display" class="question-box">
+            <!-- Pytanie będzie wyświetlane tutaj -->
+        </div>
+        <button onclick="generateQuestion()">Losuj Pytanie</button>
+    </div>
+
+    <script>
+        const questions = [
+            "Jakie jest stolica Francji?",
+            "Kto napisał 'Hamleta'?",
+            "Ile to 2 + 2?",
+            "Jaka jest największa planeta w Układzie Słonecznym?",
+            "Kiedy zakończyła się II wojna światowa?"
+        ];
+
+        function generateQuestion() {
+            const randomIndex = Math.floor(Math.random() * questions.length);
+            const question = questions[randomIndex];
+            document.getElementById("question-display").textContent = question;
+        }
+
+        // Inicjalne losowanie pytania po załadowaniu strony
+        window.onload = generateQuestion;
+    </script>
+</body>
+</html>
