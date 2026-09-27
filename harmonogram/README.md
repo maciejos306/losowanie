@@ -40,3 +40,19 @@ To jest aplikacja z backendem (Flask + SQLite), więc **nie może działać na G
 (hosting tylko dla stron statycznych). Do uruchomienia produkcyjnego potrzebny jest serwer
 z Pythonem, np. Render, Railway, Fly.io, PythonAnywhere lub własny VPS — wystarczy
 `pip install -r requirements.txt` i uruchomienie przez WSGI (np. `gunicorn app:app`).
+
+### Darmowe wdrożenie na Render (dostęp z telefonu/przeglądarki, bez instalacji)
+
+1. Załóż darmowe konto na [render.com](https://render.com) i połącz je ze swoim kontem GitHub.
+2. W panelu Render wybierz **New → Blueprint** i wskaż to repozytorium
+   (`maciejos306/losowanie`, branch `claude/program-harmonogram-aabbmy` lub `main` po scaleniu) —
+   Render sam odczyta plik `render.yaml` z głównego katalogu repozytorium i skonfiguruje usługę.
+3. Poczekaj na zbudowanie i uruchomienie (plan `free`) — Render poda publiczny adres
+   w stylu `https://harmonogram-xxxx.onrender.com`.
+4. Otwórz ten adres w przeglądarce na dowolnym urządzeniu (Android, iOS, komputer) — to
+   już cała, działająca aplikacja z bazą danych.
+
+Uwaga: darmowy plan Render usypia usługę po okresie bezczynności (pierwsze wejście po
+uśpieniu trwa ok. 30-60 sekund) i może czyścić dysk przy każdym nowym wdrożeniu kodu —
+do stałego przechowywania danych produkcyjnych warto docelowo podłączyć płatny dysk
+lub zewnętrzną bazę danych.
