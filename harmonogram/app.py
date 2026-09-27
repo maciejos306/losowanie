@@ -454,7 +454,66 @@ def delete_schedule(schedule_id):
     return redirect(url_for("list_schedules"))
 
 
+def seed_default_data():
+    """Wgrywa startowy zestaw pracowników i typów tras na podstawie realnych
+    harmonogramów przeanalizowanych w tej rozmowie. Uruchamia się tylko raz —
+    jeśli tabela pracowników jest pusta (czyli przy pierwszym starcie na
+    świeżej bazie, np. po wdrożeniu na Render)."""
+    db = sqlite3.connect(DB_PATH)
+    db.row_factory = sqlite3.Row
+    already_seeded = db.execute("SELECT COUNT(*) AS c FROM employees").fetchone()["c"]
+    if already_seeded:
+        db.close()
+        return
+
+    employees = [
+        "Jacek Schmidt",
+        "Roman Wranik",
+        "Krzysztof Misiewicz",
+        "Andrzej Czogała",
+        "Bogdan Śmietana",
+        "Tomasz Twardzik",
+        "Grzegorz Knura",
+        "Marek Lipczyński",
+        "Stanisław Piórkowski",
+        "Rafał Łagosz",
+        "Tomasz Bubon",
+    ]
+    db.executemany(
+        "INSERT INTO employees (name, active) VALUES (?, 1)",
+        [(name,) for name in employees],
+    )
+
+    # Wagi tras odtworzone z legendy i wzorca "dzień wolny przed/po dłuższej
+    # trasie" widocznego w prawdziwych harmonogramach. Każdą wagę można
+    # później zmienić w aplikacji (strona "Typy zmian").
+    shift_types = [
+        ("Trasa 1", 1.0),
+        ("Trasa 2", 1.0),
+        ("Trasa 3", 1.0),
+        ("Trasa 4", 1.0),
+        ("Trasa 5", 1.0),
+        ("Trasa 6", 1.0),
+        ("Trasa 7", 1.0),
+        ("Trasa 8", 1.0),
+        ("Trasa 9", 1.5),
+        ("Trasa 10", 2.0),
+        ("Trasa 11", 2.0),
+        ("Nagel", 0.5),
+        ("Zwroty", 0.5),
+    ]
+    db.executemany(
+        "INSERT INTO shift_types (name, people_needed, weight, order_index) "
+        "VALUES (?, 1, ?, ?)",
+        [(name, weight, i) for i, (name, weight) in enumerate(shift_types)],
+    )
+
+    db.commit()
+    db.close()
+
+
 init_db()
+seed_default_data()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
