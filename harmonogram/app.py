@@ -495,12 +495,12 @@ def seed_default_data():
         ("Trasa 5", 1.0),
         ("Trasa 6", 1.0),
         ("Trasa 7", 1.0),
-        ("Trasa 8", 1.0),
-        ("Trasa 9", 1.5),
-        ("Trasa 10", 2.0),
-        ("Trasa 11", 2.0),
+        ("Trasa 8", 2.5),
+        ("Trasa 9", 2.5),
+        ("Trasa 10", 2.5),
+        ("Trasa 11", 2.5),
         ("Nagel", 0.5),
-        ("Zwroty", 0.5),
+        ("Zwroty", 1.0),
     ]
     db.executemany(
         "INSERT INTO shift_types (name, people_needed, weight, order_index) "
