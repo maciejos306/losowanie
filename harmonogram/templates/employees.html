@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Pracownicy{% endblock %}
+{% block content %}
+<h2>Pracownicy</h2>
+
+<form method="post" action="{{ url_for('employees') }}" class="form-row">
+    <label for="name">Nowy pracownik</label>
+    <input type="text" id="name" name="name" placeholder="Imię i nazwisko" required>
+    <button type="submit">Dodaj</button>
+</form>
+
+<ul class="card-list">
+    {% for e in employees %}
+    <li>
+        <div>
+            <strong>{{ e.name }}</strong>
+            {% if not e.active %}<span class="tag">nieaktywny</span>{% endif %}
+            <div class="muted">
+                Niedostępny w dniach:
+                {% for u in unavail_by_emp.get(e.id, []) %}
+                    <span class="tag">
+                        {{ u.date }}
+                        <form method="post" action="{{ url_for('delete_unavailability', row_id=u.id) }}" class="inline">
+                            <button type="submit" class="danger" style="padding:0 6px;font-size:11px;">x</button>
+                        </form>
+                    </span>
+                {% else %}
+                    <span>brak</span>
+                {% endfor %}
+            </div>
+            <form method="post" action="{{ url_for('add_unavailability', employee_id=e.id) }}" class="inline" style="margin-top:6px;">
+                <input type="date" name="date" required>
+                <button type="submit" class="secondary">Dodaj niedostępność</button>
+            </form>
+        </div>
+        <div>
+            <form method="post" action="{{ url_for('toggle_employee', employee_id=e.id) }}" class="inline">
+                <button type="submit" class="secondary">{{ 'Dezaktywuj' if e.active else 'Aktywuj' }}</button>
+            </form>
+            <form method="post" action="{{ url_for('delete_employee', employee_id=e.id) }}" class="inline" onsubmit="return confirm('Usunąć pracownika {{ e.name }}?');">
+                <button type="submit" class="danger">Usuń</button>
+            </form>
+        </div>
+    </li>
+    {% else %}
+    <li>Brak pracowników. Dodaj pierwszego powyżej.</li>
+    {% endfor %}
+</ul>
+{% endblock %}

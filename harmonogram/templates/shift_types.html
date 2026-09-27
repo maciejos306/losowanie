@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Typy zmian{% endblock %}
+{% block content %}
+<h2>Typy zmian</h2>
+
+<form method="post" action="{{ url_for('shift_types') }}" class="form-row">
+    <label for="name">Nowy typ zmiany</label>
+    <input type="text" id="name" name="name" placeholder="np. Ranna, Popołudniowa, Nocna" required>
+    <label for="people_needed" style="margin-top:8px;">Liczba osób potrzebnych na tę zmianę</label>
+    <input type="number" id="people_needed" name="people_needed" value="1" min="1" style="width:80px;">
+    <button type="submit">Dodaj</button>
+</form>
+
+<ul class="card-list">
+    {% for s in shift_types %}
+    <li>
+        <div>
+            <strong>{{ s.name }}</strong>
+            <span class="muted">— {{ s.people_needed }} os./dzień</span>
+        </div>
+        <form method="post" action="{{ url_for('delete_shift_type', shift_id=s.id) }}" class="inline" onsubmit="return confirm('Usunąć typ zmiany {{ s.name }}?');">
+            <button type="submit" class="danger">Usuń</button>
+        </form>
+    </li>
+    {% else %}
+    <li>Brak typów zmian. Dodaj pierwszy powyżej (np. Ranna, Popołudniowa, Nocna).</li>
+    {% endfor %}
+</ul>
+{% endblock %}

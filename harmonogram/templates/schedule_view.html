@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ schedule.name }}{% endblock %}
+{% block content %}
+<h2>{{ schedule.name }}</h2>
+<p class="muted">{{ schedule.start_date }} — {{ schedule.end_date }}</p>
+
+<p>
+    <form method="post" action="{{ url_for('reroll_schedule', schedule_id=schedule.id) }}" class="inline" onsubmit="return confirm('Wylosować przypisania ponownie? Obecne zostaną nadpisane.');">
+        <button type="submit">🎲 Losuj ponownie</button>
+    </form>
+    <form method="post" action="{{ url_for('delete_schedule', schedule_id=schedule.id) }}" class="inline" onsubmit="return confirm('Usunąć ten harmonogram?');">
+        <button type="submit" class="danger">Usuń harmonogram</button>
+    </form>
+</p>
+
+{% if not shift_types %}
+<p class="empty-cell">Brak typów zmian.</p>
+{% else %}
+<table>
+    <thead>
+        <tr>
+            <th>Data</th>
+            {% for st in shift_types %}
+            <th>{{ st.name }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for day in days %}
+        <tr>
+            <td>{{ day }}</td>
+            {% for st in shift_types %}
+            <td>
+                {% for a in grid.get(day, {}).get(st.id, []) %}
+                <form method="post" action="{{ url_for('update_assignment', schedule_id=schedule.id, assignment_id=a.id) }}" class="inline">
+                    <select name="employee_id" onchange="this.form.submit()">
+                        <option value="">— brak —</option>
+                        {% for e in employees %}
+                        <option value="{{ e.id }}" {{ 'selected' if a.employee_id == e.id else '' }}>{{ e.name }}{{ '' if e.active else ' (nieaktywny)' }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+                {% else %}
+                <span class="empty-cell">brak slotu</span>
+                {% endfor %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+{% endblock %}

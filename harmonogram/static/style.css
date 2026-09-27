@@ -1,0 +1,147 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+    margin: 0;
+    padding: 20px;
+    color: #222;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    background-color: white;
+    padding: 20px 30px 30px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}
+
+h1 {
+    text-align: center;
+}
+
+nav {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+nav a {
+    text-decoration: none;
+    color: #333;
+    background-color: #e9e9e9;
+    padding: 8px 14px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+nav a.active {
+    background-color: #4CAF50;
+    color: white;
+}
+
+button, input[type=submit] {
+    padding: 8px 16px;
+    font-size: 14px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button:hover, input[type=submit]:hover {
+    background-color: #45a049;
+}
+
+button.secondary {
+    background-color: #777;
+}
+
+button.secondary:hover {
+    background-color: #5c5c5c;
+}
+
+button.danger {
+    background-color: #c0392b;
+}
+
+button.danger:hover {
+    background-color: #992d22;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 15px;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 14px;
+}
+
+th {
+    background-color: #e9e9e9;
+}
+
+form.inline {
+    display: inline;
+}
+
+.form-row {
+    margin: 10px 0;
+}
+
+.form-row label {
+    display: block;
+    margin-bottom: 4px;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+input[type=text], input[type=date], input[type=number], select {
+    padding: 6px 8px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.empty-cell {
+    color: #c0392b;
+    font-style: italic;
+}
+
+.card-list {
+    list-style: none;
+    padding: 0;
+}
+
+.card-list li {
+    background-color: #f7f7f7;
+    padding: 10px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tag {
+    display: inline-block;
+    background-color: #e9e9e9;
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-size: 12px;
+    margin: 2px;
+}
+
+.muted {
+    color: #777;
+    font-size: 13px;
+}

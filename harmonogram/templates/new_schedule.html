@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Nowy harmonogram{% endblock %}
+{% block content %}
+<h2>Nowy harmonogram</h2>
+
+{% if not employees or not shift_types %}
+<p class="empty-cell">
+    Aby wylosować harmonogram, potrzebujesz co najmniej jednego aktywnego pracownika
+    i co najmniej jednego typu zmiany. Uzupełnij je na stronach
+    <a href="{{ url_for('employees') }}">Pracownicy</a> i <a href="{{ url_for('shift_types') }}">Typy zmian</a>.
+</p>
+{% else %}
+<form method="post" action="{{ url_for('new_schedule') }}">
+    <div class="form-row">
+        <label for="name">Nazwa harmonogramu</label>
+        <input type="text" id="name" name="name" placeholder="np. Grafik dyżurów — październik" required>
+    </div>
+    <div class="form-row">
+        <label for="start_date">Data początkowa</label>
+        <input type="date" id="start_date" name="start_date" value="{{ today }}" required>
+    </div>
+    <div class="form-row">
+        <label for="end_date">Data końcowa</label>
+        <input type="date" id="end_date" name="end_date" value="{{ today }}" required>
+    </div>
+    <p class="muted">
+        Losowanie uwzględni {{ employees|length }} aktywnych pracowników i
+        {{ shift_types|length }} typów zmian, pomijając dni niedostępności każdej osoby.
+    </p>
+    <button type="submit">Losuj harmonogram</button>
+</form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Harmonogram{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Harmonogram dyżurów</h1>
+        <nav>
+            <a href="{{ url_for('list_schedules') }}" class="{{ 'active' if request.endpoint in ['list_schedules', 'view_schedule', 'new_schedule'] else '' }}">Harmonogramy</a>
+            <a href="{{ url_for('employees') }}" class="{{ 'active' if request.endpoint == 'employees' else '' }}">Pracownicy</a>
+            <a href="{{ url_for('shift_types') }}" class="{{ 'active' if request.endpoint == 'shift_types' else '' }}">Typy zmian</a>
+        </nav>
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>
