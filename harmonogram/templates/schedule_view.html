@@ -21,7 +21,7 @@
         <tr>
             <th>Data</th>
             {% for st in shift_types %}
-            <th>{{ st.name }}</th>
+            <th>{{ st.name }}<br><span class="muted">({{ st.weight }} dniówki)</span></th>
             {% endfor %}
         </tr>
     </thead>

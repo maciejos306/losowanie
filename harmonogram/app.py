@@ -1,3 +1,4 @@
+import math
 import os
 import random
 import sqlite3
@@ -7,6 +8,22 @@ from flask import Flask, g, redirect, render_template, request, url_for
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "harmonogram.db")
+
+# Dozwolone wagi czasowe tras (w "dniówkach"). Im wyższa waga, tym dłużej
+# trasa trwa (może wchodzić w kolejny dzień kalendarzowy), więc po jej
+# wykonaniu przydzielamy odpowiednią liczbę dni odpoczynku.
+SHIFT_WEIGHTS = [0.5, 1.0, 1.5, 2.0, 2.5]
+
+
+def rest_days_for_weight(weight):
+    """Liczba dni odpoczynku wymaganych po trasie o danej wadze.
+
+    0.5 i 1 dniówka -> 0 dni odpoczynku (normalna, jednodniowa trasa)
+    1.5 dniówki -> 1 dzień odpoczynku
+    2 dniówki -> 1 dzień odpoczynku
+    2.5 dniówki -> 2 dni odpoczynku
+    """
+    return max(0, math.floor(weight - 0.5))
 
 app = Flask(__name__)
 
@@ -47,6 +64,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             people_needed INTEGER NOT NULL DEFAULT 1,
+            weight REAL NOT NULL DEFAULT 1.0,
             order_index INTEGER NOT NULL DEFAULT 0
         );
 
@@ -68,6 +86,13 @@ def init_db():
         );
         """
     )
+    existing_columns = {
+        row[1] for row in db.execute("PRAGMA table_info(shift_types)").fetchall()
+    }
+    if "weight" not in existing_columns:
+        db.execute(
+            "ALTER TABLE shift_types ADD COLUMN weight REAL NOT NULL DEFAULT 1.0"
+        )
     db.commit()
     db.close()
 
@@ -84,13 +109,23 @@ def generate_assignments(db, start_date, end_date, employees, shift_types, unava
     Each day, a person can work at most one shift. Assignment prefers whoever
     has worked the fewest shifts so far in this schedule, with ties broken
     randomly, so the workload spreads out evenly instead of clustering.
+
+    Trasy o wadze większej niż 1 dniówka (1.5/2/2.5) automatycznie blokują
+    danej osobie kolejne dni jako odpoczynek — liczbę dni wyznacza
+    rest_days_for_weight na podstawie wagi trasy.
     """
     assign_counts = {e["id"]: 0 for e in employees}
+    resting_until = {}  # employee_id -> ostatni dzień (date), do którego trwa odpoczynek
     results = []
 
     for day in daterange(start_date, end_date):
         day_str = day.isoformat()
         used_today = set()
+
+        def is_resting(emp_id, day=day):
+            until = resting_until.get(emp_id)
+            return until is not None and until >= day
+
         for shift in shift_types:
             for slot in range(shift["people_needed"]):
                 candidates = [
@@ -98,6 +133,7 @@ def generate_assignments(db, start_date, end_date, employees, shift_types, unava
                     for e in employees
                     if e["id"] not in used_today
                     and day_str not in unavailable_map.get(e["id"], set())
+                    and not is_resting(e["id"])
                 ]
                 if not candidates:
                     results.append((day_str, shift["id"], slot, None))
@@ -108,6 +144,10 @@ def generate_assignments(db, start_date, end_date, employees, shift_types, unava
                 results.append((day_str, shift["id"], slot, chosen["id"]))
                 assign_counts[chosen["id"]] += 1
                 used_today.add(chosen["id"])
+
+                rest_days = rest_days_for_weight(shift["weight"])
+                if rest_days > 0:
+                    resting_until[chosen["id"]] = day + timedelta(days=rest_days)
 
     return results
 
@@ -195,23 +235,34 @@ def shift_types():
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         people_needed = request.form.get("people_needed", "1").strip()
+        weight = request.form.get("weight", "1.0").strip()
         try:
             people_needed = max(1, int(people_needed))
         except ValueError:
             people_needed = 1
+        try:
+            weight = float(weight)
+        except ValueError:
+            weight = 1.0
+        if weight not in SHIFT_WEIGHTS:
+            weight = min(SHIFT_WEIGHTS, key=lambda w: abs(w - weight))
         if name:
             max_order = db.execute(
                 "SELECT COALESCE(MAX(order_index), -1) AS m FROM shift_types"
             ).fetchone()["m"]
             db.execute(
-                "INSERT INTO shift_types (name, people_needed, order_index) VALUES (?, ?, ?)",
-                (name, people_needed, max_order + 1),
+                "INSERT INTO shift_types (name, people_needed, weight, order_index) "
+                "VALUES (?, ?, ?, ?)",
+                (name, people_needed, weight, max_order + 1),
             )
             db.commit()
         return redirect(url_for("shift_types"))
 
     types = db.execute("SELECT * FROM shift_types ORDER BY order_index").fetchall()
-    return render_template("shift_types.html", shift_types=types)
+    rest_days = {t["id"]: rest_days_for_weight(t["weight"]) for t in types}
+    return render_template(
+        "shift_types.html", shift_types=types, weights=SHIFT_WEIGHTS, rest_days=rest_days
+    )
 
 
 @app.route("/zmiany/<int:shift_id>/usun", methods=["POST"])
