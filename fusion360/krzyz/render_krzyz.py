@@ -11,10 +11,10 @@ from PIL import Image, ImageDraw, ImageFont
 
 # Warianty: (nazwa, wysokosc, szerokosc, grubosc belki, przesuniecie poziomej belki)
 WARIANTY = {
-    'A': dict(opis='krzyz lacinski, belka 4 mm', h=40.0, w=26.0, t=4.0, dy=8.0),
-    'B': dict(opis='krzyz lacinski, belka 3 mm (delikatny)', h=40.0, w=26.0, t=3.0, dy=8.0),
-    'C': dict(opis='krzyz lacinski, belka 5 mm (mocniejszy)', h=40.0, w=24.0, t=5.0, dy=8.0),
-    'D': dict(opis='krzyz rownoramienny 40 x 40, belka 4 mm', h=40.0, w=40.0, t=4.0, dy=0.0),
+    'A': dict(opis='krzyż łaciński, belka 4 mm', h=40.0, w=26.0, t=4.0, dy=8.0),
+    'B': dict(opis='krzyż łaciński, belka 3 mm (delikatny)', h=40.0, w=26.0, t=3.0, dy=8.0),
+    'C': dict(opis='krzyż łaciński, belka 5 mm (mocniejszy)', h=40.0, w=24.0, t=5.0, dy=8.0),
+    'D': dict(opis='krzyż równoramienny 40 x 40, belka 4 mm', h=40.0, w=40.0, t=4.0, dy=0.0),
 }
 
 
@@ -74,7 +74,7 @@ def arkusz(ppm=12):
     """Arkusz zbiorczy: 4 warianty obok siebie + rysunek wymiarowy wariantu A."""
     f_tyt = font(34)
     f = font(26)
-    f_small = font(22)
+    f_small = font(24)
     cell_w = int(70 * ppm)
     cell_h = int(80 * ppm)
     top = 90
@@ -82,7 +82,7 @@ def arkusz(ppm=12):
     H = top + cell_h + 40 + int(72 * ppm)
     img = Image.new('1', (W, H), 1)
     d = ImageDraw.Draw(img)
-    d.text((30, 20), 'Krzyz wklesly na urne - warianty (skala: wysokosc 40 mm)', fill=0, font=f_tyt)
+    d.text((30, 20), 'Krzyż wklęsły na urnę - warianty (wszystkie 40 mm wysokości)', fill=0, font=f_tyt)
 
     for i, key in enumerate(WARIANTY):
         v = WARIANTY[key]
@@ -105,7 +105,7 @@ def arkusz(ppm=12):
     # rysunek wymiarowy wariantu A
     y0 = top + cell_h + 40
     d.line([(0, y0 - 20), (W, y0 - 20)], fill=0, width=2)
-    d.text((30, y0), 'Rysunek wymiarowy - wariant A (glebokosc wciecia 1,5 mm)', fill=0, font=f)
+    d.text((30, y0), 'Rysunek wymiarowy - wariant A (głębokość wcięcia 1,5 mm)', fill=0, font=f)
     v = WARIANTY['A']
     pts = punkty_krzyza(v['h'], v['w'], v['t'], v['dy'])
     P = 14  # px/mm na rysunku wymiarowym
@@ -128,15 +128,15 @@ def arkusz(ppm=12):
     # opis parametrow obok
     tx = cx + (hw + 16) * P
     opis = [
-        'Wysokosc calkowita: 40 mm',
-        'Szerokosc calkowita: 26 mm',
-        'Grubosc belek: 4 mm',
-        'Gorna krawedz poziomej belki: 10 mm od gory',
-        'Glebokosc wciecia w urnie: 1,5 mm',
+        'Wysokość całkowita: 40 mm',
+        'Szerokość całkowita: 26 mm',
+        'Grubość belek: 4 mm',
+        'Górna krawędź poziomej belki: 10 mm od góry',
+        'Głębokość wcięcia w urnie: 1,5 mm',
         '',
-        'Wszystkie warianty maja 40 mm wysokosci.',
+        'Wszystkie warianty mają 40 mm wysokości.',
         'Po akceptacji: DXF wybranego wariantu',
-        '(obrys zamkniety, jednostki mm).',
+        '(obrys zamknięty, jednostki mm).',
     ]
     for j, line in enumerate(opis):
         d.text((tx, y0 + 110 + j * 34), line, fill=0, font=f)
