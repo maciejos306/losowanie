@@ -14,6 +14,13 @@ DB_PATH = os.path.join(BASE_DIR, "harmonogram.db")
 # wykonaniu przydzielamy odpowiednią liczbę dni odpoczynku.
 SHIFT_WEIGHTS = [0.5, 1.0, 1.5, 2.0, 2.5]
 
+# Statusy nieobecności, jakie można nadać pracownikowi na dany dzień.
+ABSENCE_REASONS = {
+    "odpoczynek": "Odpoczynek",
+    "urlop": "Urlop",
+    "l4": "L4",
+}
+
 
 def rest_days_for_weight(weight):
     """Liczba dni odpoczynku wymaganych po trasie o danej wadze.
@@ -57,6 +64,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
             date TEXT NOT NULL,
+            reason TEXT NOT NULL DEFAULT 'urlop',
             UNIQUE(employee_id, date)
         );
 
@@ -86,12 +94,19 @@ def init_db():
         );
         """
     )
-    existing_columns = {
+    shift_columns = {
         row[1] for row in db.execute("PRAGMA table_info(shift_types)").fetchall()
     }
-    if "weight" not in existing_columns:
+    if "weight" not in shift_columns:
         db.execute(
             "ALTER TABLE shift_types ADD COLUMN weight REAL NOT NULL DEFAULT 1.0"
+        )
+    unavailability_columns = {
+        row[1] for row in db.execute("PRAGMA table_info(unavailability)").fetchall()
+    }
+    if "reason" not in unavailability_columns:
+        db.execute(
+            "ALTER TABLE unavailability ADD COLUMN reason TEXT NOT NULL DEFAULT 'urlop'"
         )
     db.commit()
     db.close()
@@ -171,16 +186,24 @@ def employees():
 
     people = db.execute("SELECT * FROM employees ORDER BY name").fetchall()
     unavailability = db.execute(
-        "SELECT id, employee_id, date FROM unavailability ORDER BY date"
+        "SELECT id, employee_id, date, reason FROM unavailability ORDER BY date"
     ).fetchall()
     unavail_by_emp = {}
     for row in unavailability:
         unavail_by_emp.setdefault(row["employee_id"], []).append(
-            {"id": row["id"], "date": row["date"]}
+            {
+                "id": row["id"],
+                "date": row["date"],
+                "reason": row["reason"],
+                "reason_label": ABSENCE_REASONS.get(row["reason"], row["reason"]),
+            }
         )
 
     return render_template(
-        "employees.html", employees=people, unavail_by_emp=unavail_by_emp
+        "employees.html",
+        employees=people,
+        unavail_by_emp=unavail_by_emp,
+        reasons=ABSENCE_REASONS,
     )
 
 
@@ -206,12 +229,16 @@ def toggle_employee(employee_id):
 def add_unavailability(employee_id):
     db = get_db()
     date_str = request.form.get("date", "").strip()
+    reason = request.form.get("reason", "urlop").strip().lower()
+    if reason not in ABSENCE_REASONS:
+        reason = "urlop"
     if date_str:
         try:
             datetime.strptime(date_str, "%Y-%m-%d")
             db.execute(
-                "INSERT OR IGNORE INTO unavailability (employee_id, date) VALUES (?, ?)",
-                (employee_id, date_str),
+                "INSERT INTO unavailability (employee_id, date, reason) VALUES (?, ?, ?) "
+                "ON CONFLICT(employee_id, date) DO UPDATE SET reason = excluded.reason",
+                (employee_id, date_str, reason),
             )
             db.commit()
         except ValueError:

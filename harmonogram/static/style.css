@@ -145,3 +145,18 @@ input[type=text], input[type=date], input[type=number], select {
     color: #777;
     font-size: 13px;
 }
+
+.tag.absence-odpoczynek {
+    background-color: #f7ead1;
+    color: #8a5a12;
+}
+
+.tag.absence-urlop {
+    background-color: #dbe9f6;
+    color: #24507a;
+}
+
+.tag.absence-l4 {
+    background-color: #f6dcd9;
+    color: #8c2f26;
+}

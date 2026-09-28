@@ -16,10 +16,10 @@
             <strong>{{ e.name }}</strong>
             {% if not e.active %}<span class="tag">nieaktywny</span>{% endif %}
             <div class="muted">
-                Niedostępny w dniach:
+                Nieobecności:
                 {% for u in unavail_by_emp.get(e.id, []) %}
-                    <span class="tag">
-                        {{ u.date }}
+                    <span class="tag absence absence-{{ u.reason }}">
+                        {{ u.date }} · {{ u.reason_label }}
                         <form method="post" action="{{ url_for('delete_unavailability', row_id=u.id) }}" class="inline">
                             <button type="submit" class="danger" style="padding:0 6px;font-size:11px;">x</button>
                         </form>
@@ -30,7 +30,12 @@
             </div>
             <form method="post" action="{{ url_for('add_unavailability', employee_id=e.id) }}" class="inline" style="margin-top:6px;">
                 <input type="date" name="date" required>
-                <button type="submit" class="secondary">Dodaj niedostępność</button>
+                <select name="reason">
+                    {% for key, label in reasons.items() %}
+                    <option value="{{ key }}" {{ 'selected' if key == 'urlop' else '' }}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="secondary">Dodaj nieobecność</button>
             </form>
         </div>
         <div>
