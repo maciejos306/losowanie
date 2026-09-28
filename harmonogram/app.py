@@ -167,6 +167,110 @@ def generate_assignments(db, start_date, end_date, employees, shift_types, unava
     return results
 
 
+def load_unavailable_map(db):
+    unavailable_map = {}
+    for row in db.execute("SELECT employee_id, date FROM unavailability").fetchall():
+        unavailable_map.setdefault(row["employee_id"], set()).add(row["date"])
+    return unavailable_map
+
+
+def repair_schedule(db, schedule, from_date, locked_ids=()):
+    """Sprawdza kolizje w harmonogramie od dnia `from_date` i podmienia
+    tylko te przydziały, które łamią reguły.
+
+    Dni przed `from_date` zostają zamrożone (ale nadal liczą się do
+    sprawiedliwości i odpoczynku po ciężkich trasach). Przydziały z
+    `locked_ids` (ręcznie wybrane przez użytkownika) są traktowane jako
+    ostateczne i to inne komórki muszą się do nich dostosować.
+    Zwraca liczbę zmienionych przydziałów.
+    """
+    employees = db.execute(
+        "SELECT * FROM employees WHERE active = 1 ORDER BY name"
+    ).fetchall()
+    active_ids = {e["id"] for e in employees}
+    unavailable_map = load_unavailable_map(db)
+    locked_ids = set(locked_ids)
+
+    rows = db.execute(
+        "SELECT a.id, a.date, a.shift_type_id, a.slot, a.employee_id, s.weight "
+        "FROM assignments a JOIN shift_types s ON s.id = a.shift_type_id "
+        "WHERE a.schedule_id = ? ORDER BY a.date, s.order_index, a.slot",
+        (schedule["id"],),
+    ).fetchall()
+    by_day = {}
+    for r in rows:
+        by_day.setdefault(r["date"], []).append(r)
+
+    start_date = datetime.strptime(schedule["start_date"], "%Y-%m-%d").date()
+    end_date = datetime.strptime(schedule["end_date"], "%Y-%m-%d").date()
+
+    assign_counts = {e["id"]: 0 for e in employees}
+    resting_until = {}
+    changed = 0
+
+    def accept(emp_id, weight, day):
+        if emp_id is None:
+            return
+        assign_counts[emp_id] = assign_counts.get(emp_id, 0) + 1
+        rest_days = rest_days_for_weight(weight)
+        if rest_days > 0:
+            resting_until[emp_id] = day + timedelta(days=rest_days)
+
+    for day in daterange(start_date, end_date):
+        day_str = day.isoformat()
+        used_today = set()
+        frozen = day < from_date
+        # Ręcznie wybrane komórki rozpatrujemy pierwsze, żeby reszta dnia
+        # ustąpiła im miejsca, a nie odwrotnie.
+        todays = sorted(by_day.get(day_str, []), key=lambda r: r["id"] not in locked_ids)
+
+        def is_resting(emp_id):
+            until = resting_until.get(emp_id)
+            return until is not None and until >= day
+
+        for a in todays:
+            emp = a["employee_id"]
+            if frozen or a["id"] in locked_ids:
+                if emp is not None:
+                    used_today.add(emp)
+                    accept(emp, a["weight"], day)
+                continue
+
+            valid = (
+                emp is not None
+                and emp in active_ids
+                and emp not in used_today
+                and day_str not in unavailable_map.get(emp, set())
+                and not is_resting(emp)
+            )
+            if not valid:
+                candidates = [
+                    e
+                    for e in employees
+                    if e["id"] not in used_today
+                    and day_str not in unavailable_map.get(e["id"], set())
+                    and not is_resting(e["id"])
+                ]
+                if candidates:
+                    min_count = min(assign_counts[e["id"]] for e in candidates)
+                    best = [e for e in candidates if assign_counts[e["id"]] == min_count]
+                    emp = random.choice(best)["id"]
+                else:
+                    emp = None
+                if emp != a["employee_id"]:
+                    db.execute(
+                        "UPDATE assignments SET employee_id = ? WHERE id = ?",
+                        (emp, a["id"]),
+                    )
+                    changed += 1
+
+            if emp is not None:
+                used_today.add(emp)
+                accept(emp, a["weight"], day)
+
+    return changed
+
+
 @app.route("/")
 def index():
     return redirect(url_for("list_schedules"))
@@ -338,12 +442,7 @@ def new_schedule():
         if not employees or not shift_types_rows:
             return redirect(url_for("new_schedule"))
 
-        unavailability = db.execute(
-            "SELECT employee_id, date FROM unavailability"
-        ).fetchall()
-        unavailable_map = {}
-        for row in unavailability:
-            unavailable_map.setdefault(row["employee_id"], set()).add(row["date"])
+        unavailable_map = load_unavailable_map(db)
 
         cur = db.execute(
             "INSERT INTO schedules (name, start_date, end_date, created_at) VALUES (?, ?, ?, ?)",
@@ -440,10 +539,7 @@ def reroll_schedule(schedule_id):
     shift_types_rows = db.execute(
         "SELECT * FROM shift_types ORDER BY order_index"
     ).fetchall()
-    unavailability = db.execute("SELECT employee_id, date FROM unavailability").fetchall()
-    unavailable_map = {}
-    for row in unavailability:
-        unavailable_map.setdefault(row["employee_id"], set()).add(row["date"])
+    unavailable_map = load_unavailable_map(db)
 
     start_date = datetime.strptime(schedule["start_date"], "%Y-%m-%d").date()
     end_date = datetime.strptime(schedule["end_date"], "%Y-%m-%d").date()
@@ -464,13 +560,59 @@ def reroll_schedule(schedule_id):
 @app.route("/harmonogramy/<int:schedule_id>/przypisanie/<int:assignment_id>", methods=["POST"])
 def update_assignment(schedule_id, assignment_id):
     db = get_db()
+    schedule = db.execute(
+        "SELECT * FROM schedules WHERE id = ?", (schedule_id,)
+    ).fetchone()
+    assignment = db.execute(
+        "SELECT * FROM assignments WHERE id = ? AND schedule_id = ?",
+        (assignment_id, schedule_id),
+    ).fetchone()
+    if schedule is None or assignment is None:
+        return redirect(url_for("list_schedules"))
+
     employee_id = request.form.get("employee_id") or None
     db.execute(
-        "UPDATE assignments SET employee_id = ? WHERE id = ? AND schedule_id = ?",
-        (employee_id, assignment_id, schedule_id),
+        "UPDATE assignments SET employee_id = ? WHERE id = ?",
+        (employee_id, assignment_id),
     )
+    from_date = datetime.strptime(assignment["date"], "%Y-%m-%d").date()
+    changed = repair_schedule(db, schedule, from_date, locked_ids={assignment_id})
     db.commit()
-    return redirect(url_for("view_schedule", schedule_id=schedule_id))
+    return redirect(
+        url_for(
+            "view_schedule",
+            schedule_id=schedule_id,
+            naprawiono=changed,
+            od=assignment["date"],
+        )
+    )
+
+
+@app.route("/harmonogramy/<int:schedule_id>/napraw", methods=["POST"])
+def repair_schedule_view(schedule_id):
+    db = get_db()
+    schedule = db.execute(
+        "SELECT * FROM schedules WHERE id = ?", (schedule_id,)
+    ).fetchone()
+    if schedule is None:
+        return redirect(url_for("list_schedules"))
+
+    from_str = request.form.get("from_date", "").strip() or schedule["start_date"]
+    try:
+        from_date = datetime.strptime(from_str, "%Y-%m-%d").date()
+    except ValueError:
+        from_date = datetime.strptime(schedule["start_date"], "%Y-%m-%d").date()
+
+    changed = repair_schedule(db, schedule, from_date)
+    db.commit()
+    return redirect(
+        url_for(
+            "view_schedule",
+            schedule_id=schedule_id,
+            naprawiono=changed,
+            od=from_date.isoformat(),
+        )
+    )
 
 
 @app.route("/harmonogramy/<int:schedule_id>/usun", methods=["POST"])
@@ -498,12 +640,9 @@ def seed_default_data():
         "Roman Wranik",
         "Krzysztof Misiewicz",
         "Andrzej Czogała",
-        "Bogdan Śmietana",
         "Tomasz Twardzik",
         "Grzegorz Knura",
-        "Marek Lipczyński",
         "Stanisław Piórkowski",
-        "Rafał Łagosz",
         "Tomasz Bubon",
     ]
     db.executemany(

@@ -146,6 +146,14 @@ input[type=text], input[type=date], input[type=number], select {
     font-size: 13px;
 }
 
+.notice {
+    background-color: #e8f3ea;
+    border-left: 4px solid #4CAF50;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
 .tag.absence-odpoczynek {
     background-color: #f7ead1;
     color: #8a5a12;

@@ -12,6 +12,20 @@
         <button type="submit" class="danger">Usuń harmonogram</button>
     </form>
 </p>
+<p>
+    <form method="post" action="{{ url_for('repair_schedule_view', schedule_id=schedule.id) }}" class="inline">
+        <label for="from_date" class="muted">Sprawdź kolizje od dnia:</label>
+        <input type="date" id="from_date" name="from_date" value="{{ schedule.start_date }}" min="{{ schedule.start_date }}" max="{{ schedule.end_date }}">
+        <button type="submit" class="secondary">Sprawdź i napraw</button>
+    </form>
+</p>
+{% if request.args.get('naprawiono') is not none %}
+<p class="notice">
+    Sprawdzono kolizje od {{ request.args.get('od') }}:
+    {% set n = request.args.get('naprawiono')|int %}
+    {% if n == 0 %}wszystko w porządku, nic nie zmieniono.{% elif n == 1 %}podmieniono 1 przydział.{% else %}podmieniono {{ n }} przydziały.{% endif %}
+</p>
+{% endif %}
 
 {% if not shift_types %}
 <p class="empty-cell">Brak typów zmian.</p>
