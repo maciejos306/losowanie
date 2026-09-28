@@ -1,0 +1,10 @@
+{
+    "autodeskProduct": "Fusion360",
+    "type": "script",
+    "author": "maciejos306",
+    "description": {
+        "": "Wycina prosty, minimalistyczny wklesly krzyz (ok. 4 cm) na wybranej plaskiej scianie."
+    },
+    "supportedOS": "windows|mac",
+    "editEnabled": true
+}
