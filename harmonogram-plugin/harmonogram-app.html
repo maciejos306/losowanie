@@ -80,6 +80,29 @@
   @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .notice{background:#1f3326;color:#bfe3c8}}
   .warn{background:var(--l4);color:var(--l4-ink);padding:8px 12px;border-radius:6px;font-size:13px;margin:10px 0}
   .legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:11.5px;color:var(--muted)}
+  #ai-fab{position:fixed;right:16px;bottom:16px;z-index:40;border-radius:999px;padding:11px 16px;background:var(--accent);color:#fff;border:none;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.25);cursor:pointer}
+  #ai-fab[hidden],#ai-panel[hidden]{display:none}
+  #ai-panel{position:fixed;top:0;right:0;bottom:0;width:min(430px,100vw);z-index:45;background:var(--paper);border-left:1px solid var(--line2);box-shadow:-8px 0 30px rgba(0,0,0,.25);display:flex;flex-direction:column}
+  #ai-head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--cream)}
+  #ai-head b{flex:1;font-size:14.5px}
+  #ai-msgs{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:9px}
+  .ai-m{max-width:92%;padding:8px 11px;border-radius:12px;font-size:13.5px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+  .ai-m.u{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:3px}
+  .ai-m.a{align-self:flex-start;background:var(--cream);border:1px solid var(--line);border-bottom-left-radius:3px}
+  .ai-m.s{align-self:center;background:transparent;color:var(--muted);font-size:12px;text-align:center}
+  .ai-m.e{align-self:flex-start;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+  .ai-card{align-self:stretch;border:1.5px solid var(--accent);border-radius:12px;padding:9px 11px;background:var(--paper);font-size:13px}
+  .ai-card .lbl{font-weight:700;margin-bottom:6px}
+  .ai-card .btns{display:flex;gap:6px;flex-wrap:wrap}
+  .ai-card.done{border-color:var(--line2);opacity:.85}
+  #ai-ex{display:flex;flex-wrap:wrap;gap:5px;padding:0 14px 8px}
+  #ai-ex button{font-size:11.5px;padding:4px 9px;border-radius:999px;border:1px solid var(--line2);background:var(--paper);color:var(--ink);cursor:pointer}
+  #ai-foot{padding:10px 14px;border-top:1px solid var(--line);background:var(--cream)}
+  #ai-foot .opts{display:flex;flex-wrap:wrap;gap:12px;font-size:11.5px;color:var(--muted);margin-bottom:6px;align-items:center}
+  #ai-foot .opts label{display:inline-flex;align-items:center;gap:5px}
+  #ai-foot .row2{display:flex;gap:6px;align-items:flex-end}
+  #ai-in{flex:1;resize:none;min-height:42px;max-height:120px;font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line2);border-radius:9px;background:var(--paper);color:var(--ink)}
+  @media (max-width:600px){#ai-panel{width:100vw}}
   .sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:50;padding:0 0 env(safe-area-inset-bottom,0)}
   .sheet.open{display:flex}
   .sheet .panel{background:var(--paper);width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:16px;max-height:80vh;overflow:auto}
@@ -260,6 +283,16 @@
   </div>
 </div>
 
+<button id="ai-fab" hidden title="Asystent AI: pytaj o dniówki i bilans albo zlecaj zmiany w harmonogramie">🤖 Asystent</button>
+<aside id="ai-panel" hidden aria-label="Asystent AI">
+  <div id="ai-head"><b>🤖 Asystent harmonogramu</b><button class="btn ghost sm" id="ai-clear" title="Wyczyść rozmowę">Wyczyść</button><button class="btn ghost sm" id="ai-close" aria-label="Zamknij">✕</button></div>
+  <div id="ai-msgs"></div>
+  <div id="ai-ex"></div>
+  <div id="ai-foot">
+    <div class="opts"><label title="Gdy włączone, asystent od razu wykonuje zmiany. Domyślnie każda zmiana czeka na Twoje zatwierdzenie."><input type="checkbox" id="ai-auto"> wykonuj zmiany od razu</label><label><input type="checkbox" id="ai-deep"> tryb dokładny (wolniejszy)</label></div>
+    <div class="row2"><textarea id="ai-in" rows="1" placeholder="Np. podlicz dniówki Grzegorza Knury albo oznacz Czogałę jako L4 od 1.02 do 5.02"></textarea><button class="btn" id="ai-send">Wyślij</button><button class="btn ghost" id="ai-stop" hidden>Stop</button></div>
+  </div>
+</aside>
 <div class="sheet" id="sheet"><div class="panel">
   <div class="nm" id="sheet-title"></div>
   <div class="muted" id="sheet-sub"></div>
@@ -836,4 +869,155 @@ $("file-import").onchange=ev=>{const f=ev.target.files[0];if(!f)return;const r=n
 document.addEventListener("change",ev=>{const r=ev.target.closest("[data-rate],[data-rateunit]");if(r){guard(async()=>{const id=r.dataset.rate||r.dataset.rateunit;const e=S.emps.find(x=>x.id===id);if(!e)return;if(r.dataset.rate){const v=parseFloat(String(r.value).replace(",","."));if(Number.isFinite(v)&&v>=0)e.rate=Math.round(v*100)/100;else delete e.rate}else e.rateUnit=r.value;await saveE()});return}
 const c=ev.target.closest("[data-empcolor]");if(!c)return;guard(async()=>{const e=S.emps.find(x=>x.id===c.dataset.empcolor);e.color=c.value;await saveE()})});
 render(); boot();
+// ---------- asystent AI (capability "sample") ----------
+(function(){
+  const AI={turns:[],pending:[],busy:false,ctl:null,sample:null,seq:0};
+  const $$=id=>document.getElementById(id);
+  const norm=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/ł/g,"l").replace(/Ł/g,"L").toLowerCase().trim();
+  const isoOk=d=>/^\d{4}-\d{2}-\d{2}$/.test(String(d))&&!Number.isNaN(Date.parse(d+"T00:00:00Z"))&&new Date(d+"T00:00:00Z").toISOString().slice(0,10)===d;
+  const needDate=(d,n)=>{if(!isoOk(d))throw new Error(`Pole ${n} musi mieć format RRRR-MM-DD, otrzymano: ${d}`);return String(d)};
+  const round=v=>Math.round(v*100)/100;
+  function findEmp(x){
+    const q=norm(x);if(!q)throw new Error("Brak kierowcy.");
+    let e=S.emps.find(e=>e.id===String(x));if(e)return e;
+    const hits=S.emps.filter(e=>{const n=norm(e.name);return n===q||n.includes(q)||q.split(/\s+/).every(w=>w.length>2&&n.split(/\s+/).some(p=>p.startsWith(w.slice(0,Math.max(4,w.length-2)))))});
+    if(hits.length===1)return hits[0];
+    throw new Error(hits.length?"Kilku kierowców pasuje: "+hits.map(h=>h.name).join(", ")+". Doprecyzuj.":"Nie znaleziono kierowcy: "+x);
+  }
+  const rangeCheck=(a,b)=>{if(a>b)[a,b]=[b,a];if((new Date(b)-new Date(a))/864e5>120)throw new Error("Zakres jest za długi (maks. 120 dni).");return[a,b]};
+  const monthRange=()=>{const t=fmt(new Date());const m=t.slice(0,7);const last=new Date(+m.slice(0,4),+m.slice(5,7),0).getDate();return[m+"-01",m+"-"+String(last).padStart(2,"0")]};
+  const nice=d=>d.slice(8)+"."+d.slice(5,7)+"."+d.slice(0,4);
+
+  // ---- narzędzia tylko do odczytu ----
+  function podlicz(input){
+    const e=findEmp(input.employeeId||input.name);let [from,to]=[input.from,input.to];if(!from||!to)[from,to]=monthRange();from=needDate(from,"from");to=needDate(to,"to");[from,to]=rangeCheck(from,to);
+    const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);let earned=0;const work=new Set(),duty={zrealizowane:0,anulowane:0,zaplanowane:0};const routes={};
+    for(const s of Object.values(S.scheds))for(const c of s.cells||[]){if(c.empId!==e.id||c.date<from||c.date>to)continue;const sh=shMap[c.shiftId];const dn=cellDn(c,sh);earned+=dn;
+      if(isDutyCell(c,sh)){duty[c.duty==="done"?"zrealizowane":c.duty==="cancelled"?"anulowane":"zaplanowane"]++}else{work.add(c.date);routes[sh?.name||c.shiftId]=(routes[sh?.name||c.shiftId]||0)+1}}
+    const abs={};for(const a of S.abs)if(a.empId===e.id&&a.date>=from&&a.date<=to)abs[a.reason]=(abs[a.reason]||0)+1;
+    const weeks=(ledger(null,true)[e.id]||[]).filter(w=>w.monday<=to&&addDays(w.monday,6)>=from).map(w=>({tydzien_od:w.monday,dniowki:round(w.worked),norma:w.norm,bilans:round(w.delta)}));
+    return{kierowca:e.name,id:e.id,od:from,do:to,dniowki_zarobione:round(earned),ekwiwalent_godzin:round(earned*8.5),dni_pracy:work.size,trasy:routes,dyzury:duty,nieobecnosci_dni:abs,tygodnie_pelne:weeks,saldo_dniowek_narastajaco:round(balances(null)[e.id]||0),uwaga:"Dyżur liczy się tylko zrealizowany. Dzień wolny kosztuje 1 dniówkę z salda (norma 5 na tydzień)."};
+  }
+  function raport(input){const m=/^\d{4}-\d{2}$/.test(String(input.month||""))?input.month:fmt(new Date()).slice(0,7);return{miesiac:m,kierowcy:hrReport(m).map(r=>({kierowca:r.name,id:r.employeeId,dni_pracy:r.days,dniowki:round(r.earned),norma:r.norm,bilans_miesiaca:round(r.delta),dyzur_h:round(r.duty),urlop_dni:r.urlop,l4_dni:r.l4,wnioski_dni:r.wniosek,saldo_narastajaco:round(r.saldoOver)}))}}
+  function dostepnosc(input){const d=needDate(input.date,"date");return{data:d,kierowcy:availability(d).map(r=>({kierowca:r.name,id:r.employeeId,status:r.statusLabel,przydzialy:r.assignments.map(a=>a.shift+(a.part==="pm"?" (po poł.)":a.part==="am"?" (rano)":"")),wolny_po_poludniu:!!r.freeAfternoon}))}}
+  function bilans(input){let m=input.monday?needDate(input.monday,"monday"):weekKey(fmt(new Date()));m=weekKey(m);const w=bilansWeek(m);return{tydzien_od:m,zrodlo:w.src,kierowcow_aktywnych:w.drivers,dni_nieobecnosci:w.absDays,zapotrzebowanie_dniowek:round(w.demand),pojemnosc_norma:round(w.capNorm),pojemnosc_z_nadgodzinami:round(w.capMax),obciazenie_normy_proc:Math.round(w.load*100),status:w.label,zalecenie:w.advice,do_zatrudnienia_z_nadgodzinami:w.hire,do_zatrudnienia_bez_nadgodzin:w.hireNorm}}
+  function miejsca(input){let a=needDate(input.from,"from"),b=input.to?needDate(input.to,"to"):a;[a,b]=rangeCheck(a,b);const out=[];for(const d of range(a,b)){const s=slotsOn(d);out.push({data:d,potrzebnych_kierowcow:s.need,aktywnych:s.active,nieobecnych:s.absent,wolnych_miejsc_na_urlop:Math.max(0,s.free)})}return{dni:out}}
+  function planKierowcy(input){const e=findEmp(input.employeeId);const a=needDate(input.from,"from"),b=input.to?needDate(input.to,"to"):a;const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);const rows=[];for(const s of Object.values(S.scheds))for(const c of s.cells||[]){if(c.empId!==e.id||c.date<a||c.date>b)continue;const sh=shMap[c.shiftId];rows.push({data:c.date,trasa:sh?.name||c.shiftId,dniowki:cellDn(c,sh),dyzur:isDutyCell(c,sh)?(c.duty||"zaplanowany"):undefined,polowa_dnia:c.part||undefined,zablokowane:!!c.locked})}rows.sort((x,y)=>x.data.localeCompare(y.data));return{kierowca:e.name,przydzialy:rows,nieobecnosci:S.abs.filter(x=>x.empId===e.id&&x.date>=a&&x.date<=b).map(x=>x.date+" "+(REASONS[x.reason]||x.reason))}}
+
+  // ---- akcje zmieniające dane ----
+  const schedsOver=(a,b)=>Object.values(S.scheds).filter(s=>s.start<=b&&s.end>=a);
+  async function actAbs(e,from,to,reason,remove){
+    [from,to]=rangeCheck(from,to);
+    if(!remove){if(!REASONS[reason])throw new Error("Rodzaj nieobecności musi być jednym z: l4, urlop, odpoczynek, wniosek.");if(reason==="wniosek"){const bad=checkLeave(e.id,from,to);if(bad.length)throw new Error(leaveNote(bad))}}
+    const prev=S.abs.filter(a=>a.empId===e.id&&a.date>=from&&a.date<=to).map(a=>({...a}));
+    S.abs=S.abs.filter(a=>!(a.empId===e.id&&a.date>=from&&a.date<=to));
+    if(!remove)for(const d of range(from,to))S.abs.push({empId:e.id,date:d,reason});
+    await saveA();
+    const snaps={};let fixed=0;
+    if(!remove&&reason!=="wniosek"){for(const s of schedsOver(from,to)){snaps[s.id]=JSON.stringify(s);const n=repair(s,from>s.start?from:s.start);if(n>0){fixed+=n;await saveSched(s)}}}
+    const left=[];if(!remove&&reason!=="wniosek")for(const s of schedsOver(from,to))for(const c of s.cells)if(c.empId===e.id&&c.date>=from&&c.date<=to)left.push(c.date);
+    const days=[...range(from,to)].length;
+    return{msg:remove?`Usunięto nieobecności ${e.name} (${nice(from)}–${nice(to)}).`:`Zapisano: ${e.name}, ${REASONS[reason]}, ${nice(from)}–${nice(to)} (${days} dni).`+(fixed?` Program podmienił ${fixed} przydziałów, żeby uniknąć kolizji.`:"")+(left.length?` Uwaga: ${left.length} zablokowanych przydziałów tego kierowcy wypada w tym czasie (${[...new Set(left)].slice(0,5).join(", ")}). Odblokuj je i użyj „Sprawdź i napraw”.`:""),
+      undo:async()=>{S.abs=S.abs.filter(a=>!(a.empId===e.id&&a.date>=from&&a.date<=to)).concat(prev);await saveA();for(const [id,js] of Object.entries(snaps)){const o=JSON.parse(js);S.scheds[id]=o;S.noUndo=true;try{await saveSched(o)}finally{S.noUndo=false}}}};
+  }
+  async function actTrasa(e,date,shiftId){
+    const s=schedsOver(date,date)[0];if(!s)throw new Error("Nie ma harmonogramu obejmującego dzień "+date+". Najpierw wylosuj tydzień.");
+    if(shiftId){const sh=S.shifts.find(x=>x.id===shiftId||norm(x.name)===norm(shiftId));if(!sh)throw new Error("Nieznany typ zmiany: "+shiftId+". Dostępne: "+S.shifts.map(x=>x.id+"="+x.name).join(", "));shiftId=sh.id}
+    const before=(S.undo[s.id]||[]).length;S.current=s.id;await assignShift(e.id,date,shiftId||null);
+    const grew=(S.undo[s.id]||[]).length>before;
+    return{msg:shiftId?`Przydzielono ${e.name}: ${S.shifts.find(x=>x.id===shiftId).name}, ${nice(date)} (komórka zablokowana, sprawdzono kolizje od tego dnia).`:`Zwolniono ${e.name} w dniu ${nice(date)} (sprawdzono kolizje).`,undo:async()=>{if(grew){S.current=s.id;await undoLast()}}};
+  }
+  async function actDyzur(e,date,went,hours){
+    const s=schedsOver(date,date)[0];if(!s)throw new Error("Nie ma harmonogramu obejmującego dzień "+date+".");
+    const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);const cs=s.cells.filter(c=>c.date===date&&c.empId===e.id&&isDutyCell(c,shMap[c.shiftId]));if(!cs.length)throw new Error(e.name+" nie ma dyżuru w dniu "+date+".");
+    const prev=cs.map(c=>[c.duty,c.dutyH]);
+    for(const c of cs){if(went===false){c.duty="cancelled";delete c.dutyH}else{c.duty="done";if(Number.isFinite(+hours))c.dutyH=+hours;else delete c.dutyH}}
+    await saveSched(s);const dn=went===false?0:(Number.isFinite(+hours)&&+hours>DUTY_LIMIT_H?1:0.5);
+    return{msg:went===false?`Dyżur ${e.name} (${nice(date)}) anulowany: 0 dniówek.`:`Dyżur ${e.name} (${nice(date)}) zrealizowany${Number.isFinite(+hours)?", "+hours+" h":""}: ${String(dn).replace(".",",")} dniówki.`,undo:async()=>{cs.forEach((c,i)=>{if(prev[i][0]===undefined)delete c.duty;else c.duty=prev[i][0];if(prev[i][1]===undefined)delete c.dutyH;else c.dutyH=prev[i][1]});await saveSched(s)}};
+  }
+  const autoOn=()=>$$("ai-auto").checked;
+  function offer(label,run){ // akcja: od razu albo do zatwierdzenia
+    if(autoOn())return run().then(r=>{addExecuted(r);return"WYKONANO: "+r.msg});
+    const id=++AI.seq;AI.pending.push({id,label,run});renderPending();
+    return"NIE WYKONANO JESZCZE. Zmiana czeka na zatwierdzenie użytkownika w oknie asystenta: "+label+". Napisz użytkownikowi, że czeka na zatwierdzenie.";
+  }
+  const ymd={type:"string",description:"Data w formacie RRRR-MM-DD"};
+  const empP={type:"string",description:"Id kierowcy z listy (np. e3)"};
+  function tools(){return[
+    {name:"podlicz_dniowki",description:"Podlicza dniówki kierowcy w zakresie dat: zarobione dniówki, dni pracy, trasy, dyżury, nieobecności, bilans tygodni i saldo narastające. Bez dat = bieżący miesiąc. Zwraca JSON.",inputSchema:{type:"object",properties:{employeeId:empP,from:ymd,to:ymd},required:["employeeId"]},execute:i=>podlicz(i)},
+    {name:"raport_miesieczny",description:"Raport kadrowy wszystkich kierowców za miesiąc (dniówki, norma, bilans, dyżury, urlopy, L4, saldo). Zwraca JSON.",inputSchema:{type:"object",properties:{month:{type:"string",description:"Miesiąc RRRR-MM, domyślnie bieżący"}}},execute:i=>raport(i)},
+    {name:"dostepnosc_dnia",description:"Kto danego dnia jest dostępny, ma trasę, odpoczywa lub jest nieobecny. Zwraca JSON.",inputSchema:{type:"object",properties:{date:ymd},required:["date"]},execute:i=>dostepnosc(i)},
+    {name:"bilans_tygodnia",description:"Bilans kadrowy tygodnia: zapotrzebowanie w dniówkach kontra pojemność kierowców (norma 5 + 0,5 nadgodzin), status i zalecenie zatrudnienia. Podaj poniedziałek tygodnia lub pomiń dla bieżącego.",inputSchema:{type:"object",properties:{monday:ymd}},execute:i=>bilans(i)},
+    {name:"wolne_miejsca_urlop",description:"Ile osób może jeszcze zgłosić urlop w danych dniach (aktywni minus potrzebni na trasy minus nieobecni).",inputSchema:{type:"object",properties:{from:ymd,to:ymd},required:["from"]},execute:i=>miejsca(i)},
+    {name:"plan_kierowcy",description:"Przydziały i nieobecności jednego kierowcy w zakresie dat.",inputSchema:{type:"object",properties:{employeeId:empP,from:ymd,to:ymd},required:["employeeId","from"]},execute:i=>planKierowcy(i)},
+    {name:"ustaw_nieobecnosc",description:"ZMIANA. Oznacza kierowcy zakres dat jako nieobecność: l4, urlop (zatwierdzony), odpoczynek albo wniosek (oczekujący, podlega limitowi wolnych miejsc). Po zapisie program sam naprawia kolizje w planie.",inputSchema:{type:"object",properties:{employeeId:empP,from:ymd,to:ymd,reason:{type:"string",enum:["l4","urlop","odpoczynek","wniosek"]}},required:["employeeId","from","to","reason"]},execute:i=>{const e=findEmp(i.employeeId),a=needDate(i.from,"from"),b=needDate(i.to,"to"),r=String(i.reason);if(!REASONS[r])throw new Error("Nieznany rodzaj: "+r);if(r==="wniosek"){const [x,y]=rangeCheck(a,b);const bad=checkLeave(e.id,x,y);if(bad.length)throw new Error(leaveNote(bad))}return offer(`${e.name}: ${REASONS[r]}, ${nice(a<=b?a:b)}–${nice(a<=b?b:a)}`,()=>actAbs(e,a,b,r,false))}},
+    {name:"usun_nieobecnosc",description:"ZMIANA. Usuwa wszystkie nieobecności kierowcy w zakresie dat.",inputSchema:{type:"object",properties:{employeeId:empP,from:ymd,to:ymd},required:["employeeId","from","to"]},execute:i=>{const e=findEmp(i.employeeId),a=needDate(i.from,"from"),b=needDate(i.to,"to");return offer(`Usuń nieobecności: ${e.name}, ${nice(a)}–${nice(b)}`,()=>actAbs(e,a,b,null,true))}},
+    {name:"przypisz_trase",description:"ZMIANA. Przydziela kierowcy trasę (id typu zmiany z listy) w danym dniu w istniejącym harmonogramie albo zwalnia go z dnia (shiftId puste). Program sprawdzi kolizje od tego dnia.",inputSchema:{type:"object",properties:{employeeId:empP,date:ymd,shiftId:{type:"string",description:"Id typu zmiany, np. t3. Puste = wolne cały dzień"}},required:["employeeId","date"]},execute:i=>{const e=findEmp(i.employeeId),d=needDate(i.date,"date");const sid=i.shiftId?String(i.shiftId):null;const nm=sid?(S.shifts.find(x=>x.id===sid||norm(x.name)===norm(sid))?.name||sid):"wolne";return offer(`${e.name}: ${nm}, ${nice(d)}`,()=>actTrasa(e,d,sid))}},
+    {name:"rozlicz_dyzur",description:"ZMIANA. Rozlicza dyżur kierowcy: went=false gdy nie wyjechał (dyżur anulowany, 0 dniówek), went=true gdy wyjechał, hours = czas od wyjazdu do powrotu do bazy (powyżej 5 h = 1 dniówka, inaczej 0,5).",inputSchema:{type:"object",properties:{employeeId:empP,date:ymd,went:{type:"boolean"},hours:{type:"number"}},required:["employeeId","date","went"]},execute:i=>{const e=findEmp(i.employeeId),d=needDate(i.date,"date");const w=i.went!==false;return offer(`Dyżur ${e.name}, ${nice(d)}: ${w?"wyjechał"+(Number.isFinite(+i.hours)?", "+i.hours+" h":""):"nie wyjechał (anulowany)"}`,()=>actDyzur(e,d,w,i.hours))}}
+  ]}
+
+  // ---- instrukcja dla modelu ----
+  function rules(){
+    const t=fmt(new Date());const wd=["niedziela","poniedziałek","wtorek","środa","czwartek","piątek","sobota"][wdOf(t)];const s=S.scheds[S.current];
+    return `Jesteś asystentem spedytora i kadrowej w programie „Harmonogram dyżurów” (plugin FlotoMax). Odpowiadaj po polsku, krótko i konkretnie.
+Dziś jest ${wd}, ${t}.
+ZASADY:
+- Wszystkie liczby (dniówki, salda, bilans, dostępność, wolne miejsca) pobieraj narzędziami. Nigdy ich nie zgaduj ani nie licz z pamięci.
+- Daty do narzędzi podawaj jako RRRR-MM-DD. Gdy użytkownik poda dzień i miesiąc bez roku (np. „1.02”), wybierz rok dający datę najbliższą dzisiejszej, preferując przyszłość. Jeśli koniec zakresu wypada przed początkiem, przenieś koniec na następny rok.
+- Kierowców dopasuj do listy poniżej (nazwiska w dopełniaczu, np. „Knury”, sprowadź do mianownika) i przekazuj ich id. Gdy nazwa pasuje do kilku osób albo nie pasuje do nikogo, dopytaj jednym zdaniem.
+- Zmiany w danych wykonuj narzędziami oznaczonymi ZMIANA, jednym wywołaniem na jedną prośbę. Narzędzie może zwrócić, że zmiana czeka na zatwierdzenie. Wtedy napisz dokładnie, co zostanie zmienione, i że czeka na zatwierdzenie w oknie. Nigdy nie twierdź, że coś wykonano, jeśli narzędzie tego nie potwierdziło. Gdy narzędzie zwróci błąd, wyjaśnij go prostym językiem.
+- Pojęcia: dniówka to moneta rozliczeniowa (1 dniówka = 8,5 h). Trasa daje tyle dniówek, ile ma wagi. Norma to 5 dniówek na tydzień, a dzień wolny lub urlop kosztuje 1 dniówkę z salda. Dyżur liczy się tylko zrealizowany (0,5 dniówki, a wyjazd dłuższy niż 5 h to 1). Nieobecności: l4, urlop (zatwierdzony), wniosek (oczekujący), odpoczynek.
+- Nie masz dostępu do stawek ani danych osobowych, więc o nie nie pytaj. Jeśli prośba wykracza poza narzędzia, powiedz to krótko.
+KIEROWCY (id, imię i nazwisko): ${S.emps.map(e=>`${e.id} = ${e.name}${e.active?"":" (nieaktywny)"}`).join("; ")}
+TYPY ZMIAN (id = nazwa, waga w dniówkach): ${S.shifts.map(x=>`${x.id} = ${x.name} (${x.weight})`).join("; ")}
+AKTYWNY HARMONOGRAM: ${s?`${s.name}, ${s.start} – ${s.end}`:"brak"}`;
+  }
+
+  // ---- UI ----
+  function msg(cls,text){const d=document.createElement("div");d.className="ai-m "+cls;d.textContent=text;$$("ai-msgs").appendChild(d);d.scrollIntoView({block:"end"});return d}
+  function addExecuted(r){const box=document.createElement("div");box.className="ai-card done";box.innerHTML=`<div class="lbl">✔ ${esc(r.msg)}</div><div class="btns"></div>`;if(r.undo){const b=document.createElement("button");b.className="btn ghost sm";b.textContent="↩ Cofnij tę zmianę";b.onclick=async()=>{b.disabled=true;try{await r.undo();box.querySelector(".lbl").textContent="↩ Cofnięto: "+r.msg;b.remove();renderPlan();renderList&&renderList()}catch(e){box.querySelector(".lbl").textContent="Nie udało się cofnąć: "+(e.message||e)}};box.querySelector(".btns").appendChild(b)}$$("ai-msgs").appendChild(box);box.scrollIntoView({block:"end"})}
+  function renderPending(){
+    document.querySelectorAll("#ai-msgs .ai-card.pend").forEach(n=>n.remove());
+    for(const p of AI.pending){const box=document.createElement("div");box.className="ai-card pend";box.innerHTML=`<div class="lbl">Do zatwierdzenia: ${esc(p.label)}</div><div class="btns"><button class="btn sm" data-ok="${p.id}">Zatwierdź</button><button class="btn ghost sm" data-no="${p.id}">Odrzuć</button></div>`;$$("ai-msgs").appendChild(box)}
+    if(AI.pending.length)$$("ai-msgs").lastElementChild.scrollIntoView({block:"end"});
+  }
+  async function approve(id){const i=AI.pending.findIndex(p=>p.id===id);if(i<0)return;const p=AI.pending.splice(i,1)[0];renderPending();try{const r=await p.run();addExecuted(r);renderPlan();renderHR();renderBilans()}catch(e){msg("e","Nie wykonano: "+(e.message||e))}}
+  function reject(id){const i=AI.pending.findIndex(p=>p.id===id);if(i<0)return;const p=AI.pending.splice(i,1)[0];renderPending();msg("s","Odrzucono: "+p.label)}
+  const ERR={not_granted:"Nie zezwolono na użycie Claude w tym programie. Zezwól przy kolejnej próbie albo poproś administratora.",sampling_disabled:"Claude nie jest dostępny dla tego konta.",rate_limited:"Za dużo zapytań albo wyczerpany limit. Spróbuj za chwilę.",session_expired:"Sesja wygasła. Zaloguj się ponownie.",refused:"Claude odmówił odpowiedzi na to polecenie.",empty_completion:"Brak odpowiedzi. Sformułuj polecenie inaczej.",upstream_error:"Chwilowy błąd połączenia. Spróbuj ponownie.",prompt_too_large:"Rozmowa jest za długa. Kliknij „Wyczyść”.",tools_unavailable:"Ta przeglądarka nie obsługuje działań asystenta."};
+  async function send(text){
+    text=String(text||"").trim();if(!text||AI.busy||!AI.sample)return;
+    AI.busy=true;$$("ai-send").disabled=true;$$("ai-stop").hidden=false;msg("u",text);$$("ai-in").value="";
+    const bubble=msg("a","Myślę…");AI.ctl=new AbortController();
+    const turns=[...AI.turns,{role:"user",content:text}].slice(-14);
+    if(turns[0].role!=="user")turns.shift();
+    try{
+      const {text:ans}=await AI.sample([{role:"user",content:rules()},...turns],{cache:false,signal:AI.ctl.signal,modelTier:$$("ai-deep").checked?"default":"quick",tools:tools(),onText:({text:t})=>{bubble.textContent=t;bubble.scrollIntoView({block:"end"})}});
+      bubble.textContent=ans;AI.turns.push({role:"user",content:text},{role:"assistant",content:ans});if(AI.turns.length>16)AI.turns=AI.turns.slice(-16);
+    }catch(e){
+      if(e&&e.code==="cancelled"){bubble.textContent=(e.text||"")+(e.text?"\n":"")+"(przerwano)"}
+      else{bubble.className="ai-m e";bubble.textContent=(e&&e.text?e.text+"\n\n":"")+(ERR[e&&e.code]||"Nie udało się: "+(e&&e.message||e))}
+    }finally{AI.busy=false;$$("ai-send").disabled=false;$$("ai-stop").hidden=true;AI.ctl=null;try{renderPlan();renderHR();renderBilans()}catch(_){}}
+  }
+  const EX=["Podlicz dniówki Grzegorza Knury za ten miesiąc","Oznacz Andrzeja Czogałę jako L4 od 1.02 do 5.02","Kto jest dostępny jutro?","Jaki jest bilans na przyszły tydzień?","Ilu kierowców może jeszcze wziąć urlop w piątek?"];
+  async function init(){
+    let smp=null;try{smp=await claude.use("sample")}catch(e){}
+    if(!smp)return; AI.sample=smp;
+    try{AI.auto=localStorage.getItem("ai-auto")==="1"}catch(e){}
+    $$("ai-auto").checked=!!AI.auto;
+    $$("ai-fab").hidden=false;
+    $$("ai-fab").onclick=()=>{const p=$$("ai-panel");p.hidden=!p.hidden;if(!p.hidden){$$("ai-in").focus();if(!$$("ai-msgs").children.length)msg("s","Napisz polecenie. Zmiany danych czekają na Twoje zatwierdzenie, chyba że włączysz „wykonuj zmiany od razu”.")}};
+    $$("ai-close").onclick=()=>{$$("ai-panel").hidden=true};
+    $$("ai-clear").onclick=()=>{if(AI.busy)return;AI.turns=[];AI.pending=[];$$("ai-msgs").innerHTML="";msg("s","Rozmowa wyczyszczona.")};
+    $$("ai-send").onclick=()=>send($$("ai-in").value);
+    $$("ai-stop").onclick=()=>AI.ctl?.abort();
+    $$("ai-in").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send($$("ai-in").value)}});
+    $$("ai-auto").onchange=e=>{try{localStorage.setItem("ai-auto",e.target.checked?"1":"0")}catch(_){}};
+    $$("ai-msgs").addEventListener("click",e=>{const ok=e.target.closest("[data-ok]"),no=e.target.closest("[data-no]");if(ok)approve(+ok.dataset.ok);if(no)reject(+no.dataset.no)});
+    $$("ai-ex").innerHTML=EX.map(x=>`<button type="button">${esc(x)}</button>`).join("");
+    $$("ai-ex").onclick=e=>{const b=e.target.closest("button");if(b){$$("ai-in").value=b.textContent;$$("ai-in").focus()}};
+    window.HarmonogramAssistant={ask:send,tools,rules,pending:()=>AI.pending.slice(),approve,reject};
+  }
+  init();
+})();
+
 </script>
