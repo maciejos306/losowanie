@@ -161,11 +161,11 @@
     </nav>
 
     <div class="screen" id="kadry">
-      <p class="lead" data-label="txt-kadry">Ewidencja dla działu kadr. Godziny liczone z planu: dniówka wg typu zmiany (0,5 → 5 h, 1 → 9 h, 1,5 → 13,5 h, 2 → 18 h, 2,5 → 22,5 h; do zmiany przy typie zmiany). Podstawowe = do 8 h dziennie, reszta to nadgodziny. Dyżur liczony osobno. Kolumny „stan dni wolnych” i „stan nadgodzin” wpisuje ręcznie kadrowa.</p>
+      <p class="lead" data-label="txt-kadry">Ewidencja dla działu kadr. Rozliczamy się dniówkami, jak monetami: trasa daje tyle dniówek, ile ma wagi (dyżur 0,5, Trasy 1–7 po 1, Trasy 8–11 po 2,5, Trasa 12 po 2). Do przeliczeń na godziny: 1 dniówka = 8,5 h (0,5 → 5 h, 1,5 → 13,5 h, 2 → 18 h, 2,5 → 22,5 h; do zmiany przy typie zmiany). Norma to 5 dniówek na tydzień (pon.–ndz.), pomniejszona o dni L4. Każdy dzień wolny przydzielony przez system albo urlop bez wyjazdu kosztuje 1 dniówkę z salda, a dalekie trasy i dodatkowe dni je podnoszą. Dyżur wlicza się jako 0,5 dniówki, a jego godziny widać osobno. Kolumny „stan dni wolnych” i „stan dniówek” wpisuje ręcznie kadrowa.</p>
       <div class="row"><span class="muted">Miesiąc:</span><input type="month" id="hr-month"><button class="btn ghost sm" id="hr-csv">Kopiuj CSV (Excel)</button></div>
       <div class="grid-scroll"><table class="plan hr" id="hr-table"></table></div>
-      <h3 style="margin:22px 0 6px;font-size:15px">Rachunek godzin i dni wolnych</h3>
-      <p class="lead">Saldo nadgodzin = ręczny bilans otwarcia (kolumna „stan nadgodzin” wyżej) + nadgodziny z planów od wybranej daty (godziny ponad 8 h dziennie, dyżury oraz dodatkowe dni pracy). Losowanie układa plan tak, żeby wyrównywać salda: kto ma więcej nadgodzin, dostaje więcej dni wolnych.</p>
+      <h3 style="margin:22px 0 6px;font-size:15px">Rachunek dniówek i dni wolnych</h3>
+      <p class="lead">Saldo dniówek = ręczny bilans otwarcia (kolumna „stan dniówek” wyżej) + suma tygodni od wybranej daty: zarobione dniówki minus norma 5. Dzień wolny lub urlop kosztuje 1 dniówkę, więc saldo może zejść poniżej zera. Liczą się tylko tygodnie w pełni objęte harmonogramami. Losowanie układa plan tak, żeby wyrównywać salda: kto ma więcej dniówek, dostaje więcej dni wolnych.</p>
       <div class="row"><span class="muted">Rachunek liczony od:</span><input type="date" id="hr-since"></div>
       <div class="grid-scroll"><table class="plan hr" id="hr-bal"></table></div>
       <textarea id="hr-out" style="display:none;width:100%;height:100px;font:11px monospace;margin-top:8px"></textarea>
@@ -269,13 +269,25 @@ const needOn=d=>{const s=Object.values(S.scheds).find(x=>x.start<=d&&d<=x.end);r
 function slotsOn(d,exceptEmp){const act=S.emps.filter(e=>e.active);const ids=new Set(act.map(e=>e.id));const gone=new Set(S.abs.filter(a=>a.date===d&&ids.has(a.empId)&&a.empId!==exceptEmp).map(a=>a.empId));const need=needOn(d);return{active:act.length,need,absent:gone.size,free:act.length-need-gone.size}}
 function checkLeave(empId,from,to){const bad=[];for(const d of range(from,to)){const s=slotsOn(d,empId);if(s.free<1)bad.push({date:d,need:s.need,active:s.active,absent:s.absent})}return bad}
 const leaveNote=bad=>`Zgłoszenie odrzucone: w dniach ${bad.map(b=>b.date.slice(8)+"."+b.date.slice(5,7)).join(", ")} nie ma już wolnych miejsc na urlop (potrzebnych kierowców: ${bad[0].need}, aktywnych: ${bad[0].active}, nieobecnych: ${bad[0].absent}).`;
-const BIAS_H=8, biasOf=h=>Math.max(-3,Math.min(3,(h||0)/BIAS_H));
-function overtimeAccrued(excludeId){
-  const since=S.hr?._since||"0000-00-00", shMap={};S.shifts.forEach(x=>shMap[x.id]=x);const acc={},days={};
-  for(const [id,s] of Object.entries(S.scheds)){if(id===excludeId)continue;for(const c of s.cells||[]){if(c.empId==null||c.date<since)continue;const sh=shMap[c.shiftId];const p=cpart(c,sh,c.date);const v=((days[c.empId]??={})[c.date]??={h:0,d:0,x:false});if(p==="pm")v.d+=hoursOf(sh);else{v.h+=hoursOf(sh);if(c.extra)v.x=true}}}
-  for(const [e,m] of Object.entries(days)){let o=0;for(const v of Object.values(m))o+=(v.x?v.h:Math.max(0,v.h-8))+v.d;acc[e]=o}
-  return acc}
-function balances(excludeId){const acc=overtimeAccrued(excludeId),out={};S.emps.forEach(e=>out[e.id]=(+(S.hr?.[e.id]?.overtime)||0)+(acc[e.id]||0));return out}
+const biasOf=d=>Math.max(-3,Math.min(3,d||0));
+const DAY_H=8.5, WEEK_DAYS=5;
+const payHours=sh=>{const w=sh?.weight??1;return w===1?8.5:hoursOf(sh)};
+const fd=v=>(v>0?"+":"")+String(Math.round(v*100)/100).replace(".",",");
+// księga dniówek: dniówka to „moneta”. Trasa daje tyle dniówek, ile ma wagi (dyżur 0,5; Trasa 8–11 po 2,5).
+// Norma to 5 dniówek na tydzień Pon–Ndz. Każdy dzień wolny (przydzielony przez system albo urlop) kosztuje 1 dniówkę z salda,
+// a dalekie trasy i dodatkowe dni podnoszą saldo. L4 zmniejsza normę i nic nie kosztuje.
+// Liczą się tylko tygodnie w pełni objęte harmonogramami i nie wcześniejsze niż data rachunku.
+function ledger(excludeId,ignoreSince){
+  const since=ignoreSince?"0000-00-00":(S.hr?._since||"0000-00-00"), shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
+  const covered=new Set(), earned={};
+  for(const [id,s] of Object.entries(S.scheds)){if(id===excludeId)continue;for(const d of range(s.start,s.end))covered.add(d);
+    for(const c of s.cells||[]){if(c.empId==null)continue;const wk=weekKey(c.date);const m=(earned[c.empId]??={});m[wk]=(m[wk]||0)+(shMap[c.shiftId]?.weight??1)}}
+  const absW={};for(const a of S.abs){if(a.reason!=="urlop"&&a.reason!=="l4")continue;const wk=weekKey(a.date);const o=(((absW[a.empId]??={})[wk])??={l4:new Set(),urlop:new Set()});o[a.reason].add(a.date)}
+  const weeks=[...covered].filter(d=>wdOf(d)===1&&d>=since&&[0,1,2,3,4,5,6].every(k=>covered.has(addDays(d,k)))).sort();
+  const out={};
+  for(const e of S.emps){const arr=[];for(const wk of weeks){const w=earned[e.id]?.[wk], ab=absW[e.id]?.[wk];if(w===undefined&&!ab)continue;const worked=w||0, norm=Math.max(0,WEEK_DAYS-Math.min(WEEK_DAYS,ab?ab.l4.size:0));arr.push({monday:wk,worked,norm,delta:worked-norm,urlop:ab?ab.urlop.size:0})}out[e.id]=arr}
+  return out}
+function balances(excludeId){const L=ledger(excludeId),out={};S.emps.forEach(e=>out[e.id]=(+(S.hr?.[e.id]?.overtime)||0)+(L[e.id]||[]).reduce((a,w)=>a+w.delta,0));return out}
 const shiftsOn=day=>{if(!S.plan)return S.shifts;const ids=new Set(S.plan.days?.[wdOf(day)]||[]);return S.shifts.filter(s=>ids.has(s.id))};
 const COLORS=["#16a34a","#2563eb","#d97706","#0891b2","#9333ea","#ca8a04","#475569","#dc2626","#ea580c","#be123c","#b91c1c","#0284c7","#6b7280","#65a30d","#7c3aed"];
 const PART={full:"cały dzień",am:"rano",pm:"po południu"};
@@ -539,7 +551,7 @@ function renderPlan(){try{updUndo()}catch(e){}
   h+='<tr>'+days.map((d,di)=>{const al=di%2?" alt":"";return isSun(d)?`<th class="sub dstart${al} weekend">cały dzień</th>`:`<th class="sub dstart${al}${isWe(d)?" weekend":""}">rano</th><th class="sub${al}${isWe(d)?" weekend":""}">po poł.</th>`}).join("")+"</tr>";
   for(const e of empsShown){
     const ec=empColor(e), rowBg=`background:${tint(ec,.06)};`;
-    h+=`<tr><td class="who" style="border-left:6px solid ${ec};background:linear-gradient(${tint(ec,.12)},${tint(ec,.12)}),var(--paper)"><span class="edot" style="background:${ec}"></span>${esc(e.name)}<small class="bal" title="Saldo nadgodzin (ręczny stan + z planów). Im wyższe, tym więcej dni wolnych dostaje kierowca przy losowaniu.">saldo ${(balAll[e.id]>0?"+":"")+String(Math.round((balAll[e.id]||0)*10)/10).replace(".",",")} h</small></td>`;
+    h+=`<tr><td class="who" style="border-left:6px solid ${ec};background:linear-gradient(${tint(ec,.12)},${tint(ec,.12)}),var(--paper)"><span class="edot" style="background:${ec}"></span>${esc(e.name)}<small class="bal" title="Saldo dniówek. Im wyższe, tym więcej dni wolnych dostaje kierowca przy losowaniu. Każdy dzień wolny kosztuje 1 dniówkę.">saldo ${fd(balAll[e.id]||0)} dn.</small></td>`;
     let di=-1;for(const d of days){di++;
       const we=isWe(d), span=isSun(d)?1:2, wc=(we?" weekend":"")+(di%2?" alt":"");
       const cs=byEmpDay[e.id]?.[d]||[]; const ab=am[e.id]?.[d];
@@ -732,28 +744,30 @@ function hrReport(month){ // month "YYYY-MM"
   const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
   const inMonth=d=>d.startsWith(month);
   const cells=[];for(const s of Object.values(S.scheds))for(const c of s.cells||[])if(c.empId!=null&&inMonth(c.date))cells.push(c);
-  const balAll=balances(null), since=S.hr?._since||"0000-00-00";
+  const balAll=balances(null), since=S.hr?._since||"0000-00-00", LG=ledger(null,true);
   return S.emps.map(e=>{
     const mine=cells.filter(c=>c.empId===e.id);
-    const byDay={};mine.forEach(c=>{const sh=shMap[c.shiftId];const p=cpart(c,sh,c.date);(byDay[c.date]??={h:0,d:0,w:false,x:false});if(p==="pm")byDay[c.date].d+=hoursOf(sh);else{byDay[c.date].h+=hoursOf(sh);byDay[c.date].w=true;if(c.extra)byDay[c.date].x=true}});
-    let days=0,base=0,over=0,duty=0;for(const v of Object.values(byDay)){if(v.w)days++;if(v.x){over+=v.h}else{base+=Math.min(v.h,8);over+=Math.max(0,v.h-8)}duty+=v.d}
+    const byDay={};mine.forEach(c=>{const sh=shMap[c.shiftId];const p=cpart(c,sh,c.date);(byDay[c.date]??={h:0,d:0,w:false,x:false});if(p==="pm")byDay[c.date].d+=payHours(sh);else{byDay[c.date].h+=payHours(sh);byDay[c.date].w=true;if(c.extra)byDay[c.date].x=true}});
+    let days=0,duty=0;for(const v of Object.values(byDay)){if(v.w)days++;duty+=v.d}
+    const wks=(LG[e.id]||[]).filter(w=>addDays(w.monday,3).startsWith(month));const wkWorked=wks.reduce((a,w)=>a+w.worked,0), wkNorm=wks.reduce((a,w)=>a+w.norm,0);const earnedD=wkWorked, normD=wkNorm, deltaD=wkWorked-wkNorm, base=Math.min(wkWorked,wkNorm)*DAY_H, over=deltaD*DAY_H;
     const abs=S.abs.filter(a=>a.empId===e.id&&inMonth(a.date));
     const cnt=r=>abs.filter(a=>a.reason===r).length;
     const m=S.hr[e.id]||{};
-    return {employeeId:e.id,name:e.name,days,base,over,duty,urlop:cnt("urlop"),l4:cnt("l4"),wniosek:cnt("wniosek"),freeDays:m.freeDays??"",overtime:m.overtime??"",saldoOver:balAll[e.id]||0,dniPrzydzielone:S.abs.filter(a=>a.empId===e.id&&a.reason==="urlop"&&a.date>=since).length,dniZgloszone:S.abs.filter(a=>a.empId===e.id&&a.reason==="wniosek").length,dodatkoweDni:Object.values(byDay).filter(v=>v.x).length};
+    return {employeeId:e.id,name:e.name,days,base,over,earned:earnedD,norm:normD,delta:deltaD,duty,urlop:cnt("urlop"),l4:cnt("l4"),wniosek:cnt("wniosek"),freeDays:m.freeDays??"",overtime:m.overtime??"",saldoOver:balAll[e.id]||0,dniPrzydzielone:S.abs.filter(a=>a.empId===e.id&&a.reason==="urlop"&&a.date>=since).length,dniZgloszone:S.abs.filter(a=>a.empId===e.id&&a.reason==="wniosek").length,dodatkoweDni:Object.values(byDay).filter(v=>v.x).length};
   });
 }
+const fdn=v=>String(Math.round(v*100)/100).replace(".",",");
 function renderHR(){
   const inp=$("hr-month"); if(!inp.value)inp.value=fmt(new Date()).slice(0,7);
   const rows=hrReport(inp.value); const f=v=>String(Math.round(v*10)/10).replace(".",",");
-  $("hr-table").innerHTML=`<tr><th>Kierowca</th><th>dni pracy</th><th>godz. podst.</th><th>nadgodz.</th><th>dyżur h</th><th>urlop</th><th>L4</th><th>wnioski</th><th>stan dni wolnych</th><th>stan nadgodzin</th></tr>`+rows.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.days}</td><td>${f(r.base)}</td><td>${f(r.over)}</td><td>${f(r.duty)}</td><td>${r.urlop}</td><td>${r.l4}</td><td>${r.wniosek}</td><td><input type="number" step="0.5" data-hr-free="${r.employeeId}" value="${r.freeDays}"></td><td><input type="number" step="0.5" data-hr-over="${r.employeeId}" value="${r.overtime}"></td></tr>`).join("");
+  $("hr-table").innerHTML=`<tr><th>Kierowca</th><th>dni pracy</th><th title="dniówki zarobione za trasy i dyżury w tygodniach miesiąca (wg wag zmian)">dniówki</th><th title="5 dniówek na tydzień, pomniejszone o L4">norma</th><th title="dniówki zarobione minus norma. Minus oznacza dni wolne opłacone z salda.">saldo miesiąca (dn.)</th><th>dyżur h</th><th>urlop</th><th>L4</th><th>wnioski</th><th>stan dni wolnych</th><th title="ręczny bilans otwarcia salda dniówek">stan dniówek</th></tr>`+rows.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.days}</td><td>${fdn(r.earned)}</td><td>${fdn(r.norm)}</td><td><b>${fd(r.delta)}</b></td><td>${f(r.duty)}</td><td>${r.urlop}</td><td>${r.l4}</td><td>${r.wniosek}</td><td><input type="number" step="0.5" data-hr-free="${r.employeeId}" value="${r.freeDays}"></td><td><input type="number" step="0.5" data-hr-over="${r.employeeId}" value="${r.overtime}"></td></tr>`).join("");
   const since=S.hr._since||"";$("hr-since").value=since;
-  const fm=v=>(v>0?"+":"")+f(v);
-  $("hr-bal").innerHTML=`<tr><th>Kierowca</th><th title="ręczny bilans otwarcia + nadgodziny z planów">saldo nadgodzin (h)</th><th>dodatkowe dni pracy</th><th title="zatwierdzone urlopy od daty rachunku">dni wolne przydzielone</th><th title="wnioski urlopowe oczekujące na zatwierdzenie">dni wolne zgłoszone</th></tr>`+rows.map(r=>`<tr><td>${esc(r.name)}</td><td><b>${fm(r.saldoOver)}</b></td><td>${r.dodatkoweDni}</td><td>${r.dniPrzydzielone}</td><td>${r.dniZgloszone}</td></tr>`).join("");
+  const fm=fd; const LGa=ledger(null);
+  $("hr-bal").innerHTML=`<tr><th>Kierowca</th><th title="ręczny bilans otwarcia + zarobione dniówki minus norma tygodniowa, sumowane po tygodniach">saldo dniówek</th><th>dodatkowe dni pracy</th><th title="zatwierdzone urlopy od daty rachunku">dni wolne przydzielone</th><th title="wnioski urlopowe oczekujące na zatwierdzenie">dni wolne zgłoszone</th></tr>`+rows.map(r=>`<tr><td>${esc(r.name)}</td><td title="≈ ${esc(fdn(r.saldoOver*DAY_H))} h wg 8,5 h za dniówkę\n${esc((LGa[r.employeeId]||[]).slice(-6).map(w=>w.monday.slice(8)+"."+w.monday.slice(5,7)+": "+fdn(w.worked)+" dn. z normy "+fdn(w.norm)+" → "+fm(w.delta)).join("\n")||"brak policzonych tygodni")}"><b>${fm(r.saldoOver)}</b></td><td>${r.dodatkoweDni}</td><td>${r.dniPrzydzielone}</td><td>${r.dniZgloszone}</td></tr>`).join("");
 }
 $("hr-month").onchange=renderHR;
 $("hr-since").onchange=e=>{S.hr._since=e.target.value||null;if(!S.hr._since)delete S.hr._since;guard(async()=>{await docHR().set({items:S.hr});setStatus("Zapisano datę rachunku.")});renderHR()};
-$("hr-csv").onclick=()=>{const rows=hrReport($("hr-month").value);const csv=["Kierowca;Dni pracy;Godziny podstawowe;Nadgodziny;Dyżur h;Urlop dni;L4 dni;Wnioski;Stan dni wolnych;Stan nadgodzin"].concat(rows.map(r=>[r.name,r.days,r.base,r.over,r.duty,r.urlop,r.l4,r.wniosek,r.freeDays,r.overtime].map(v=>String(v).replace(".",",")).join(";"))).join("\n");const ta=$("hr-out");ta.value=csv;ta.style.display="block";ta.select();navigator.clipboard?.writeText(csv).then(()=>setStatus("CSV skopiowany do schowka — wklej do Excela."),()=>setStatus("CSV widoczny poniżej — skopiuj ręcznie."))};
+$("hr-csv").onclick=()=>{const rows=hrReport($("hr-month").value);const csv=["Kierowca;Dni pracy;Dniówki zarobione;Norma;Saldo miesiąca (dn.);Dyżur h;Urlop dni;L4 dni;Wnioski;Stan dni wolnych;Stan dniówek"].concat(rows.map(r=>[r.name,r.days,r.earned,r.norm,r.delta,r.duty,r.urlop,r.l4,r.wniosek,r.freeDays,r.overtime].map(v=>String(v).replace(".",",")).join(";"))).join("\n");const ta=$("hr-out");ta.value=csv;ta.style.display="block";ta.select();navigator.clipboard?.writeText(csv).then(()=>setStatus("CSV skopiowany do schowka — wklej do Excela."),()=>setStatus("CSV widoczny poniżej — skopiuj ręcznie."))};
 let hrTimer=null;
 document.addEventListener("change",ev=>{const t=ev.target;if(!(t.dataset?.hrFree||t.dataset?.hrOver))return;const id=t.dataset.hrFree||t.dataset.hrOver;(S.hr[id]??={});if(t.dataset.hrFree)S.hr[id].freeDays=t.value===""?null:+t.value;else S.hr[id].overtime=t.value===""?null:+t.value;clearTimeout(hrTimer);hrTimer=setTimeout(()=>guard(async()=>{await docHR().set({items:S.hr});setStatus("Zapisano dane kadrowe.")}),500)});
 
