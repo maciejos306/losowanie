@@ -1,0 +1,731 @@
+<title>Plan Dyżurów</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Karla:wght@400;600;700&display=swap">
+<style>
+  :root{--bg:#faf9f5;--paper:#fff;--ink:#1f2430;--muted:#6b6f76;--line:#e4e1d8;--line2:#d8d4c8;--green:#1f2430;--green2:#151a24;--accent:#d97757;--cream:#f4f1ea;--weekend:#f4ead2;--rest:#f7ead1;--rest-ink:#8a5a12;--urlop:#dbe9f6;--urlop-ink:#24507a;--l4:#f6dcd9;--l4-ink:#8c2f26;--danger:#a5453a;color-scheme:light}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171a16;--paper:#20241f;--ink:#eae7dd;--muted:#a3a091;--line:#33372f;--line2:#3d4136;--green:#5fa47e;--green2:#2f6d4d;--cream:#1b1f1a;--weekend:#2b2f22;--rest:#3a3018;--rest-ink:#e8b96b;--urlop:#1d3346;--urlop-ink:#9cc4ea;--l4:#43221f;--l4-ink:#f0a49a;color-scheme:dark}}
+  :root[data-theme="dark"]{--bg:#171a16;--paper:#20241f;--ink:#eae7dd;--muted:#a3a091;--line:#33372f;--line2:#3d4136;--green:#5fa47e;--green2:#2f6d4d;--cream:#1b1f1a;--weekend:#2b2f22;--rest:#3a3018;--rest-ink:#e8b96b;--urlop:#1d3346;--urlop-ink:#9cc4ea;--l4:#43221f;--l4-ink:#f0a49a;color-scheme:dark}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,'Segoe UI',Roboto,Karla,Arial,sans-serif;padding-block:0}
+  .wrap{max-width:none;margin:0;padding:0;display:flex;min-height:100vh}
+  .side{width:220px;flex:0 0 220px;background:#1f2430;padding:22px 12px;display:flex;flex-direction:column;gap:4px;box-sizing:border-box}
+  .side .brand{color:#fff;font-weight:800;font-size:15px;padding:0 12px 20px}
+  .side a,.side .nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;color:#e7e5df;text-decoration:none;font-size:13.5px;font-weight:600}
+  .side .nav-item.active{background:rgba(255,255,255,.12);color:#fff}
+  .side .sep{border-top:1px solid rgba(255,255,255,.12);margin:10px 12px}
+  .side .small{font-size:10.5px;color:#7d8189;padding:4px 16px;letter-spacing:.04em;text-transform:uppercase}
+  .main{flex:1;min-width:0;padding:16px}
+  @media (max-width:900px){.wrap{display:block}.side{width:auto;flex-direction:row;flex-wrap:wrap;padding:10px 8px;gap:2px}.side .brand{padding:6px 10px;width:100%}.side .sep,.side .small{display:none}.side a,.side .nav-item{padding:7px 10px;font-size:12.5px}.main{padding:10px}}
+  h1,h2{font-family:inherit;margin:0}
+  .board{background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 1px 2px rgba(31,36,48,.06)}
+  .head{background:var(--paper);color:var(--ink);padding:16px 20px;border-bottom:1px solid var(--line)}
+  .head h1{font-size:20px}.head .sub{font-size:12.5px;color:var(--muted);margin-top:3px}
+  nav{display:flex;gap:4px;padding:10px 14px;background:var(--cream);border-bottom:1px solid var(--line);overflow-x:auto}
+  nav button{font-family:inherit;border:none;background:transparent;color:var(--muted);font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;cursor:pointer;white-space:nowrap}
+  nav button.active{background:var(--accent);color:#fff}
+  .screen{padding:16px;display:none}.screen.active{display:block}
+  .lead{font-size:12.5px;color:var(--muted);margin:4px 0 14px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  input,select{font-family:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line2);border-radius:9px;background:var(--paper);color:var(--ink);min-height:40px}
+  .btn{font-family:inherit;font-size:13px;font-weight:700;padding:10px 16px;border-radius:10px;border:none;background:var(--accent);color:#fff;cursor:pointer;min-height:40px}
+  .btn.ghost{background:transparent;border:1.5px solid var(--line2);color:var(--ink)}.btn.danger{background:var(--danger)}.btn.sm{padding:6px 10px;min-height:32px;font-size:12px}
+  .btn:disabled{opacity:.5;cursor:default}
+  ul.cards{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+  ul.cards li{background:var(--cream);border:1px solid var(--line);border-radius:12px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .nm{font-weight:700;font-size:14px}.sb{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .tag{display:inline-flex;align-items:center;gap:4px;background:var(--paper);border:1px solid var(--line2);border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;margin:2px 4px 2px 0}
+  .tag.rest,.chip.rest{background:var(--rest);color:var(--rest-ink);border-color:#e6c98a}
+  .tag.urlop,.chip.urlop{background:var(--urlop);color:var(--urlop-ink);border-color:#9cc4ea}
+  .tag.l4,.chip.l4{background:var(--l4);color:var(--l4-ink);border-color:#e6a49a}
+  .tag button{border:none;background:transparent;color:inherit;font-weight:700;cursor:pointer;padding:0 2px}
+  .dot{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:7px;vertical-align:-1px}
+  .grid-scroll{overflow-x:auto;border-radius:12px;border:1px solid var(--line2)}
+  table.plan{border-collapse:separate;border-spacing:0;min-width:1000px;width:100%}
+  table.plan th,table.plan td{border-bottom:1px solid var(--line);border-right:1px solid var(--line)}
+  table.plan th:first-child,table.plan td:first-child{position:sticky;left:0;background:var(--paper);z-index:5;border-right:2px solid var(--line2)}
+  th.corner{background:var(--cream);width:150px;min-width:150px}
+  th.day{background:var(--cream);padding:8px 4px;text-align:center;font-size:12.5px}
+  th.sub{background:var(--cream);font-family:Karla;font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:3px 2px;text-align:center;font-weight:600}
+  td.cell.half{min-width:64px}
+  .est{display:block;margin-top:4px;font-family:Karla;font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:none;color:var(--ink);background:var(--paper);border:1px solid var(--line2);border-radius:999px;padding:2px 8px;cursor:pointer;width:max-content;margin-inline:auto}
+  .est i{font-style:normal;font-weight:500;color:var(--muted);margin-left:6px}
+  table.plan .dstart,table.tl .dstart{border-left:3px solid var(--day-sep)!important}
+  table.plan .alt,table.tl th.alt,table.tl td.alt .lane{background-image:linear-gradient(rgba(128,128,128,.13),rgba(128,128,128,.13))}
+  table.tl td.alt .lane{background-image:linear-gradient(rgba(128,128,128,.13),rgba(128,128,128,.13)),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:100% 100%,25% 100%}
+  table.plan th.day,table.tl th.day{border-bottom:2px solid var(--day-sep)}
+  :root{--day-sep:#8f8a7a}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--day-sep:#7c806f}}:root[data-theme="dark"]{--day-sep:#7c806f}
+  th.day small{display:block;font-family:Karla;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  th.weekend,td.weekend{background:var(--weekend)}
+  td.who{padding:8px 12px;font-weight:700;font-size:12.5px;white-space:nowrap}
+  td.cell{padding:4px;text-align:center;min-width:100px}
+  .chip{display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;padding:6px 4px;min-height:40px;font-weight:800;font-size:12.5px;color:#fff;line-height:1.15;cursor:pointer;border:1.5px solid rgba(0,0,0,.12);width:100%;background-image:linear-gradient(180deg,rgba(255,255,255,.18),rgba(0,0,0,.08));box-shadow:0 1px 2px rgba(0,0,0,.18);text-shadow:0 1px 1px rgba(0,0,0,.25);letter-spacing:.01em}
+  .chip.off,.chip.rest,.chip.urlop,.chip.l4,.chip.wniosek{background-image:none;box-shadow:none;text-shadow:none;letter-spacing:0}
+  .chip small{font-weight:600;font-size:9px;opacity:.85}
+  .chip.off{background:transparent;color:var(--muted);font-weight:600;font-size:11px;border:1.5px dashed var(--line2)}
+  .chip.rest,.chip.urlop,.chip.l4{font-size:11px;cursor:default}
+  .chip.locked{outline:2px solid var(--ink);outline-offset:-2px}
+  .chip.rest.carry{opacity:.55;border-style:dashed;background-image:repeating-linear-gradient(135deg,transparent 0 6px,rgba(0,0,0,.05) 6px 8px)}
+  .chip.rest.carry small{opacity:1;font-size:9px}
+  .notice{background:#e8f3ea;color:#1e4a2f;border-left:4px solid #2f855a;padding:8px 12px;border-radius:6px;font-size:13px;margin:10px 0}
+  :root[data-theme="dark"] .notice{background:#1f3326;color:#bfe3c8}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .notice{background:#1f3326;color:#bfe3c8}}
+  .warn{background:var(--l4);color:var(--l4-ink);padding:8px 12px;border-radius:6px;font-size:13px;margin:10px 0}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:11.5px;color:var(--muted)}
+  .sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:50;padding:0 0 env(safe-area-inset-bottom,0)}
+  .sheet.open{display:flex}
+  .sheet .panel{background:var(--paper);width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:16px;max-height:80vh;overflow:auto}
+  .sheet .opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:10px}
+  .sheet .opts .chip{min-height:46px}
+  .muted{color:var(--muted);font-size:12px}
+  body.labels-edit [data-label]{outline:2px dashed #e0a030;outline-offset:2px;cursor:text;border-radius:4px}
+  body.labels-edit [data-label]:focus{outline:2px solid #e0a030;background:rgba(224,160,48,.12)}
+  .palette{display:flex;gap:6px;overflow-x:auto;padding:6px 2px 10px;touch-action:pan-x}
+  .palette .chip{width:auto;min-width:84px;flex:0 0 auto;min-height:36px;cursor:grab;touch-action:none}
+  table.plan .chip{touch-action:pan-y}
+  .chip,.palette{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+  .drag-ghost{position:fixed;z-index:100;pointer-events:none;opacity:.92;transform:translate(-50%,-50%);box-shadow:0 8px 20px rgba(0,0,0,.3);width:auto!important;min-width:0!important;max-width:120px;min-height:0!important;padding:6px 10px!important;font-size:11px!important;border-radius:8px}
+  .drag-ghost small{display:none}
+  .palette .chip{min-width:0;padding:6px 10px;min-height:32px;font-size:11.5px}
+  td.cell.drop-over{outline:3px dashed var(--accent);outline-offset:-3px}
+  .dysp{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+  .dysp .card{background:var(--cream);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .dysp .st{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;margin-top:4px}
+  .dysp .st.free{background:#e8f3ea;color:#1e4a2f}.dysp .st.busy{background:#e3e7ee;color:#1f2430}.dysp .st.rest{background:var(--rest);color:var(--rest-ink)}.dysp .st.absent{background:var(--l4);color:var(--l4-ink)}
+  .chip.wniosek,.tag.wniosek{background:#fff3c4;color:#7a5a00;border-color:#e6cf6a}
+  table.hr td,table.hr th{text-align:right;padding:6px 8px;white-space:nowrap}
+  table.hr td:first-child,table.hr th:first-child{text-align:left}
+  table.hr input{width:70px;padding:4px 6px;min-height:0;font-size:12px;text-align:right}
+  .view-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  table.tl{border-collapse:separate;border-spacing:0;min-width:1760px;width:100%;table-layout:fixed}
+  table.tl th,table.tl td{border-bottom:1px solid var(--line);border-right:1px solid var(--line)}
+  table.tl th:first-child,table.tl td:first-child{position:sticky;left:0;background:var(--paper);z-index:5;border-right:2px solid var(--line2);text-align:left;padding:8px 12px;font-weight:700;font-size:12.5px;white-space:nowrap}
+  table.tl th.day{background:var(--cream);padding:6px 4px;font-size:12.5px;text-align:center}
+  table.tl th.day small{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  table.tl th.weekend,table.tl td.weekend .lane{background:var(--weekend)}
+  table.tl th.sum,table.tl td.sum{text-align:right;padding:6px 10px;font-variant-numeric:tabular-nums;background:var(--cream);font-weight:700;font-size:12.5px}
+  table.tl td.sum small{display:block;font-weight:400;color:var(--muted);font-size:10px}
+  .ticks{display:flex;font-size:9px;color:var(--muted);padding:0 0 2px;font-variant-numeric:tabular-nums}
+  .ticks span{flex:1;text-align:left;padding-left:2px;border-left:1px solid var(--line)}
+  table.tl td.cell{padding:0;height:50px;position:relative}
+  .lane{position:relative;height:50px;background-image:linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:25% 100%}
+  .lane::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(31,36,48,.06) 0 25%,transparent 25% 91.7%,rgba(31,36,48,.06) 91.7%);pointer-events:none}
+  .bar{position:absolute;top:7px;height:36px;border-radius:7px;color:#fff;font-weight:800;font-size:12px;display:flex;flex-direction:column;justify-content:center;padding:0 8px;overflow:hidden;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.18);background-image:linear-gradient(180deg,rgba(255,255,255,.18),rgba(0,0,0,.08));text-shadow:0 1px 1px rgba(0,0,0,.25);border:1.5px solid rgba(0,0,0,.12);z-index:1;cursor:pointer}
+  .bar small{font-weight:600;font-size:10px;opacity:.9}
+  .kpis{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 12px}
+  .kpi{background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:12px;color:var(--muted)}
+  .kpi b{display:block;font-size:18px;color:var(--ink);font-variant-numeric:tabular-nums}
+  .tl-legend{display:flex;gap:12px;flex-wrap:wrap;padding:10px 2px;font-size:12px;color:var(--muted)}
+  .tl-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px}
+  .bar.spill{border-top-right-radius:0;border-bottom-right-radius:0;border-right:none}
+  .bar.cont{border-top-left-radius:0;border-bottom-left-radius:0;border-left:none;background-image:linear-gradient(180deg,rgba(255,255,255,.18),rgba(0,0,0,.08)),repeating-linear-gradient(135deg,transparent 0 6px,rgba(255,255,255,.12) 6px 10px);cursor:default}
+  .bar.locked{outline:2px solid var(--ink);outline-offset:-2px}
+  .tl-rest{position:absolute;top:7px;height:36px;left:2%;right:2%;border-radius:7px;background:var(--rest);color:var(--rest-ink);border:1.5px solid #e6c98a;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;z-index:0}
+  .tl-rest.carry{opacity:.55;border-style:dashed}
+  .tl-off{position:absolute;top:7px;height:36px;left:2%;right:2%;border-radius:7px;border:1.5px dashed var(--line2);color:var(--muted);font-size:10.5px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .tl-abs{position:absolute;top:7px;height:36px;left:2%;right:2%;border-radius:7px;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .tl-abs.urlop{background:var(--urlop);color:var(--urlop-ink)}.tl-abs.l4{background:var(--l4);color:var(--l4-ink)}.tl-abs.wniosek{background:#fff3c4;color:#7a5a00}.tl-abs.odpoczynek{background:var(--rest);color:var(--rest-ink)}
+  .edot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:-1px;box-shadow:0 0 0 2px rgba(255,255,255,.7)}
+  .status{font-size:11.5px;color:var(--muted);padding:6px 16px;border-top:1px solid var(--line);background:var(--cream)}
+</style>
+
+<div class="wrap">
+  <div class="side">
+    <div class="brand">FlotoMax</div>
+    <div class="small">System</div>
+    <a href="https://claude.ai/artifact/2TSUZWZk3nMmueoP7ELqAk" class="nav-item">📍 Punkty dostaw</a>
+    <a href="https://claude.ai/artifact/2TSUZWZk3nMmueoP7ELqAk" class="nav-item">🗺️ Nowe zlecenie</a>
+    <a href="https://claude.ai/artifact/2TSUZWZk3nMmueoP7ELqAk" class="nav-item">🚐 Zestawienie tras</a>
+    <a href="https://claude.ai/artifact/2TSUZWZk3nMmueoP7ELqAk" class="nav-item">📦 Ewidencja opakowań</a>
+    <a href="https://claude.ai/artifact/2TSUZWZk3nMmueoP7ELqAk" class="nav-item">📊 Analiza</a>
+    <div class="sep"></div>
+    <div class="small">Plugin</div>
+    <span class="nav-item active">🗓 Harmonogram dyżurów</span>
+  </div>
+  <div class="main">
+  <div class="board">
+    <div class="head" style="align-items:flex-start;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h1 data-label="title">Plan dyżurów</h1><div class="sub" data-label="subtitle">Losowy przydział tras z automatycznym odpoczynkiem po dalekich trasach</div></div><button class="btn ghost sm" id="btn-labels">✎ Edytuj napisy</button></div>
+    <nav>
+      <button class="tab active" data-tab="plan" data-label="tab-plan">Plan tygodnia</button>
+      <button class="tab" data-tab="lista" data-label="tab-lista">Harmonogramy</button>
+      <button class="tab" data-tab="ludzie" data-label="tab-ludzie">Pracownicy</button>
+      <button class="tab" data-tab="trasy" data-label="tab-trasy">Typy zmian</button>
+      <button class="tab" data-tab="zalozenia" data-label="tab-zalozenia">Założenia</button>
+      <button class="tab" data-tab="dysp" data-label="tab-dysp">Dyspozycja dnia</button>
+      <button class="tab" data-tab="kadry" data-label="tab-kadry">Kadry</button>
+    </nav>
+
+    <div class="screen" id="kadry">
+      <p class="lead" data-label="txt-kadry">Ewidencja dla działu kadr. Godziny liczone z planu: dniówka wg typu zmiany (0,5 → 5 h, 1 → 9 h, 1,5 → 13,5 h, 2 → 18 h, 2,5 → 22,5 h; do zmiany przy typie zmiany). Podstawowe = do 8 h dziennie, reszta to nadgodziny. Dyżur liczony osobno. Kolumny „stan dni wolnych” i „stan nadgodzin” wpisuje ręcznie kadrowa.</p>
+      <div class="row"><span class="muted">Miesiąc:</span><input type="month" id="hr-month"><button class="btn ghost sm" id="hr-csv">Kopiuj CSV (Excel)</button></div>
+      <div class="grid-scroll"><table class="plan hr" id="hr-table"></table></div>
+      <textarea id="hr-out" style="display:none;width:100%;height:100px;font:11px monospace;margin-top:8px"></textarea>
+    </div>
+
+    <div class="screen" id="dysp">
+      <p class="lead" data-label="txt-dysp">To widok dla FlotoMax: kto danego dnia jest dostępny do planowania trasy, kto ma już przydzieloną trasę, kto odpoczywa lub jest nieobecny. FlotoMax pobiera te dane przez API pluginu (<code>HarmonogramPlugin.availability(data)</code>) albo z eksportu poniżej.</p>
+      <div class="row"><input type="date" id="dysp-date"><button class="btn ghost sm" id="dysp-copy">Kopiuj JSON dla FlotoMax</button></div>
+      <div id="dysp-list"></div>
+    </div>
+
+    <div class="screen" id="zalozenia">
+      <p class="lead" data-label="txt2">Zaznacz, które trasy jeżdżą w dany dzień tygodnia. Losowanie tworzy miejsca tylko dla zaznaczonych. Zmiany zapisują się od razu i dotyczą <b>nowych</b> losowań.</p>
+      <div class="row"><button class="btn ghost sm" id="btn-plan-all">Zaznacz wszystko</button><button class="btn ghost sm" id="btn-plan-none">Odznacz wszystko</button></div>
+      <div class="grid-scroll"><table class="plan" id="plan-template"></table></div>
+    </div>
+
+    <div class="screen active" id="plan">
+      <div class="row">
+        <select id="sched-select" style="flex:1;min-width:200px"></select>
+        <button class="btn ghost" id="btn-undo" disabled>↩ Cofnij</button>
+        <button class="btn ghost" id="btn-reroll">🎲 Losuj ponownie</button>
+      </div>
+      <div class="row">
+        <span class="muted">Sprawdź kolizje od:</span>
+        <input type="date" id="repair-from">
+        <button class="btn ghost sm" id="btn-repair">Sprawdź i napraw</button>
+      </div>
+      <div class="row"><label class="muted" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="auto-repair" checked style="min-height:0;width:18px;height:18px"> po ręcznej zmianie sprawdzaj kolizje i podmieniaj resztę</label></div>
+      <div id="notice"></div>
+      <p class="lead" data-label="txt3">Ręcznie ustawione komórki są <b>zablokowane</b> (ciemna ramka) — losowanie ponowne i naprawa kolizji ich nie ruszają, dopóki nie odblokujesz ich w oknie edycji. Losowanie uwzględnia poprzedni tydzień (odpoczynek po niedzielnej dalekiej trasie, ciągłość tras) i pilnuje, żeby każdy miał co najmniej 2 dni wolne w tygodniu Pon–Ndz. Dotknij komórki, żeby ręcznie zmienić trasę. Program zamrozi dni wcześniejsze, uzna Twój wybór za ostateczny i od tego dnia podmieni tylko kolidujące przydziały.</p>
+      <div class="row" style="margin:0 0 8px"><span class="muted">Widok:</span><button class="btn ghost sm view-btn active" data-view="chips">Kafelki</button><button class="btn ghost sm view-btn" data-view="hours">Godziny (oś 24 h)</button></div>
+      <div id="timeline" style="display:none"></div>
+      <div id="chips-view">
+      <div class="muted" style="margin-bottom:4px" data-label="txt6">Przeciągnij trasę z paska na komórkę (albo kafelek między komórkami). Dotknięcie komórki otwiera wybór.</div>
+      <div class="palette" id="palette"></div>
+      <div class="grid-scroll"><table class="plan" id="plan-table"></table></div>
+      </div>
+      <div id="unfilled"></div>
+      <div class="legend">
+        <span><span class="tag rest">☾ odpoczynek</span> automatyczny po dalekiej trasie</span>
+        <span><span class="tag rest" style="opacity:.55;border-style:dashed">☾ z pop. tygodnia</span> odpoczynek przeniesiony z poprzedniego tygodnia</span>
+        <span><span class="tag urlop">urlop</span> <span class="tag l4">L4</span> nieobecności</span>
+        <span><span class="tag">— wolne —</span> brak przydziału</span>
+      </div>
+    </div>
+
+    <div class="screen" id="lista">
+      <h2 style="font-size:16px" data-label="txt1">Nowy harmonogram</h2>
+      <div class="row">
+        <input id="new-name" placeholder="Nazwa (np. Tydzień 40)" style="flex:1;min-width:160px">
+        <input type="date" id="new-start"><input type="date" id="new-end">
+        <button class="btn" id="btn-new">Losuj harmonogram</button>
+        <button class="btn ghost" id="btn-next-week">Losuj następny tydzień →</button>
+      </div>
+      <h2 style="font-size:16px;margin-top:14px" data-label="txt-zapisane">Zapisane</h2>
+      <div class="row" style="margin:6px 0 10px"><button class="btn ghost sm" id="btn-export">⬇ Eksport danych (JSON)</button><label class="btn ghost sm" style="display:inline-flex;align-items:center;cursor:pointer">⬆ Import danych (JSON)<input type="file" id="file-import" accept="application/json" style="display:none"></label><textarea id="export-out" style="display:none;width:100%;height:120px;font:11px monospace;margin-top:8px"></textarea></div>
+      <ul class="cards" id="sched-list"></ul>
+    </div>
+
+    <div class="screen" id="ludzie">
+      <div class="row"><input id="emp-name" placeholder="Imię i nazwisko" style="flex:1;min-width:200px"><button class="btn" id="btn-emp">Dodaj</button></div>
+      <ul class="cards" id="emp-list"></ul>
+    </div>
+
+    <div class="screen" id="trasy">
+      <p class="lead" data-label="txt4">Pora: „rano” i „po południu” można łączyć u jednej osoby tego samego dnia (np. trasa rano + Nagel po południu); „po południu” to praca po godzinach — nie koliduje z trasą całodzienną, nie liczy się jako dzień pracy i nie przerywa ciągu tras (blokuje ją tylko odpoczynek i nieobecność). W niedzielę podział nie obowiązuje — każda trasa to cały dzień. Waga w dniówkach: 0,5 i 1 → bez odpoczynku; 1,5 i 2 → 1 dzień; 2,5 → 2 dni odpoczynku po trasie.</p>
+      <div class="row">
+        <input id="shift-name" placeholder="np. Trasa 12" style="width:150px">
+        <select id="shift-people"><option value="1">1 os./dzień</option><option value="2">2 os./dzień</option><option value="3">3 os./dzień</option></select>
+        <select id="shift-part"><option value="full">cały dzień</option><option value="am">rano</option><option value="pm">po południu</option></select>
+        <select id="shift-weight"><option value="0.5">0,5 dniówki</option><option value="1" selected>1 dniówka</option><option value="1.5">1,5 dniówki</option><option value="2">2 dniówki</option><option value="2.5">2,5 dniówki</option></select>
+        <button class="btn" id="btn-shift">Dodaj</button>
+      </div>
+      <ul class="cards" id="shift-list"></ul>
+    </div>
+    <div class="status" id="status">Łączenie z bazą…</div>
+  </div>
+  </div>
+</div>
+
+<div class="sheet" id="sheet"><div class="panel">
+  <div class="nm" id="sheet-title"></div>
+  <div class="muted" id="sheet-sub"></div>
+  <div class="opts" id="sheet-opts"></div>
+  <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn ghost" id="sheet-close">Anuluj</button></div>
+</div></div>
+
+<script>
+// ---------- state ----------
+const S = { emps:[], shifts:[], abs:[], plan:null, scheds:{}, current:null, db:null, ro:false };
+const lockedKeysOf=s=>new Set((s.cells||[]).filter(c=>c.locked).map(c=>c.date+"|"+c.shiftId+"|"+c.slot));
+// plan = {days:{"1":[shiftId,...],...}} klucz = dzień tygodnia (0=Nd..6=So); null = wszystkie trasy codziennie
+const WD=[1,2,3,4,5,6,0];
+const wdOf=d=>new Date(d+"T00:00:00Z").getUTCDay();
+const estOf=(s,d)=>{const o=s.est?.[d];if(Number.isFinite(o))return{n:o,manual:true};return{n:shiftsOn(d).filter(x=>(x.part||"full")!=="pm").reduce((a,x)=>a+(+x.people||1),0),manual:false}};
+const estTag=(s,d)=>{const e=estOf(s,d);const got=s.cells.filter(c=>c.date===d&&c.empId!=null&&(S.shifts.find(x=>x.id===c.shiftId)?.part||"full")!=="pm").length;return `<span class="est" data-est="${d}" title="Szacowana liczba tras w tym dniu${e.manual?" (ustawiona ręcznie)":" (z Założeń)"}. Kliknij, aby zmienić — FlotoMax może ją aktualizować na bieżąco. Przydzielono: ${got}.">≈ ${e.n} ${e.n===1?"trasa":e.n>=2&&e.n<=4?"trasy":"tras"}${e.manual?" ✎":""}<i>przydz. ${got}</i></span>`};
+const shiftsOn=day=>{if(!S.plan)return S.shifts;const ids=new Set(S.plan.days?.[wdOf(day)]||[]);return S.shifts.filter(s=>ids.has(s.id))};
+const COLORS=["#16a34a","#2563eb","#d97706","#0891b2","#9333ea","#ca8a04","#475569","#dc2626","#ea580c","#be123c","#b91c1c","#0284c7","#6b7280","#65a30d","#7c3aed"];
+const PART={full:"cały dzień",am:"rano",pm:"po południu"};
+const cpart=(c,sh,day)=>(day&&wdOf(day)===0)?"full":(c&&c.part)||(sh?.part||"full");
+const partOf=(sh,day)=>(day&&wdOf(day)===0)?"full":(sh?.part||"full");
+// "pm" (po południu) to praca po godzinach: koliduje tylko z innym "pm"
+const clash=(used,emp,part)=>{const u=used[emp];if(!u)return false;if(part==="pm")return u.has("pm");return u.has("full")||u.has("am")};
+const mark=(used,emp,part)=>(used[emp]??=new Set()).add(part);
+const REASONS={odpoczynek:"Odpoczynek",urlop:"Urlop",l4:"L4",wniosek:"Wniosek urlopowy"};
+const BLOCKING_REASONS=new Set(["odpoczynek","urlop","l4"]); // wniosek nie blokuje, dopóki nie zostanie zatwierdzony
+const hoursOf=sh=>{if(Number.isFinite(sh?.hours))return sh.hours;const w=sh?.weight??1;return w===0.5?5:w>=2.5?20:w>=2?16:w>=1.5?12:8};
+const startOf=(sh,date)=>{if(date&&sh?.startDow&&Number.isFinite(sh.startDow[wdOf(date)]))return sh.startDow[wdOf(date)];if(Number.isFinite(sh?.start))return sh.start;const w=sh?.weight??1;const p=sh?.part||"full";if(p==="pm")return 14.5;return w>=2.5?21:w>=2?13:1.5};
+const fmtH=x=>{const hh=Math.floor(x)%24,mm=Math.round((x%1)*60);return String(hh).padStart(2,"0")+":"+String(mm).padStart(2,"0")};
+const hasCatC=e=>e.catC!==false;
+const EMP_COLORS=["#0ea5e9","#f59e0b","#10b981","#ef4444","#8b5cf6","#ec4899","#14b8a6","#f97316","#6366f1","#84cc16","#a16207","#0891b2"];
+const empColor=e=>e.color||EMP_COLORS[Math.max(0,S.emps.findIndex(x=>x.id===e.id))%EMP_COLORS.length];
+const tint=(hex,a)=>{const n=parseInt(hex.slice(1),16);return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`};
+const canDrive=(e,sh)=>!(sh?.reqC&&!hasCatC(e));
+const DAYN=["Niedziela","Poniedziałek","Wtorek","Środa","Czwartek","Piątek","Sobota"];
+const $=id=>document.getElementById(id);
+const uid=()=>Math.random().toString(36).slice(2,10);
+const restDays=w=>Math.max(0,Math.floor(w-0.5));
+const restOf=sh=>sh==null?0:(Number.isFinite(sh.rest)?sh.rest:restDays(sh.weight??1));
+const fmt=d=>d.toISOString().slice(0,10);
+const addDays=(s,n)=>{const d=new Date(s+"T00:00:00Z");d.setUTCDate(d.getUTCDate()+n);return fmt(d)};
+function* range(a,b){for(let d=a;d<=b;d=addDays(d,1))yield d}
+const colorOf=id=>COLORS[Math.max(0,S.shifts.findIndex(s=>s.id===id))%COLORS.length];
+const absMap=()=>{const m={};S.abs.forEach(a=>{if(BLOCKING_REASONS.has(a.reason))(m[a.empId]??={})[a.date]=a.reason});return m};
+const pendingMap=()=>{const m={};S.abs.forEach(a=>{if(a.reason==="wniosek")(m[a.empId]??={})[a.date]=true});return m};
+
+// ---------- historia z innych harmonogramów ----------
+const MAX_WORK_DAYS=5; // co najmniej 2 dni wolne w tygodniu Pon–Ndz
+const weekKey=d=>{const w=wdOf(d);return addDays(d,-((w+6)%7))}; // poniedziałek tygodnia
+// komórki z innych harmonogramów z 14 dni przed startem (bez bieżącego)
+function historyBefore(start,excludeId){
+  const from=addDays(start,-14), out=[];
+  for(const [id,s] of Object.entries(S.scheds)){if(id===excludeId)continue;for(const c of s.cells||[])if(c.empId!=null&&c.date<start&&c.date>=from)out.push(c)}
+  return out;
+}
+// stan początkowy: odpoczynek, wczorajsze trasy, dni przepracowane w bieżącym tygodniu
+function seedState(start,excludeId,shMap){
+  const rest={}, prevDay={}, worked={}, y=addDays(start,-1);
+  for(const c of historyBefore(start,excludeId)){
+    const sh=shMap[c.shiftId]; const r=restOf(sh);
+    if(r>0){const until=addDays(c.date,r);if(!rest[c.empId]||rest[c.empId]<until)rest[c.empId]=until}
+    if(partOf(sh,c.date)==="pm")continue;
+    if(c.date===y)(prevDay[c.empId]??=[]).push(c.shiftId);
+    if(weekKey(c.date)===weekKey(start))((worked[weekKey(c.date)]??={})[c.empId]??=new Set()).add(c.date);
+  }
+  return {rest,prevDay,worked};
+}
+const canWork=(worked,emp,day)=>{const w=worked[weekKey(day)]?.[emp];return !w||w.has(day)||w.size<MAX_WORK_DAYS};
+const noteWork=(worked,emp,day)=>((worked[weekKey(day)]??={})[emp]??=new Set()).add(day);
+
+// ---------- core logic (port z app.py) ----------
+// Kolejność obsadzania w dniu: najpierw dalekie trasy (wyższa waga), potem reszta.
+const byPriority=(a,b)=>(b.weight-a.weight)||(S.shifts.findIndex(s=>s.id===a.id)-S.shifts.findIndex(s=>s.id===b.id));
+// Wybór kierowcy: 1) ten, kto wczoraj jechał tę samą trasę (ciągłość),
+// 2) dla dalekiej trasy — ktoś, kto wczoraj nie miał trasy (nie przerywamy ciągu),
+// 3) najmniej obciążony, remis losowo.
+function pick(cands,counts,sh,prevDay){
+  if(!cands.length)return null;
+  const same=cands.filter(e=>(prevDay[e.id]||[]).includes(sh.id));
+  if(same.length)return same[Math.floor(Math.random()*same.length)].id;
+  let pool=cands;
+  if(restOf(sh)>0){const free=cands.filter(e=>!(prevDay[e.id]||[]).length);if(free.length)pool=free}
+  const m=Math.min(...pool.map(e=>counts[e.id]));const b=pool.filter(e=>counts[e.id]===m);
+  return b[Math.floor(Math.random()*b.length)].id;
+}
+function generate(start,end,excludeId){
+  const emps=S.emps.filter(e=>e.active), counts={}, am=absMap(), cells=[], shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
+  emps.forEach(e=>counts[e.id]=0);
+  let {rest,prevDay,worked}=seedState(start,excludeId,shMap);
+  for(const day of range(start,end)){
+    const used={}, today={}, heavy=new Set();
+    for(const sh of [...shiftsOn(day)].sort(byPriority)) for(let slot=0;slot<sh.people;slot++){
+      const pt=partOf(sh,day);
+      const c=emps.filter(e=>canDrive(e,sh)&&!clash(used,e.id,pt)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&(pt==="pm"?!heavy.has(e.id):canWork(worked,e.id,day)));
+      const emp=pick(c,counts,sh,prevDay);
+      if(emp!=null){counts[emp]++;mark(used,emp,pt);if(pt!=="pm"){(today[emp]??=[]).push(sh.id);noteWork(worked,emp,day);if((sh.weight??1)>=1.5)heavy.add(emp)}const r=restOf(sh);if(r>0)rest[emp]=addDays(day,r)}
+      cells.push({date:day,shiftId:sh.id,slot,empId:emp});
+    }
+    prevDay=today;
+  }
+  return cells;
+}
+function repair(sched,fromDate,extraLocked=new Set()){
+  const lockedKeys=new Set([...lockedKeysOf(sched),...extraLocked]);
+  const emps=S.emps.filter(e=>e.active), active=new Set(emps.map(e=>e.id)), counts={}, am=absMap();
+  emps.forEach(e=>counts[e.id]=0);
+  const shOf={};S.shifts.forEach(s=>shOf[s.id]=s);
+  const key=c=>c.date+"|"+c.shiftId+"|"+c.slot;
+  let changed=0, {rest,prevDay,worked}=seedState(sched.start,sched.id,shOf);
+  const accept=(emp,sh,day,part)=>{if(emp==null)return;counts[emp]=(counts[emp]||0)+1;if(part!=="pm")noteWork(worked,emp,day);const r=restOf(sh);if(r>0)rest[emp]=addDays(day,r)};
+  for(const day of range(sched.start,sched.end)){
+    const used={}, today={}, heavy=new Set(), frozen=day<fromDate;
+    const todays=sched.cells.filter(c=>c.date===day).sort((a,b)=>(lockedKeys.has(key(a))?0:1)-(lockedKeys.has(key(b))?0:1)||byPriority(shOf[a.shiftId]||{weight:1,id:a.shiftId},shOf[b.shiftId]||{weight:1,id:b.shiftId})||a.slot-b.slot);
+    for(const c of todays){
+      const sh=shOf[c.shiftId]||{id:c.shiftId,weight:1}; const w=sh.weight; let emp=c.empId;
+      const part=cpart(c,sh,day);
+      const empObj=emps.find(e=>e.id===emp);
+      if(frozen||lockedKeys.has(key(c))){if(emp!=null){mark(used,emp,part);if(part!=="pm"){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,part)}continue}
+      const valid=emp!=null&&active.has(emp)&&canDrive(empObj,sh)&&!clash(used,emp,part)&&!am[emp]?.[day]&&!(rest[emp]&&rest[emp]>=day)&&(part==="pm"?!heavy.has(emp):canWork(worked,emp,day));
+      if(!valid){
+        const cand=emps.filter(e=>canDrive(e,sh)&&!clash(used,e.id,part)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&(part==="pm"?!heavy.has(e.id):canWork(worked,e.id,day)));
+        emp=pick(cand,counts,sh,prevDay);
+        if(emp!==c.empId){c.empId=emp;changed++}
+      }
+      if(emp!=null){mark(used,emp,part);if(part!=="pm"){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,part)}
+    }
+    prevDay=today;
+  }
+  return changed;
+}
+
+// ---------- db ----------
+const docE=()=>S.db.doc("app/employees"), docS=()=>S.db.doc("app/shifts"), docA=()=>S.db.doc("app/absences"), docP=()=>S.db.doc("app/plan");
+const savePlan=()=>docP().set(S.plan);
+const saveE=()=>docE().set({items:S.emps}), saveS=()=>docS().set({items:S.shifts}), saveA=()=>docA().set({items:S.abs});
+S.seen={};S.undo={};
+const saveSched=s=>{const js=JSON.stringify(s);if(!S.noUndo&&S.seen[s.id]&&S.seen[s.id]!==js){(S.undo[s.id]??=[]).push(S.seen[s.id]);if(S.undo[s.id].length>40)S.undo[s.id].shift()}S.seen[s.id]=js;updUndo();return S.db.doc("schedules/"+s.id).set(s)};
+function updUndo(){const b=$("btn-undo");if(b){const n=(S.undo[S.current]||[]).length;b.disabled=!n;b.textContent=n?`↩ Cofnij (${n})`:"↩ Cofnij"}}
+async function undoLast(){const st=S.undo[S.current];if(!st||!st.length){notice("Nie ma czego cofać.");return}const prev=JSON.parse(st.pop());S.scheds[S.current]=prev;S.noUndo=true;try{S.seen[prev.id]=JSON.stringify(prev);await guard(()=>saveSched(prev))}finally{S.noUndo=false}notice("Cofnięto ostatnią zmianę.");renderPlan();updUndo()}
+async function guard(fn){try{await fn()}catch(e){if(e?.code==="invalid_argument"&&!S.ro){S.ro=true;setStatus("Tylko podgląd — nie masz uprawnień do zapisu.")}else setStatus("Błąd zapisu: "+(e?.message||e))}}
+function setStatus(t){$("status").textContent=t}
+// ---------- edytowalne napisy ----------
+const docL=()=>S.db.doc("app/labels");
+S.labels={};
+function applyLabels(){document.querySelectorAll("[data-label]").forEach(el=>{const v=S.labels[el.dataset.label];if(typeof v==="string"&&v.trim())el.innerHTML=v})}
+let labelsEdit=false;
+$("btn-labels").onclick=()=>{
+  if(!S.db){setStatus("Edycja napisów wymaga połączenia z bazą.");return}
+  labelsEdit=!labelsEdit; document.body.classList.toggle("labels-edit",labelsEdit);
+  $("btn-labels").textContent=labelsEdit?"✔ Zakończ edycję napisów":"✎ Edytuj napisy";
+  document.querySelectorAll("[data-label]").forEach(el=>{el.contentEditable=labelsEdit?"true":"false";if(labelsEdit){el.addEventListener("click",stopWhileEditing,true)}else{el.removeEventListener("click",stopWhileEditing,true)}});
+  if(!labelsEdit)saveLabels();
+};
+function stopWhileEditing(ev){if(labelsEdit){ev.stopPropagation();ev.preventDefault();ev.currentTarget.focus()}}
+document.addEventListener("focusout",ev=>{if(labelsEdit&&ev.target.dataset?.label){S.labels[ev.target.dataset.label]=ev.target.innerHTML;saveLabelsSoon()}});
+let labelsTimer=null; const saveLabelsSoon=()=>{clearTimeout(labelsTimer);labelsTimer=setTimeout(saveLabels,600)};
+async function saveLabels(){if(!S.db)return;try{await docL().set({items:S.labels});setStatus("Napisy zapisane.")}catch(e){setStatus("Błąd zapisu napisów: "+(e?.message||e))}}
+
+async function boot(){
+  const db=await claude.use("db");
+  if(!db){setStatus("Baza niedostępna w tym widoku — działa tylko podgląd."); render(); return}
+  S.db=db; setStatus("Połączono. Dane zapisują się automatycznie.");
+  docE().onSnapshot(s=>{S.emps=s.exists?structuredClone(s.data().items||[]):[];render()});
+  docS().onSnapshot(s=>{S.shifts=s.exists?structuredClone(s.data().items||[]):[];render()});
+  docA().onSnapshot(s=>{S.abs=s.exists?structuredClone(s.data().items||[]):[];render()});
+  docP().onSnapshot(s=>{S.plan=s.exists?structuredClone(s.data()):null;render()});
+  docL().onSnapshot(s=>{S.labels=s.exists?structuredClone(s.data().items||{}):{};applyLabels()});
+  docHR().onSnapshot(s=>{S.hr=s.exists?structuredClone(s.data().items||{}):{};renderHR()});
+  db.collection("schedules").onSnapshot(q=>{S.scheds={};q.docs.forEach(d=>{S.scheds[d.id]=structuredClone(d.data());if(!S.undoBusy)S.seen[d.id]=JSON.stringify(S.scheds[d.id])});if(!S.current||!S.scheds[S.current]){const ids=Object.keys(S.scheds).sort((a,b)=>(S.scheds[b].createdAt||"").localeCompare(S.scheds[a].createdAt||""));S.current=ids[0]||null}render()});
+}
+
+// ---------- render ----------
+function render(){renderEmps();renderShifts();renderList();renderPlan();renderTemplate();renderDysp();renderHR();applyLabels()}
+function renderTemplate(){
+  const T=$("plan-template");
+  if(!S.shifts.length){T.innerHTML="";return}
+  let h='<tr><th class="corner"></th>'+WD.map(w=>`<th class="day${w===0||w===6?" weekend":""}">${DAYN[w]}</th>`).join("")+"</tr>";
+  for(const s of S.shifts){
+    h+=`<tr><td class="who"><span class="dot" style="background:${colorOf(s.id)}"></span>${esc(s.name)}</td>`;
+    for(const w of WD){const on=!S.plan||(S.plan.days?.[w]||[]).includes(s.id);
+      h+=`<td class="cell${w===0||w===6?" weekend":""}"><div class="chip${on?"":" off"}" style="${on?"background:"+colorOf(s.id):""}" data-tpl="${w}|${s.id}">${on?"✓ jeździ":"—"}</div></td>`}
+    h+="</tr>";
+  }
+  T.innerHTML=h;
+}
+function ensurePlan(){if(!S.plan){S.plan={days:{}};for(const w of WD)S.plan.days[w]=S.shifts.map(s=>s.id)}}
+function groupAbs(list){const s=[...list].sort((a,b)=>a.date.localeCompare(b.date));const out=[];for(const a of s){const l=out[out.length-1];if(l&&l.reason===a.reason&&addDays(l.to,1)===a.date)l.to=a.date;else out.push({from:a.date,to:a.date,reason:a.reason})}return out}
+function renderEmps(){
+  const am=absMap();
+  $("emp-list").innerHTML=S.emps.length?S.emps.map(e=>`<li><div><div class="nm"><input type="color" value="${empColor(e)}" data-empcolor="${e.id}" title="kolor kierowcy" style="width:28px;height:24px;padding:0;border:none;background:none;vertical-align:middle;margin-right:6px;cursor:pointer">${esc(e.name)}${e.active?"":' <span class="tag">nieaktywny</span>'} <span class="tag" style="${hasCatC(e)?"":"color:var(--l4-ink)"}">${hasCatC(e)?"kat. C":"bez kat. C"}</span></div>
+    <div class="sb">Nieobecności: ${(groupAbs(S.abs.filter(a=>a.empId===e.id)).map(g=>`<span class="tag ${g.reason}">${g.from===g.to?g.from:g.from+" – "+g.to} · ${REASONS[g.reason]||g.reason}${g.reason==="wniosek"?`<button data-absok="${e.id}|${g.from}|${g.to}" title="zatwierdź urlop" style="color:#1e4a2f;font-weight:800">✓ zatwierdź</button>`:""}<button data-abs="${e.id}|${g.from}|${g.to}" title="usuń">✕</button></span>`).join("")||"brak")}</div>
+    <div class="row" style="margin:6px 0 0"><input type="date" data-absdate="${e.id}" title="od"><span class="muted">–</span><input type="date" data-absdate2="${e.id}" title="do (opcjonalnie)"><select data-absreason="${e.id}"><option value="wniosek">Wniosek urlopowy</option><option value="urlop">Urlop (zatwierdzony)</option><option value="l4">L4</option><option value="odpoczynek">Odpoczynek</option></select><button class="btn ghost sm" data-absadd="${e.id}">Dodaj nieobecność</button></div></div>
+    <div><button class="btn ghost sm" data-catc="${e.id}">${hasCatC(e)?"Odbierz kat. C":"Nadaj kat. C"}</button> <button class="btn ghost sm" data-toggle="${e.id}">${e.active?"Dezaktywuj":"Aktywuj"}</button> <button class="btn danger sm" data-delemp="${e.id}">Usuń</button></div></li>`).join(""):"<li>Brak pracowników.</li>";
+}
+function renderShifts(){
+  const wOpts=v=>[0.5,1,1.5,2,2.5].map(w=>`<option value="${w}" ${w===+v?"selected":""}>${String(w).replace(".",",")} dn.</option>`).join("");
+  const pOpts=v=>Object.entries(PART).map(([k,l])=>`<option value="${k}" ${k===(v||"full")?"selected":""}>${l}</option>`).join("");
+  const rOpts=s=>`<option value="auto" ${!Number.isFinite(s.rest)?"selected":""}>auto (${restDays(s.weight)})</option>`+[0,1,2,3].map(n=>`<option value="${n}" ${s.rest===n?"selected":""}>${n} dni odp.</option>`).join("");
+  $("shift-list").innerHTML=S.shifts.length?S.shifts.map(s=>{const r=restOf(s);const editing=S.editShift===s.id;return `<li><div style="flex:1"><span class="dot" style="background:${colorOf(s.id)}"></span><span class="nm">${esc(s.name)}</span> <span class="tag">${PART[s.part||"full"]}</span><span class="tag">${s.people} os./dzień</span><span class="tag">${String(s.weight).replace(".",",")} dniówki</span><span class="tag">${fmtH(startOf(s))}${s.startDow&&Number.isFinite(s.startDow[6])?" (sob. "+fmtH(s.startDow[6])+")":""} · ${String(hoursOf(s)).replace(".",",")} h</span>${s.reqC?'<span class="tag" style="color:var(--l4-ink)">kat. C</span>':""}${r?`<span class="tag rest">+${r} ${r===1?"dzień":"dni"} odpoczynku${Number.isFinite(s.rest)?" (ręcznie)":""}</span>`:`<span class="tag">bez odpoczynku${Number.isFinite(s.rest)?" (ręcznie)":""}</span>`}
+    ${editing?`<div class="row" style="margin:8px 0 0"><input value="${esc(s.name)}" data-ed-name="${s.id}" style="width:130px"><select data-ed-people="${s.id}"><option value="1" ${s.people==1?"selected":""}>1 os.</option><option value="2" ${s.people==2?"selected":""}>2 os.</option><option value="3" ${s.people==3?"selected":""}>3 os.</option></select><select data-ed-part="${s.id}">${pOpts(s.part)}</select><select data-ed-weight="${s.id}">${wOpts(s.weight)}</select><select data-ed-rest="${s.id}" title="dni odpoczynku po trasie">${rOpts(s)}</select><label class="muted">start <input type="time" value="${fmtH(startOf(s))}" data-ed-start="${s.id}" style="width:100px"></label><label class="muted">start sob. <input type="time" value="${s.startDow&&Number.isFinite(s.startDow[6])?fmtH(s.startDow[6]):""}" data-ed-startsat="${s.id}" style="width:100px" title="puste = jak w inne dni"></label><label class="muted">czas h <input type="number" step="0.5" min="0" value="${hoursOf(s)}" data-ed-hours="${s.id}" style="width:70px"></label><label class="muted" style="display:inline-flex;align-items:center;gap:4px"><input type="checkbox" data-ed-reqc="${s.id}" ${s.reqC?"checked":""} style="min-height:0;width:16px;height:16px">wymaga kat. C</label><button class="btn sm" data-edsave="${s.id}">Zapisz</button><button class="btn ghost sm" data-edcancel="1">Anuluj</button></div>`:""}
+    </div><div><button class="btn ghost sm" data-edit="${s.id}">Edytuj</button> <button class="btn danger sm" data-delshift="${s.id}">Usuń</button></div></li>`}).join(""):"<li>Brak typów zmian.</li>";
+}
+function renderList(){
+  const ids=Object.keys(S.scheds).sort((a,b)=>(S.scheds[b].createdAt||"").localeCompare(S.scheds[a].createdAt||""));
+  $("sched-list").innerHTML=ids.length?ids.map(id=>{const s=S.scheds[id];return `<li><div><div class="nm">${esc(s.name)}</div><div class="sb">${s.start} — ${s.end}</div></div><div><button class="btn ghost sm" data-open="${id}">Otwórz</button> <button class="btn danger sm" data-delsched="${id}">Usuń</button></div></li>`}).join(""):"<li>Brak harmonogramów — utwórz pierwszy powyżej.</li>";
+  $("sched-select").innerHTML=ids.map(id=>`<option value="${id}" ${id===S.current?"selected":""}>${esc(S.scheds[id].name)} (${S.scheds[id].start} — ${S.scheds[id].end})</option>`).join("")||"<option value=''>— brak harmonogramów —</option>";
+  if(!$("new-start").value){const t=fmt(new Date());$("new-start").value=t;$("new-end").value=addDays(t,6)}
+}
+let planView="chips";
+document.querySelectorAll(".view-btn").forEach(b=>b.onclick=()=>{planView=b.dataset.view;document.querySelectorAll(".view-btn").forEach(x=>x.classList.toggle("active",x===b));$("timeline").style.display=planView==="hours"?"block":"none";$("chips-view").style.display=planView==="hours"?"none":"block";renderTimeline()});
+function renderTimeline(){
+  const s=S.scheds[S.current]; const T=$("timeline"); if(!s||planView!=="hours"){return}
+  const days=[...range(s.start,s.end)], am=absMap(), pm=pendingMap(), shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
+  const pct=x=>(x/24*100).toFixed(2)+"%";
+  const rest={};const addRest=(c,carry)=>{const sh=shMap[c.shiftId];const r=restOf(sh);if(r>0)for(let i=1;i<=r;i++){const d=addDays(c.date,i);if(!rest[c.empId]?.[d])(rest[c.empId]??={})[d]=carry?{carry:true,after:sh?.name}:{}}};
+  s.cells.forEach(c=>{if(c.empId!=null)addRest(c,false)}); const hist=historyBefore(s.start,s.id); for(const c of hist)addRest(c,true);
+  const byEmpDay={};s.cells.forEach(c=>{if(c.empId!=null)((byEmpDay[c.empId]??={})[c.date]??=[]).push(c)});
+  const empsShown=S.emps.filter(e=>e.active||byEmpDay[e.id]);
+  // czas wolny między końcem poprzedniej trasy a startem następnej (w godzinach), dla dymka na odpoczynku
+  const allCells=[...s.cells,...hist].filter(c=>c.empId!=null);
+  const dayN=d=>Math.round(new Date(d+"T00:00:00Z").getTime()/3600000);
+  const restInfo=(empId,d)=>{const mine=allCells.filter(c=>c.empId===empId).map(c=>{const sh=shMap[c.shiftId];const st=dayN(c.date)+startOf(sh,c.date);return{c,name:sh?.name||"?",st,en:st+hoursOf(sh)}});const now=dayN(d)+12;const prev=mine.filter(x=>x.en<=now).sort((a,b)=>b.en-a.en)[0];const next=mine.filter(x=>x.st>=now).sort((a,b)=>a.st-b.st)[0];if(!prev)return "";const gap=(next?next.st:null)!=null?next.st-prev.en:null;const fmtDT=t=>{const dd=Math.floor(t/24),hh=t-dd*24;const dt=new Date(dd*3600000*24);return DAYN[dt.getUTCDay()].slice(0,3).toLowerCase()+" "+fmtH(hh)};return `Odpoczynek po ${prev.name}: od ${fmtDT(prev.en)}`+(next?` do ${fmtDT(next.st)} (${next.name}) — ${String(Math.round(gap*10)/10).replace(".",",")} h wolnego`:" — następna trasa nie jest jeszcze zaplanowana")};
+  let html='<colgroup><col style="width:170px">'+days.map(()=>'<col style="width:215px">').join("")+'<col style="width:104px"></colgroup><tr><th></th>'+days.map((d,di)=>`<th class="day dstart${di%2?" alt":""}${wdOf(d)===0||wdOf(d)===6?" weekend":""}">${DAYN[wdOf(d)]}<small>${d.slice(8)}.${d.slice(5,7)}</small>${estTag(s,d)}</th>`).join("")+'<th class="sum">Σ tydzień</th></tr>';
+  html+='<tr><th style="font-weight:400;color:var(--muted);font-size:10px">godz.</th>'+days.map(()=>'<td style="padding:0"><div class="ticks"><span>0</span><span>6</span><span>12</span><span>18</span></div></td>').join("")+'<td class="sum"></td></tr>';
+  let grand=0,far=0,over40=0;
+  for(const e of empsShown){
+    let total=0; const lanes=days.map(()=>[]);
+    for(const c of hist){if(c.empId!==e.id||c.date!==addDays(s.start,-1))continue;const sh=shMap[c.shiftId];const end=startOf(sh,c.date)+hoursOf(sh);if(end>24)lanes[0].push(`<div class="bar cont" style="left:0;width:${pct(end-24)};background-color:${colorOf(c.shiftId)}">→ ${esc(sh?.name||"")}<small>do ${fmtH(end-24)} (z pop. tyg.)</small></div>`)}
+    days.forEach((d,i)=>{
+      const cs=byEmpDay[e.id]?.[d]||[]; const ab=am[e.id]?.[d];
+      if(!cs.length){
+        const off=lanes[i].length?"left:"+(parseFloat(lanes[i][0].match(/width:([\d.]+)%/)?.[1]||0)+1.5)+"%":"";
+        if(ab)lanes[i].push(`<div class="tl-abs ${ab}" style="${off}" data-pick="${e.id}|${d}">${REASONS[ab]}</div>`);
+        else if(rest[e.id]?.[d]){const r=rest[e.id][d];lanes[i].push(`<div class="tl-rest${r.carry?" carry":""}" style="${off}" data-pick="${e.id}|${d}" title="${esc(restInfo(e.id,d))}${r.carry?" · odpoczynek wynika z poprzedniego tygodnia":""}">☾ ${off?"odp.":"odpoczynek"}${r.carry&&!off?" (z pop. tyg.)":r.carry?"*":""}</div>`)}
+        else if(pm[e.id]?.[d])lanes[i].push(`<div class="tl-abs wniosek" style="${off}" data-pick="${e.id}|${d}">wniosek urlop.</div>`);
+        else lanes[i].push(`<div class="tl-off" style="${off}" data-pick="${e.id}|${d}">— wolne —</div>`);
+        return;
+      }
+      for(const c of cs){const sh=shMap[c.shiftId];const st=startOf(sh,d),hh=hoursOf(sh),end=st+hh,col=colorOf(c.shiftId),lk=c.locked?" locked":"";total+=hh;if(hh>=16)far+=hh;
+        if(end<=24)lanes[i].push(`<div class="bar${lk}" style="left:${pct(st)};width:${pct(hh)};background-color:${col}" data-pick="${e.id}|${d}" title="${esc(sh?.name||"")} ${fmtH(st)}–${fmtH(end)} (${hh} h)">${esc(sh?.name||"?")}<small>${fmtH(st)}–${fmtH(end)} · ${String(hh).replace(".",",")} h</small></div>`);
+        else{lanes[i].push(`<div class="bar spill${lk}" style="left:${pct(st)};width:${pct(24-st)};background-color:${col}" data-pick="${e.id}|${d}" title="${esc(sh?.name||"")} start ${fmtH(st)}, ${hh} h">${esc(sh?.name||"?")}<small>${fmtH(st)} → ${String(hh).replace(".",",")} h</small></div>`);if(i+1<days.length)lanes[i+1].push(`<div class="bar cont" style="left:0;width:${pct(end-24)};background-color:${col}">→ ${esc(sh?.name||"")}<small>do ${fmtH(end-24)}</small></div>`)}
+      }
+    });
+    grand+=total; if(total>40)over40++;
+    const ec=empColor(e);
+    html+=`<tr><td style="border-left:6px solid ${ec};background:linear-gradient(${tint(ec,.12)},${tint(ec,.12)}),var(--paper)"><span class="edot" style="background:${ec}"></span>${esc(e.name)}</td>`+lanes.map((l,i)=>`<td class="cell dstart${i%2?" alt":""}${wdOf(days[i])===0||wdOf(days[i])===6?" weekend":""}"><div class="lane" style="${wdOf(days[i])===0||wdOf(days[i])===6?"":"background-color:"+tint(ec,.06)}">${l.join("")}</div></td>`).join("")+`<td class="sum">${String(total).replace(".",",")} h<small>${total>40?"+"+String(Math.round((total-40)*10)/10).replace(".",",")+" h ponad 40":total?"w normie":""}</small></td></tr>`;
+  }
+  const f1=v=>String(Math.round(v*10)/10).replace(".",",");
+  T.innerHTML=`<p class="lead">Każdy dzień to oś 24 h. Szerokość kafelka = planowany czas pracy od statystycznej godziny startu (ustawianej przy typie zmiany). Dalekie trasy przechodzą na następny dzień (kreskowana kontynuacja). Szare pasy po bokach = noc. Dotknięcie kafelka otwiera edycję.</p>
+  <div class="kpis"><div class="kpi">Suma godzin w trasie<b>${f1(grand)} h</b></div><div class="kpi">W tym trasy dalekie<b>${f1(far)} h</b></div><div class="kpi">Średnio na kierowcę<b>${f1(grand/Math.max(1,empsShown.length))} h</b></div><div class="kpi">Kierowców ponad 40 h<b>${over40}</b></div></div>
+  <div class="grid-scroll"><table class="tl">${html}</table></div>
+  <div class="tl-legend">${S.shifts.map(x=>`<span><i style="background:${colorOf(x.id)}"></i>${esc(x.name)} · ${fmtH(startOf(x))} · ${String(hoursOf(x)).replace(".",",")} h</span>`).join("")}<span><i style="background:var(--rest);border:1px solid #e6c98a"></i>odpoczynek</span><span><i style="background:rgba(31,36,48,.08);border:1px solid var(--line2)"></i>noc</span></div>`;
+}
+function renderPlan(){try{updUndo()}catch(e){}
+  const s=S.scheds[S.current]; const T=$("plan-table"); $("unfilled").innerHTML="";
+  if(!s){T.innerHTML="";$("unfilled").innerHTML='<p class="lead" data-label="txt5">Brak harmonogramu. Przejdź do „Harmonogramy” i wylosuj pierwszy.</p>';return}
+  const days=[...range(s.start,s.end)], am=absMap(), pm=pendingMap(), shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
+  const rf=$("repair-from");if(rf.value<s.start||rf.value>s.end)rf.value=s.start;rf.min=s.start;rf.max=s.end;
+  // rest map derived from cells
+  const rest={};for(const c of s.cells){if(c.empId==null)continue;const r=restOf(shMap[c.shiftId]);if(r>0)for(let i=1;i<=r;i++)(rest[c.empId]??={})[addDays(c.date,i)]="own"}
+  // odpoczynek wynikający z poprzedniego tygodnia (np. daleka trasa w niedzielę) — oznaczony jako przeniesiony
+  for(const c of historyBefore(s.start,s.id)){const sh=shMap[c.shiftId];const r=restOf(sh);if(r>0)for(let i=1;i<=r;i++){const d=addDays(c.date,i);if(d>=s.start&&!rest[c.empId]?.[d])(rest[c.empId]??={})[d]={carry:true,after:sh?.name||c.shiftId,date:c.date}}}
+  const PORD={am:0,full:1,pm:2};const byEmpDay={};s.cells.forEach(c=>{if(c.empId!=null)((byEmpDay[c.empId]??={})[c.date]??=[]).push(c)});
+  Object.values(byEmpDay).forEach(m=>Object.values(m).forEach(arr=>arr.sort((a,b)=>PORD[cpart(a,shMap[a.shiftId],a.date)]-PORD[cpart(b,shMap[b.shiftId],b.date)])));
+  const empsShown=S.emps.filter(e=>e.active||byEmpDay[e.id]);
+  const isSun=d=>wdOf(d)===0, isWe=d=>wdOf(d)===0||wdOf(d)===6;
+  let h='<tr><th class="corner" rowspan="2"></th>'+days.map((d,di)=>`<th class="day dstart${di%2?" alt":""}${isWe(d)?" weekend":""}" colspan="${isSun(d)?1:2}">${DAYN[wdOf(d)]}<small>${d.slice(8)}.${d.slice(5,7)}</small>${estTag(s,d)}</th>`).join("")+"</tr>";
+  h+='<tr>'+days.map((d,di)=>{const al=di%2?" alt":"";return isSun(d)?`<th class="sub dstart${al} weekend">cały dzień</th>`:`<th class="sub dstart${al}${isWe(d)?" weekend":""}">rano</th><th class="sub${al}${isWe(d)?" weekend":""}">po poł.</th>`}).join("")+"</tr>";
+  for(const e of empsShown){
+    const ec=empColor(e), rowBg=`background:${tint(ec,.06)};`;
+    h+=`<tr><td class="who" style="border-left:6px solid ${ec};background:linear-gradient(${tint(ec,.12)},${tint(ec,.12)}),var(--paper)"><span class="edot" style="background:${ec}"></span>${esc(e.name)}</td>`;
+    let di=-1;for(const d of days){di++;
+      const we=isWe(d), span=isSun(d)?1:2, wc=(we?" weekend":"")+(di%2?" alt":"");
+      const cs=byEmpDay[e.id]?.[d]||[]; const ab=am[e.id]?.[d];
+      const chip=c=>{const sh=shMap[c.shiftId];const lk=c.locked?" locked":"";return `<div class="chip${lk}" style="background:${colorOf(c.shiftId)}" data-pick="${e.id}|${d}" data-drag-cell="${e.id}|${d}|${c.shiftId}|${c.slot}">${esc(sh?.name||"?")}<small>${String(sh?.weight??1).replace(".",",")} dn.</small></div>`};
+      const full=cs.find(c=>cpart(c,shMap[c.shiftId],d)==="full"), amC=cs.find(c=>cpart(c,shMap[c.shiftId],d)==="am"), pmC=cs.find(c=>cpart(c,shMap[c.shiftId],d)==="pm");
+      if((full&&!pmC)||(!cs.length)){
+        let inner;
+        if(full)inner=chip(full);
+        else if(ab)inner=`<div class="chip ${ab}" data-pick="${e.id}|${d}">${REASONS[ab]}</div>`;
+        else if(rest[e.id]?.[d]&&rest[e.id][d].carry)inner=`<div class="chip rest carry" data-pick="${e.id}|${d}" title="po ${esc(rest[e.id][d].after)} z ${rest[e.id][d].date}">☾ odpoczynek<small>z pop. tygodnia</small></div>`;
+        else if(rest[e.id]?.[d])inner=`<div class="chip rest" data-pick="${e.id}|${d}">☾ odpoczynek</div>`;
+        else if(pm[e.id]?.[d])inner=`<div class="chip wniosek" data-pick="${e.id}|${d}">wniosek urlop.</div>`;
+        else inner=`<div class="chip off" data-pick="${e.id}|${d}">— wolne —</div>`;
+        h+=`<td class="cell dstart${wc}" colspan="${span}" data-drop="${e.id}|${d}" style="${we?"":rowBg}">${inner}</td>`;
+      } else {
+        const emptyChip=`<div class="chip off" data-pick="${e.id}|${d}">—</div>`;
+        const left=full||amC;
+        h+=`<td class="cell half dstart${wc}" data-drop="${e.id}|${d}" style="${we?"":rowBg}">${left?chip(left):emptyChip}</td><td class="cell half${wc}" data-drop="${e.id}|${d}" style="${we?"":rowBg}">${pmC?chip(pmC):emptyChip}</td>`;
+      }
+    }
+    h+="</tr>";
+  }
+  T.innerHTML=h; renderTimeline();
+  $("palette").innerHTML=S.shifts.map(sh=>`<div class="chip" style="background:${colorOf(sh.id)}" data-drag-shift="${sh.id}">${esc(sh.name)}<small>${PART[sh.part||"full"]} · ${String(sh.weight).replace(".",",")} dn.</small></div>`).join("");
+  const empty=s.cells.filter(c=>c.empId==null);
+  if(empty.length)$("unfilled").innerHTML=`<div class="warn">Brak obsady (${empty.length}): ${empty.map(c=>`${c.date.slice(8)}.${c.date.slice(5,7)} ${esc(shMap[c.shiftId]?.name||"?")}`).join(", ")}</div>`;
+}
+const esc=s=>String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+function notice(t){$("notice").innerHTML=t?`<div class="notice">${t}</div>`:""}
+
+// ---------- przypisanie ręczne (wspólne) ----------
+async function assignShift(empId,date,shiftId,opts={}){
+  const s=S.scheds[S.current]; if(!s||!S.db) return;
+  const key=c=>c.date+"|"+c.shiftId+"|"+c.slot; const locked=new Set(); const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
+  if(opts.from){const f=s.cells.find(c=>c.date===opts.from.date&&c.shiftId===opts.from.shiftId&&c.slot===opts.from.slot);if(f){f.empId=null;delete f.locked;delete f.part}}
+  const mine=new Set(s.cells.filter(c=>c.date===date&&c.empId===empId).map(c=>c.shiftId));
+  if(!shiftId){ s.cells.filter(c=>c.date===date&&c.empId===empId).forEach(c=>{c.empId=null;delete c.locked;delete c.part}); }
+  else if(mine.has(shiftId)&&opts.toggle){ s.cells.filter(c=>c.date===date&&c.empId===empId&&c.shiftId===shiftId).forEach(c=>{c.empId=null;delete c.locked;delete c.part}); }
+  else if(!mine.has(shiftId)){
+    const p=partOf(shMap[shiftId],date);
+    const mineC=s.cells.filter(c=>c.date===date&&c.empId===empId);
+    const eff=c=>cpart(c,shMap[c.shiftId],date);
+    const base=mineC.filter(c=>eff(c)!=="pm"||c.part==="pm");
+    const dyzur=mineC.some(c=>!c.part&&eff(c)==="pm");
+    let splitPart=null;
+    if(p!=="pm"&&wdOf(date)!==0&&!dyzur&&base.length){
+      if(base.length===1){const b=base[0];const q=eff(b);if(q==="full"){b.part="am";splitPart="pm"}else if(q==="am")splitPart="pm";else splitPart="am"}
+      else{const drop=base.find(c=>eff(c)==="pm")||base[1];drop.empId=null;delete drop.locked;delete drop.part;splitPart="pm"}
+    }
+    if(splitPart){}else
+    s.cells.filter(c=>c.date===date&&c.empId===empId).forEach(c=>{const q=partOf(shMap[c.shiftId],date);if(p==="pm"||q==="pm"){if(p===q){c.empId=null;delete c.locked;delete c.part}}else if(p==="full"||q==="full"||p===q){c.empId=null;delete c.locked;delete c.part}});
+    const slots=s.cells.filter(c=>c.date===date&&c.shiftId===shiftId);
+    let target=slots.find(c=>c.empId==null)||slots.find(c=>!c.locked);
+    if(!target){target={date,shiftId,slot:slots.length,empId:null};s.cells.push(target)}
+    target.empId=empId; target.locked=true; if(splitPart)target.part=splitPart; else delete target.part; locked.add(key(target));
+  }
+  let msg;
+  if($("auto-repair").checked){const changed=repair(s,date,locked);msg=`Zapisano i zablokowano. Sprawdzono kolizje od ${date}: ${changed===0?"nic nie trzeba było zmieniać.":changed===1?"podmieniono 1 przydział.":"podmieniono "+changed+" przydziały."}`}
+  else msg="Zapisano i zablokowano (bez sprawdzania kolizji).";
+  await guard(()=>saveSched(s)); notice(msg); renderPlan();
+}
+
+// ---------- drag & drop (pointer events: mysz + dotyk) ----------
+(function(){
+  let drag=null, ghost=null, over=null, moved=false;
+  const clearOver=()=>{if(over){over.classList.remove("drop-over");over=null}};
+  document.addEventListener("pointerdown",ev=>{
+    const el=ev.target.closest("[data-drag-shift],[data-drag-cell]"); if(!el||!S.db) return;
+    drag={el,shift:el.dataset.dragShift||null,cell:el.dataset.dragCell?el.dataset.dragCell.split("|"):null,x:ev.clientX,y:ev.clientY,id:ev.pointerId};
+    moved=false;
+  });
+  document.addEventListener("pointermove",ev=>{
+    if(!drag||ev.pointerId!==drag.id) return;
+    if(!moved){if(Math.hypot(ev.clientX-drag.x,ev.clientY-drag.y)<8) return; moved=true; ghost=drag.el.cloneNode(true); ghost.classList.add("drag-ghost"); ghost.classList.remove("locked"); ghost.style.width=""; ghost.removeAttribute("data-pick"); document.body.appendChild(ghost); try{drag.el.setPointerCapture(ev.pointerId)}catch(e){}}
+    ev.preventDefault(); ghost.style.left=ev.clientX+"px"; ghost.style.top=ev.clientY+"px";
+    ghost.style.display="none"; const under=document.elementFromPoint(ev.clientX,ev.clientY); ghost.style.display="";
+    const td=under&&under.closest("td[data-drop]"); if(td!==over){clearOver(); if(td){over=td;td.classList.add("drop-over")}}
+  },{passive:false});
+  const finish=ev=>{
+    if(!drag||ev.pointerId!==drag.id) return;
+    const d=drag, target=over; drag=null; clearOver(); if(ghost){ghost.remove();ghost=null}
+    if(!moved){return} // zwykłe dotknięcie → obsłuży click (okno wyboru)
+    ev.preventDefault(); suppressClick=true; setTimeout(()=>suppressClick=false,300);
+    if(!target) return;
+    const [empId,date]=target.dataset.drop.split("|");
+    if(d.shift) assignShift(empId,date,d.shift);
+    else if(d.cell){const [fe,fd,fs,fslot]=d.cell; if(fe===empId&&fd===date) return; assignShift(empId,date,fs,{from:{date:fd,shiftId:fs,slot:+fslot}})}
+  };
+  document.addEventListener("pointerup",finish); document.addEventListener("pointercancel",finish);
+})();
+let suppressClick=false;
+
+// ---------- manual edit sheet ----------
+function openSheet(empId,date){
+  const s=S.scheds[S.current]; if(!s||!S.db) return;
+  const e=S.emps.find(x=>x.id===empId); const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
+  $("sheet-title").textContent=`${e.name} · ${date.slice(8)}.${date.slice(5,7)}`;
+  $("sheet-sub").textContent="Dotknij trasy, żeby ją przydzielić (rano i po południu można łączyć). Od tej daty program sprawdzi kolizje.";
+  const mine=new Set(s.cells.filter(c=>c.date===date&&c.empId===empId).map(c=>c.shiftId));
+  const mineCells=s.cells.filter(c=>c.date===date&&c.empId===empId); const anyLocked=mineCells.some(c=>c.locked);
+  const others=S.shifts.filter(sh=>!shiftsOn(date).some(x=>x.id===sh.id));
+  $("sheet-opts").innerHTML=(anyLocked?`<div class="chip off" data-unlock="1" style="grid-column:1/-1;border-style:solid">🔓 Odblokuj ten dzień (pozwól programowi zmieniać)</div>`:"")+shiftsOn(date).map(sh=>`<div class="chip" style="background:${colorOf(sh.id)};${mine.has(sh.id)?"outline:3px solid var(--ink);outline-offset:-3px":""}" data-set="${sh.id}">${mine.has(sh.id)?"✓ ":""}${esc(sh.name)}<small>${PART[partOf(sh,date)]} · ${String(sh.weight).replace(".",",")} dn.</small></div>`).join("")+`<div class="chip off" data-set="">— wolne cały dzień —</div>`+(others.length?`<div class="muted" style="grid-column:1/-1;margin-top:6px">Poza założeniami na ten dzień:</div>`+others.map(sh=>`<div class="chip" style="background:${colorOf(sh.id)};opacity:.75;${mine.has(sh.id)?"outline:3px solid var(--ink);outline-offset:-3px":""}" data-set="${sh.id}">${mine.has(sh.id)?"✓ ":""}${esc(sh.name)}<small>${PART[partOf(sh,date)]} · ${String(sh.weight).replace(".",",")} dn.</small></div>`).join(""):"");
+  $("sheet").classList.add("open");
+  $("sheet-opts").onclick=async ev=>{
+    const u=ev.target.closest("[data-unlock]");
+    if(u){$("sheet").classList.remove("open");s.cells.filter(c=>c.date===date&&c.empId===empId).forEach(c=>{delete c.locked});await guard(()=>saveSched(s));notice("Odblokowano — program może znów zmieniać ten dzień.");renderPlan();return}
+    const t=ev.target.closest("[data-set]"); if(!t) return; const shiftId=t.dataset.set; $("sheet").classList.remove("open");
+    await assignShift(empId,date,shiftId,{toggle:true}); return;
+  };
+}
+$("sheet-close").onclick=()=>$("sheet").classList.remove("open");
+$("sheet").onclick=ev=>{if(ev.target===$("sheet"))$("sheet").classList.remove("open")};
+
+// ---------- events ----------
+document.querySelectorAll("nav .tab").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav .tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));b.classList.add("active");$(b.dataset.tab).classList.add("active")});
+$("sched-select").onchange=e=>{S.current=e.target.value;updUndo();notice("");renderPlan()};
+$("btn-new").onclick=()=>guard(async()=>{
+  const start=$("new-start").value,end=$("new-end").value; if(!start||!end)return;
+  if(!S.emps.some(e=>e.active)||!S.shifts.length){notice("Potrzebny co najmniej jeden aktywny pracownik i jeden typ zmiany.");return}
+  const [a,b]=start<=end?[start,end]:[end,start];
+  const s={id:uid(),name:$("new-name").value.trim()||`Harmonogram ${a}`,start:a,end:b,createdAt:new Date().toISOString(),cells:generate(a,b,null)};
+  S.current=s.id; await saveSched(s); $("new-name").value=""; document.querySelector('nav .tab[data-tab="plan"]').click(); renderList(); renderPlan(); notice("Wylosowano nowy harmonogram.");
+});
+$("btn-next-week").onclick=()=>guard(async()=>{
+  const ends=Object.values(S.scheds).map(s=>s.end).sort(); const last=ends[ends.length-1];
+  const a=last?addDays(last,1):weekKey(fmt(new Date())); const b=addDays(a,6);
+  if(!S.emps.some(e=>e.active)||!S.shifts.length){notice("Potrzebny co najmniej jeden aktywny pracownik i jeden typ zmiany.");return}
+  const s={id:uid(),name:`Tydzień ${a.slice(8)}.${a.slice(5,7)} – ${b.slice(8)}.${b.slice(5,7)}`,start:a,end:b,createdAt:new Date().toISOString(),cells:generate(a,b,null)};
+  S.current=s.id; await saveSched(s); document.querySelector('nav .tab[data-tab="plan"]').click(); renderList(); renderPlan(); notice(`Wylosowano ${s.name} (na podstawie poprzedniego tygodnia).`);
+});
+$("btn-undo").onclick=undoLast;
+document.addEventListener("click",e=>{const el=e.target.closest("[data-est]");if(!el)return;const s=S.scheds[S.current];if(!s)return;const d=el.dataset.est;const cur=estOf(s,d);const v=prompt(`Szacowana liczba tras — ${d}\n(puste = wróć do wartości z Założeń: ${estOf({est:{}},d).n})`,cur.n);if(v===null)return;guard(async()=>{s.est={...(s.est||{})};if(v.trim()==="")delete s.est[d];else if(Number.isFinite(+v)&&+v>=0)s.est[d]=Math.round(+v);await saveSched(s);renderPlan()})});
+document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==="z"&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||"")){e.preventDefault();undoLast()}});
+$("btn-reroll").onclick=()=>guard(async()=>{const s=S.scheds[S.current];if(!s)return;
+  const kept=s.cells.filter(c=>c.locked&&c.empId!=null);
+  s.cells=generate(s.start,s.end,s.id);
+  for(const k of kept){const t=s.cells.find(c=>c.date===k.date&&c.shiftId===k.shiftId&&c.slot===k.slot);if(t){t.empId=k.empId;t.locked=true}else s.cells.push({...k})}
+  if(kept.length)repair(s,s.start);
+  await saveSched(s);notice(kept.length?`Wylosowano ponownie, zachowując ${kept.length} zablokowanych komórek.`:"Wylosowano ponownie.")});
+$("btn-repair").onclick=()=>guard(async()=>{const s=S.scheds[S.current];if(!s)return;const from=$("repair-from").value||s.start;const n=repair(s,from);await saveSched(s);notice(`Sprawdzono kolizje od ${from}: ${n===0?"wszystko w porządku.":n===1?"podmieniono 1 przydział.":"podmieniono "+n+" przydziały."}`)});
+$("btn-emp").onclick=()=>guard(async()=>{const n=$("emp-name").value.trim();if(!n)return;S.emps.push({id:uid(),name:n,active:true});$("emp-name").value="";await saveE()});
+$("btn-shift").onclick=()=>guard(async()=>{const n=$("shift-name").value.trim();if(!n)return;S.shifts.push({id:uid(),name:n,people:+$("shift-people").value,weight:+$("shift-weight").value,part:$("shift-part").value});$("shift-name").value="";await saveS()});
+$("btn-plan-all").onclick=()=>guard(async()=>{S.plan={days:{}};for(const w of WD)S.plan.days[w]=S.shifts.map(s=>s.id);await savePlan()});
+$("btn-plan-none").onclick=()=>guard(async()=>{S.plan={days:{}};for(const w of WD)S.plan.days[w]=[];await savePlan()});
+document.body.addEventListener("click",ev=>{
+  const tp=ev.target.closest("[data-tpl]");
+  if(tp){const [w,id]=tp.dataset.tpl.split("|");guard(async()=>{ensurePlan();const arr=S.plan.days[w]||(S.plan.days[w]=[]);const i=arr.indexOf(id);if(i>=0)arr.splice(i,1);else arr.push(id);renderTemplate();await savePlan()});return}
+  const t=ev.target.closest("[data-pick],[data-toggle],[data-delemp],[data-absadd],[data-abs],[data-delshift],[data-open],[data-delsched],[data-edit],[data-edsave],[data-edcancel],[data-catc],[data-absok]"); if(!t) return;
+  const d=t.dataset;
+  if(d.catc){guard(async()=>{const e=S.emps.find(x=>x.id===d.catc);e.catC=!hasCatC(e);await saveE()});return}
+  if(d.absok){const [emp,from,to]=d.absok.split("|");guard(async()=>{S.abs.forEach(a=>{if(a.empId===emp&&a.date>=from&&a.date<=to&&a.reason==="wniosek")a.reason="urlop"});await saveA();notice(`Zatwierdzono urlop ${from}${from!==to?" – "+to:""}. Sprawdź kolizje w harmonogramie na te dni (przycisk „Sprawdź i napraw”).`)});return}
+  if(d.edit){S.editShift=d.edit;renderShifts();return}
+  if(d.edcancel){S.editShift=null;renderShifts();return}
+  if(d.edsave){const id=d.edsave;const q=a=>document.querySelector(`[data-ed-${a}="${id}"]`).value;guard(async()=>{const s=S.shifts.find(x=>x.id===id);const n=q("name").trim();if(n)s.name=n;s.people=+q("people");s.part=q("part");s.weight=+q("weight");const r=q("rest");if(r==="auto")delete s.rest;else s.rest=+r;const hv=parseFloat(q("hours"));if(Number.isFinite(hv))s.hours=hv;const st=q("start");if(st){const [a,b]=st.split(":").map(Number);s.start=a+b/60}const ss=q("startsat");if(ss){const [a,b]=ss.split(":").map(Number);(s.startDow??={})[6]=a+b/60}else if(s.startDow){delete s.startDow[6]}s.reqC=document.querySelector(`[data-ed-reqc="${id}"]`).checked;S.editShift=null;await saveS();renderShifts()});return}
+  if(d.pick){if(suppressClick)return;const [emp,date]=d.pick.split("|");openSheet(emp,date);return}
+  if(d.open){S.current=d.open;notice("");document.querySelector('nav .tab[data-tab="plan"]').click();renderList();renderPlan();return}
+  guard(async()=>{
+    if(d.toggle){const e=S.emps.find(x=>x.id===d.toggle);e.active=!e.active;await saveE()}
+    else if(d.delemp){if(!t.dataset.confirm){t.dataset.confirm="1";t.textContent="Na pewno?";setTimeout(()=>{delete t.dataset.confirm;t.textContent="Usuń"},2500);return}S.emps=S.emps.filter(x=>x.id!==d.delemp);S.abs=S.abs.filter(a=>a.empId!==d.delemp);await saveE();await saveA()}
+    else if(d.absadd){const from=document.querySelector(`[data-absdate="${d.absadd}"]`).value,to=document.querySelector(`[data-absdate2="${d.absadd}"]`).value||from,reason=document.querySelector(`[data-absreason="${d.absadd}"]`).value;if(!from)return;const [a,b]=from<=to?[from,to]:[to,from];if((new Date(b)-new Date(a))/864e5>120){notice("Zakres nieobecności jest za długi (max 120 dni).");return}for(const day of range(a,b)){S.abs=S.abs.filter(x=>!(x.empId===d.absadd&&x.date===day));S.abs.push({empId:d.absadd,date:day,reason})}await saveA()}
+    else if(d.abs){const [emp,from,to]=d.abs.split("|");S.abs=S.abs.filter(a=>!(a.empId===emp&&a.date>=from&&a.date<=to));await saveA()}
+    else if(d.delshift){if(!t.dataset.confirm){t.dataset.confirm="1";t.textContent="Na pewno?";setTimeout(()=>{delete t.dataset.confirm;t.textContent="Usuń"},2500);return}S.shifts=S.shifts.filter(x=>x.id!==d.delshift);await saveS()}
+    else if(d.delsched){if(!t.dataset.confirm){t.dataset.confirm="1";t.textContent="Na pewno?";setTimeout(()=>{delete t.dataset.confirm;t.textContent="Usuń"},2500);return}await S.db.doc("schedules/"+d.delsched).delete()}
+  });
+});
+// ---------- dyspozycja dnia (dla FlotoMax) ----------
+function availability(date){
+  const shMap={};S.shifts.forEach(x=>shMap[x.id]=x); const am=absMap();
+  const cells=[];for(const s of Object.values(S.scheds))for(const c of s.cells||[])if(c.empId!=null&&c.date<=date&&c.date>=addDays(date,-3))cells.push({...c,scheduleId:s.id});
+  return S.emps.filter(e=>e.active).map(e=>{
+    const ab=am[e.id]?.[date];
+    const today=cells.filter(c=>c.empId===e.id&&c.date===date).map(c=>({shiftId:c.shiftId,shift:shMap[c.shiftId]?.name||c.shiftId,part:cpart(c,shMap[c.shiftId],date),weight:shMap[c.shiftId]?.weight??1,locked:!!c.locked}));
+    let resting=null;for(const c of cells){if(c.empId!==e.id||c.date>=date)continue;const r=restOf(shMap[c.shiftId]);if(r>0&&addDays(c.date,r)>=date)resting={after:shMap[c.shiftId]?.name||c.shiftId,until:addDays(c.date,r)}}
+    const fullDay=today.filter(t=>t.part!=="pm");
+    const status=ab?"absent":fullDay.length?"busy":resting?"rest":"free";
+    return {employeeId:e.id,name:e.name,date,status,statusLabel:{free:"dostępny",busy:"na trasie",rest:"odpoczynek",absent:REASONS[ab]||ab}[status],assignments:today,absence:ab||null,resting,freeAfternoon:!ab&&!resting&&!today.some(t=>t.part==="pm")&&!today.some(t=>t.part==="full")};
+  });
+}
+function renderDysp(){
+  const inp=$("dysp-date"); if(!inp.value)inp.value=fmt(new Date()); const d=inp.value;
+  const rows=availability(d);
+  $("dysp-list").innerHTML=`<div class="dysp">`+rows.map(r=>`<div class="card"><div class="nm">${esc(r.name)}</div><span class="st ${r.status}">${esc(r.statusLabel)}</span>${r.assignments.length?`<div class="sb">${r.assignments.map(a=>esc(a.shift)+(a.part==="pm"?" (po poł.)":a.part==="am"?" (rano)":"")).join(" + ")}</div>`:""}${r.resting?`<div class="sb">po ${esc(r.resting.after)}, do ${r.resting.until}</div>`:""}${r.status==="free"?`<div class="sb">wolny do planowania trasy</div>`:""}</div>`).join("")+`</div>`;
+}
+$("dysp-date").onchange=renderDysp;
+$("dysp-copy").onclick=()=>{const d=$("dysp-date").value;const txt=JSON.stringify({date:d,drivers:availability(d)},null,1);navigator.clipboard?.writeText(txt).then(()=>setStatus("Dyspozycja dnia skopiowana do schowka."),()=>setStatus("Nie udało się skopiować."))};
+
+// ---------- Kadry ----------
+const docHR=()=>S.db.doc("app/hr"); S.hr={};
+function hrReport(month){ // month "YYYY-MM"
+  const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
+  const inMonth=d=>d.startsWith(month);
+  const cells=[];for(const s of Object.values(S.scheds))for(const c of s.cells||[])if(c.empId!=null&&inMonth(c.date))cells.push(c);
+  return S.emps.map(e=>{
+    const mine=cells.filter(c=>c.empId===e.id);
+    const byDay={};mine.forEach(c=>{const sh=shMap[c.shiftId];const p=cpart(c,sh,c.date);(byDay[c.date]??={h:0,d:0,w:false});if(p==="pm")byDay[c.date].d+=hoursOf(sh);else{byDay[c.date].h+=hoursOf(sh);byDay[c.date].w=true}});
+    let days=0,base=0,over=0,duty=0;for(const v of Object.values(byDay)){if(v.w)days++;base+=Math.min(v.h,8);over+=Math.max(0,v.h-8);duty+=v.d}
+    const abs=S.abs.filter(a=>a.empId===e.id&&inMonth(a.date));
+    const cnt=r=>abs.filter(a=>a.reason===r).length;
+    const m=S.hr[e.id]||{};
+    return {employeeId:e.id,name:e.name,days,base,over,duty,urlop:cnt("urlop"),l4:cnt("l4"),wniosek:cnt("wniosek"),freeDays:m.freeDays??"",overtime:m.overtime??""};
+  });
+}
+function renderHR(){
+  const inp=$("hr-month"); if(!inp.value)inp.value=fmt(new Date()).slice(0,7);
+  const rows=hrReport(inp.value); const f=v=>String(Math.round(v*10)/10).replace(".",",");
+  $("hr-table").innerHTML=`<tr><th>Kierowca</th><th>dni pracy</th><th>godz. podst.</th><th>nadgodz.</th><th>dyżur h</th><th>urlop</th><th>L4</th><th>wnioski</th><th>stan dni wolnych</th><th>stan nadgodzin</th></tr>`+rows.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.days}</td><td>${f(r.base)}</td><td>${f(r.over)}</td><td>${f(r.duty)}</td><td>${r.urlop}</td><td>${r.l4}</td><td>${r.wniosek}</td><td><input type="number" step="0.5" data-hr-free="${r.employeeId}" value="${r.freeDays}"></td><td><input type="number" step="0.5" data-hr-over="${r.employeeId}" value="${r.overtime}"></td></tr>`).join("");
+}
+$("hr-month").onchange=renderHR;
+$("hr-csv").onclick=()=>{const rows=hrReport($("hr-month").value);const csv=["Kierowca;Dni pracy;Godziny podstawowe;Nadgodziny;Dyżur h;Urlop dni;L4 dni;Wnioski;Stan dni wolnych;Stan nadgodzin"].concat(rows.map(r=>[r.name,r.days,r.base,r.over,r.duty,r.urlop,r.l4,r.wniosek,r.freeDays,r.overtime].map(v=>String(v).replace(".",",")).join(";"))).join("\n");const ta=$("hr-out");ta.value=csv;ta.style.display="block";ta.select();navigator.clipboard?.writeText(csv).then(()=>setStatus("CSV skopiowany do schowka — wklej do Excela."),()=>setStatus("CSV widoczny poniżej — skopiuj ręcznie."))};
+let hrTimer=null;
+document.addEventListener("change",ev=>{const t=ev.target;if(!(t.dataset?.hrFree||t.dataset?.hrOver))return;const id=t.dataset.hrFree||t.dataset.hrOver;(S.hr[id]??={});if(t.dataset.hrFree)S.hr[id].freeDays=t.value===""?null:+t.value;else S.hr[id].overtime=t.value===""?null:+t.value;clearTimeout(hrTimer);hrTimer=setTimeout(()=>guard(async()=>{await docHR().set({items:S.hr});setStatus("Zapisano dane kadrowe.")}),500)});
+
+// ---------- API pluginu (FlotoMax) ----------
+function pluginGetData(){return {version:1,employees:S.emps,shifts:S.shifts,absences:S.abs,plan:S.plan,schedules:S.scheds,labels:S.labels}}
+async function pluginSetData(d){if(!S.db)throw new Error("brak bazy");if(d.employees){S.emps=d.employees;await saveE()}if(d.shifts){S.shifts=d.shifts;await saveS()}if(d.absences){S.abs=d.absences;await saveA()}if(d.plan){S.plan=d.plan;await savePlan()}if(d.schedules){for(const s of Object.values(d.schedules))await saveSched(s)}if(d.labels){S.labels=d.labels;await saveLabels()}}
+window.HarmonogramPlugin={getData:pluginGetData,setData:pluginSetData,availability,hrReport,requestLeave:async(employeeId,from,to)=>{for(const d of range(from,to)){S.abs=S.abs.filter(a=>!(a.empId===employeeId&&a.date===d));S.abs.push({empId:employeeId,date:d,reason:"wniosek"})}await saveA()},freeDrivers:d=>availability(d).filter(r=>r.status==="free"),generate:(a,b)=>generate(a,b,null),repair:(s,from,locked)=>repair(s,from,locked),restOf,rules:{maxWorkDays:MAX_WORK_DAYS}};
+window.addEventListener("message",ev=>{const m=ev.data;if(!m||m.type!=="harmonogram")return;if(m.action==="getData")ev.source?.postMessage({type:"harmonogram",action:"data",data:pluginGetData()},"*");if(m.action==="requestLeave"){window.HarmonogramPlugin.requestLeave(m.employeeId,m.from,m.to).then(()=>ev.source?.postMessage({type:"harmonogram",action:"leaveRequested",employeeId:m.employeeId,from:m.from,to:m.to},"*"))}if(m.action==="availability")ev.source?.postMessage({type:"harmonogram",action:"availability",date:m.date,drivers:availability(m.date)},"*")});
+$("btn-export").onclick=()=>{const ta=$("export-out");ta.value=JSON.stringify(pluginGetData(),null,1);ta.style.display="block";ta.select();try{navigator.clipboard.writeText(ta.value).then(()=>setStatus("Dane skopiowane do schowka (i widoczne poniżej)."),()=>setStatus("Dane widoczne poniżej — skopiuj je ręcznie."))}catch(e){setStatus("Dane widoczne poniżej — skopiuj je ręcznie.")}};
+$("file-import").onchange=ev=>{const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>guard(async()=>{const d=JSON.parse(r.result);await pluginSetData(d);setStatus("Dane zaimportowane.")});r.readAsText(f);ev.target.value=""};
+document.addEventListener("change",ev=>{const c=ev.target.closest("[data-empcolor]");if(!c)return;guard(async()=>{const e=S.emps.find(x=>x.id===c.dataset.empcolor);e.color=c.value;await saveE()})});
+render(); boot();
+</script>

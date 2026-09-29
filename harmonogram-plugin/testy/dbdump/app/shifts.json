@@ -1,0 +1,95 @@
+{
+  "items": [
+    {
+      "id": "t1",
+      "name": "Trasa 1",
+      "part": "full",
+      "people": 1,
+      "weight": 1
+    },
+    {
+      "id": "t2",
+      "name": "Trasa 2",
+      "part": "full",
+      "people": 1,
+      "weight": 1
+    },
+    {
+      "id": "t3",
+      "name": "Trasa 3",
+      "part": "full",
+      "people": 1,
+      "weight": 1
+    },
+    {
+      "id": "t4",
+      "name": "Trasa 4",
+      "part": "full",
+      "people": 1,
+      "weight": 1
+    },
+    {
+      "id": "t5",
+      "name": "Trasa 5",
+      "part": "full",
+      "people": 1,
+      "weight": 1
+    },
+    {
+      "id": "t6",
+      "name": "Trasa 6",
+      "part": "full",
+      "people": 1,
+      "weight": 1
+    },
+    {
+      "id": "t7",
+      "name": "Trasa 7",
+      "part": "full",
+      "people": 1,
+      "weight": 1
+    },
+    {
+      "id": "t8",
+      "name": "Trasa 8",
+      "part": "full",
+      "people": 1,
+      "weight": 2.5
+    },
+    {
+      "id": "t9",
+      "name": "Trasa 9",
+      "part": "full",
+      "people": 1,
+      "weight": 2.5
+    },
+    {
+      "id": "t10",
+      "name": "Trasa 10",
+      "part": "full",
+      "people": 1,
+      "weight": 2.5
+    },
+    {
+      "id": "t11",
+      "name": "Trasa 11",
+      "part": "full",
+      "people": 1,
+      "weight": 2.5
+    },
+    {
+      "id": "nagel",
+      "name": "Nagel",
+      "part": "pm",
+      "people": 1,
+      "weight": 0.5
+    },
+    {
+      "id": "zwroty",
+      "name": "Zwroty",
+      "part": "full",
+      "people": 1,
+      "weight": 1
+    }
+  ]
+}

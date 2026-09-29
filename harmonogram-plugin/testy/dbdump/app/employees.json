@@ -1,0 +1,44 @@
+{
+  "items": [
+    {
+      "active": true,
+      "id": "e1",
+      "name": "Jacek Schmidt"
+    },
+    {
+      "active": true,
+      "id": "e2",
+      "name": "Roman Wranik"
+    },
+    {
+      "active": true,
+      "id": "e3",
+      "name": "Krzysztof Misiewicz"
+    },
+    {
+      "active": true,
+      "id": "e4",
+      "name": "Andrzej Czogała"
+    },
+    {
+      "active": true,
+      "id": "e5",
+      "name": "Tomasz Twardzik"
+    },
+    {
+      "active": true,
+      "id": "e6",
+      "name": "Grzegorz Knura"
+    },
+    {
+      "active": true,
+      "id": "e7",
+      "name": "Stanisław Piórkowski"
+    },
+    {
+      "active": true,
+      "id": "e8",
+      "name": "Tomasz Bubon"
+    }
+  ]
+}
