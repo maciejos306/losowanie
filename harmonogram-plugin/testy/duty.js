@@ -15,10 +15,10 @@ const r=await pg.evaluate(async()=>{const o={};
  const nag=rows.filter(c=>c.shiftId==="nagel");nag.forEach((c,i)=>{c.date=D[i];});
  S.scheds.w={id:"w",start:D[0],end:D[6],createdAt:"2027-01-01",cells:rows};__docs['schedules/w']=JSON.parse(JSON.stringify(S.scheds.w));
  const dn=(e)=>ledger(null)[e].find(w=>w.monday===D[0]).delta;
- o.planned=dn("e1");                     // 5+0,5-5 = +0,5
+ o.planned=dn("e1");                     // planowany = 0
  const c2=rows.find(c=>c.empId==="e2"&&c.shiftId==="nagel");c2.duty="cancelled";o.cancelled=dn("e2");   // 0
  const c3=rows.find(c=>c.empId==="e3"&&c.shiftId==="nagel");c3.duty="done";c3.dutyH=6.5;o.over5=dn("e3");  // +1
- const c4=rows.find(c=>c.empId==="e4"&&c.shiftId==="nagel");c4.duty="done";c4.dutyH=4;o.under5=dn("e4");   // +0,5
+ const c4=rows.find(c=>c.empId==="e4"&&c.shiftId==="nagel");c4.duty="done";c4.dutyH=4;o.under5=dn("e4");
  c4.dutyH=5;o.exact5=dn("e4");           // 5 h dokładnie = 0,5
  const h=hrReport("2026-10");o.duty=Object.fromEntries(h.filter(x=>["e1","e2","e3","e4"].includes(x.employeeId)).map(x=>[x.employeeId,x.duty]));
  o.api=await HarmonogramPlugin.reportDuty("e1",c2.date==="x"?"":rows.find(c=>c.empId==="e1"&&c.shiftId==="nagel").date,{went:true,hours:7});
@@ -27,9 +27,9 @@ const r=await pg.evaluate(async()=>{const o={};
  o.noDuty=(await HarmonogramPlugin.reportDuty("e1","2026-10-11",{went:true})).ok;
  return o});
 console.log(JSON.stringify(r));
-ok('dyżur planowany = 0,5',r.planned===0.5);ok('nie wyjechał: anulowany = 0',r.cancelled===0);
+ok('dyżur zaplanowany, niezrealizowany = 0',r.planned===0);ok('nie wyjechał: anulowany = 0',r.cancelled===0);
 ok('ponad 5 h = 1 dniówka',r.over5===1);ok('poniżej 5 h = 0,5',r.under5===0.5);ok('dokładnie 5 h = 0,5',r.exact5===0.5);
-ok('Kadry: anulowany nie liczy godzin dyżuru',r.duty.e2===0,JSON.stringify(r.duty));
+ok('Kadry: zaplanowany i anulowany nie liczą godzin dyżuru',r.duty.e2===0&&r.duty.e1===0,JSON.stringify(r.duty));
 ok('Kadry: wyjechał 6,5 h',r.duty.e3===6.5);
 ok('API reportDuty wyjechał 7 h → 1 dn.',r.api.ok&&r.afterApi===1);ok('API reportDuty nie wyjechał → 0',r.afterCancel===0);
 ok('API bez dyżuru zwraca błąd',r.noDuty===false);

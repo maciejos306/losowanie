@@ -11,7 +11,7 @@ const r=await pg.evaluate(()=>{
  for(let i=0;i<5;i++)rows.push(["e1",D[i],"t1"]);                       // 5 x 8,5 = 42,5 -> 0
  for(let i=0;i<4;i++)rows.push(["e2",D[i],"t1"]);                       // 34 -> -8,5
  rows.push(["e3",D[0],"t8"]);for(let i=1;i<5;i++)rows.push(["e3",D[i],"t1"]); // 20+34 = 54 -> +11,5
- for(let i=0;i<5;i++)rows.push(["e4",D[i],"t1"]);rows.push(["e4",D[2],"nagel"]); // +5 (dyżur 5h)
+ for(let i=0;i<5;i++)rows.push(["e4",D[i],"t1"]);rows.push(["e4",D[2],"nagel"]);
  for(let i=0;i<4;i++)rows.push(["e5",D[i],"t1"]);                       // urlop 1 dzień -> norma 34 -> 0
  mk("w1",rows);S.abs.push({empId:"e5",date:D[4],reason:"urlop"});S.abs.push({empId:"e6",date:D[1],reason:"l4"});
  const L=ledger(null);const d=id=>(L[id][0]||{}).delta;
@@ -30,7 +30,7 @@ const r=await pg.evaluate(()=>{
  return o});
 console.log(JSON.stringify(r));
 ok('5 dniówek = norma → 0',r.e1===0);ok('4 dni → dzień wolny kosztuje −1',r.e2===-1);
-ok('Trasa 8 (2,5) + 4 krótkie → +1,5',r.e3===1.5);ok('dyżur 0,5 dolicza się → +0,5',r.e4===0.5);
+ok('Trasa 8 (2,5) + 4 krótkie → +1,5',r.e3===1.5);ok('dyżur niezrealizowany nie liczy się → 0',r.e4===0);
 ok('urlop bez wyjazdu kosztuje dniówkę → −1',r.e5===-1);ok('L4 zmniejsza normę (1 dzień, brak pracy → −4)',r.e6===-4);
 ok('saldo = suma tygodni',r.bal===-1);ok('ręczny bilans dodaje się',r.balWithManual===9);
 ok('data rachunku pomija tydzień',r.sinceSkips===0);ok('niepełny tydzień nie liczy się',r.partial===0);ok('wyłączony harmonogram nie liczy się',r.excl===0);

@@ -55,6 +55,7 @@
   .bal{display:block;font-weight:500;color:var(--muted);font-size:10.5px;margin-top:1px}
   .chip.dutyx,.bar.dutyx{opacity:.5;text-decoration:line-through;filter:grayscale(.6)}
   .chip.dutyx small{text-decoration:none}
+  .chip.dutyp{outline:2px dashed rgba(255,255,255,.75);outline-offset:-4px;opacity:.85}
   .chip.extra small::after{content:" · nadgodz.";font-weight:800}
   .est i{font-style:normal;font-weight:500;color:var(--muted);margin-left:6px}
   table.plan .dstart,table.tl .dstart{border-left:3px solid var(--day-sep)!important}
@@ -163,11 +164,11 @@
     </nav>
 
     <div class="screen" id="kadry">
-      <p class="lead" data-label="txt-kadry">Ewidencja dla działu kadr. Rozliczamy się dniówkami, jak monetami: trasa daje tyle dniówek, ile ma wagi (dyżur 0,5, Trasy 1–7 po 1, Trasy 8–11 po 2,5, Trasa 12 po 2). Do przeliczeń na godziny: 1 dniówka = 8,5 h (0,5 → 5 h, 1,5 → 13,5 h, 2 → 18 h, 2,5 → 22,5 h; do zmiany przy typie zmiany). Norma to 5 dniówek na tydzień (pon.–ndz.), pomniejszona o dni L4. Każdy dzień wolny przydzielony przez system albo urlop bez wyjazdu kosztuje 1 dniówkę z salda, a dalekie trasy i dodatkowe dni je podnoszą. Dyżur wlicza się jako 0,5 dniówki, a jego godziny widać osobno. Kolumny „stan dni wolnych” i „stan dniówek” wpisuje ręcznie kadrowa.</p>
+      <p class="lead" data-label="txt-kadry">Ewidencja dla działu kadr. Rozliczamy się dniówkami, jak monetami: trasa daje tyle dniówek, ile ma wagi (zrealizowany dyżur 0,5, Trasy 1–7 po 1, Trasy 8–11 po 2,5, Trasa 12 po 2). Do przeliczeń na godziny: 1 dniówka = 8,5 h (0,5 → 5 h, 1,5 → 13,5 h, 2 → 18 h, 2,5 → 22,5 h; do zmiany przy typie zmiany). Norma to 5 dniówek na tydzień (pon.–ndz.), pomniejszona o dni L4. Każdy dzień wolny przydzielony przez system albo urlop bez wyjazdu kosztuje 1 dniówkę z salda, a dalekie trasy i dodatkowe dni je podnoszą. Dyżur liczy się tylko zrealizowany: 0,5 dniówki, a gdy wyjazd z powrotem do bazy trwa ponad 5 h, 1 dniówka. Zaplanowany lub niewykorzystany przez FlotoMax daje 0. Jego godziny widać osobno. Kolumny „stan dni wolnych” i „stan dniówek” wpisuje ręcznie kadrowa.</p>
       <div class="row"><span class="muted">Miesiąc:</span><input type="month" id="hr-month"><button class="btn ghost sm" id="hr-csv">Kopiuj CSV (Excel)</button></div>
       <div class="grid-scroll"><table class="plan hr" id="hr-table"></table></div>
       <h3 style="margin:22px 0 6px;font-size:15px">Rachunek dniówek i dni wolnych</h3>
-      <p class="lead">Saldo dniówek = ręczny bilans otwarcia (kolumna „stan dniówek” wyżej) + suma tygodni od wybranej daty: zarobione dniówki minus norma 5. Dzień wolny lub urlop kosztuje 1 dniówkę, więc saldo może zejść poniżej zera. Liczą się tylko tygodnie w pełni objęte harmonogramami. Losowanie układa plan tak, żeby wyrównywać salda: kto ma więcej dniówek, dostaje więcej dni wolnych.</p>
+      <p class="lead">Saldo dniówek = ręczny bilans otwarcia (kolumna „stan dniówek” wyżej) + suma tygodni od wybranej daty: zarobione dniówki (dyżur tylko zrealizowany) minus norma 5. Dzień wolny lub urlop kosztuje 1 dniówkę, więc saldo może zejść poniżej zera. Liczą się tylko tygodnie w pełni objęte harmonogramami. Losowanie układa plan tak, żeby wyrównywać salda: kto ma więcej dniówek, dostaje więcej dni wolnych.</p>
       <div class="row"><span class="muted">Rachunek liczony od:</span><input type="date" id="hr-since"></div>
       <div class="grid-scroll"><table class="plan hr" id="hr-bal"></table></div>
       <textarea id="hr-out" style="display:none;width:100%;height:100px;font:11px monospace;margin-top:8px"></textarea>
@@ -276,8 +277,8 @@ const DAY_H=8.5, WEEK_DAYS=5;
 const payHours=sh=>{const w=sh?.weight??1;return w===1?8.5:hoursOf(sh)};
 const DUTY_LIMIT_H=5;
 const isDutyCell=(c,sh)=>!c.part&&(sh?.part||"full")==="pm";
-// dyżur: nie wyjechał = anulowany (0 dn.); wyjazd dłuższy niż 5 h (wyjazd + powrót do bazy) = 1 dniówka; inaczej 0,5
-const cellDn=(c,sh)=>{const w=sh?.weight??1;if(!isDutyCell(c,sh))return w;if(c.duty==="cancelled")return 0;if(c.duty==="done"&&Number.isFinite(c.dutyH)&&c.dutyH>DUTY_LIMIT_H)return 1;return w};
+// dyżur liczy się tylko zrealizowany: zaplanowany lub anulowany = 0 dn.; wyjechał do 5 h = 0,5; wyjazd + powrót do bazy dłuższy niż 5 h = 1 dniówka
+const cellDn=(c,sh)=>{const w=sh?.weight??1;if(!isDutyCell(c,sh))return w;if(c.duty!=="done")return 0;if(Number.isFinite(c.dutyH)&&c.dutyH>DUTY_LIMIT_H)return 1;return w};
 const fd=v=>(v>0?"+":"")+String(Math.round(v*100)/100).replace(".",",");
 // księga dniówek: dniówka to „moneta”. Trasa daje tyle dniówek, ile ma wagi (dyżur 0,5; Trasa 8–11 po 2,5).
 // Norma to 5 dniówek na tydzień Pon–Ndz. Każdy dzień wolny (przydzielony przez system albo urlop) kosztuje 1 dniówkę z salda,
@@ -561,7 +562,7 @@ function renderPlan(){try{updUndo()}catch(e){}
     let di=-1;for(const d of days){di++;
       const we=isWe(d), span=isSun(d)?1:2, wc=(we?" weekend":"")+(di%2?" alt":"");
       const cs=byEmpDay[e.id]?.[d]||[]; const ab=am[e.id]?.[d];
-      const chip=c=>{const sh=shMap[c.shiftId];const lk=(c.locked?" locked":"")+(c.extra?" extra":"");const dn=cellDn(c,sh);const dx=c.duty==="cancelled"?" dutyx":"";const lbl=c.duty==="cancelled"?"anulowany · 0 dn.":(dn!==(sh?.weight??1)?`${String(c.dutyH).replace(".",",")} h · ${String(dn).replace(".",",")} dn.`:`${String(dn).replace(".",",")} dn.`);return `<div class="chip${lk}${dx}" style="background:${colorOf(c.shiftId)}" data-pick="${e.id}|${d}" data-drag-cell="${e.id}|${d}|${c.shiftId}|${c.slot}">${esc(sh?.name||"?")}<small>${lbl}</small></div>`};
+      const chip=c=>{const sh=shMap[c.shiftId];const lk=(c.locked?" locked":"")+(c.extra?" extra":"");const dn=cellDn(c,sh);const dx=c.duty==="cancelled"?" dutyx":(isDutyCell(c,sh)&&c.duty!=="done"?" dutyp":"");const isD=isDutyCell(c,sh);const lbl=isD&&c.duty==="cancelled"?"anulowany · 0 dn.":isD&&c.duty!=="done"?"zaplanowany · 0 dn.":isD&&Number.isFinite(c.dutyH)?`${String(c.dutyH).replace(".",",")} h · ${String(dn).replace(".",",")} dn.`:`${String(dn).replace(".",",")} dn.`;return `<div class="chip${lk}${dx}" style="background:${colorOf(c.shiftId)}" data-pick="${e.id}|${d}" data-drag-cell="${e.id}|${d}|${c.shiftId}|${c.slot}">${esc(sh?.name||"?")}<small>${lbl}</small></div>`};
       const full=cs.find(c=>cpart(c,shMap[c.shiftId],d)==="full"), amC=cs.find(c=>cpart(c,shMap[c.shiftId],d)==="am"), pmC=cs.find(c=>cpart(c,shMap[c.shiftId],d)==="pm");
       if((full&&!pmC)||(!cs.length)){
         let inner;
@@ -660,13 +661,13 @@ function openSheet(empId,date){
   const mineCells=s.cells.filter(c=>c.date===date&&c.empId===empId); const anyLocked=mineCells.some(c=>c.locked);
   const others=S.shifts.filter(sh=>!shiftsOn(date).some(x=>x.id===sh.id));
   const dutyC=mineCells.filter(c=>isDutyCell(c,shMap[c.shiftId]));
-  const dutyBox=dutyC.length?`<div style="grid-column:1/-1;border:1.5px solid var(--line2);border-radius:12px;padding:10px 12px;background:var(--cream)"><div style="font-weight:800;margin-bottom:6px">Dyżur tego dnia</div><div class="row" style="margin:0"><select id="duty-state"><option value="">planowany (0,5 dn.)</option><option value="cancelled" ${dutyC[0].duty==="cancelled"?"selected":""}>nie wyjechał: anulowany (0 dn.)</option><option value="done" ${dutyC[0].duty==="done"?"selected":""}>wyjechał</option></select><label class="muted">wyjazd + powrót do bazy <input type="number" step="0.25" min="0" id="duty-h" style="width:80px" value="${Number.isFinite(dutyC[0].dutyH)?dutyC[0].dutyH:""}"> h</label><button class="btn sm" data-dutysave="1">Zapisz dyżur</button></div><div class="muted" style="font-size:11.5px;margin-top:6px">Dyżur do 5 h liczy 0,5 dniówki. Gdy wyjazd z powrotem do bazy trwa dłużej niż 5 h, liczy się 1 dniówka. Nie wyjechał: dyżur się anuluje i nie jest liczony.</div></div>`:"";
+  const dutyBox=dutyC.length?`<div style="grid-column:1/-1;border:1.5px solid var(--line2);border-radius:12px;padding:10px 12px;background:var(--cream)"><div style="font-weight:800;margin-bottom:6px">Dyżur tego dnia</div><div class="row" style="margin:0"><select id="duty-state"><option value="">zaplanowany, jeszcze niezrealizowany (0 dn.)</option><option value="cancelled" ${dutyC[0].duty==="cancelled"?"selected":""}>nie wyjechał: anulowany (0 dn.)</option><option value="done" ${dutyC[0].duty==="done"?"selected":""}>wyjechał: zrealizowany (0,5 dn.)</option></select><label class="muted">wyjazd + powrót do bazy <input type="number" step="0.25" min="0" id="duty-h" style="width:80px" value="${Number.isFinite(dutyC[0].dutyH)?dutyC[0].dutyH:""}"> h</label><button class="btn sm" data-dutysave="1">Zapisz dyżur</button></div><div class="muted" style="font-size:11.5px;margin-top:6px">Liczy się tylko zrealizowany dyżur. Jeśli FlotoMax nie wykorzysta kierowcy tego dnia, dyżur nie daje nic (0 dniówek). Wyjazd z powrotem do bazy do 5 h daje 0,5 dniówki, a dłuższy niż 5 h daje 1 dniówkę.</div></div>`:"";
   $("sheet-opts").innerHTML=dutyBox+(anyLocked?`<div class="chip off" data-unlock="1" style="grid-column:1/-1;border-style:solid">🔓 Odblokuj ten dzień (pozwól programowi zmieniać)</div>`:"")+shiftsOn(date).map(sh=>`<div class="chip" style="background:${colorOf(sh.id)};${mine.has(sh.id)?"outline:3px solid var(--ink);outline-offset:-3px":""}" data-set="${sh.id}">${mine.has(sh.id)?"✓ ":""}${esc(sh.name)}<small>${PART[partOf(sh,date)]} · ${String(sh.weight).replace(".",",")} dn.</small></div>`).join("")+`<div class="chip off" data-set="">— wolne cały dzień —</div>`+(others.length?`<div class="muted" style="grid-column:1/-1;margin-top:6px">Poza założeniami na ten dzień:</div>`+others.map(sh=>`<div class="chip" style="background:${colorOf(sh.id)};opacity:.75;${mine.has(sh.id)?"outline:3px solid var(--ink);outline-offset:-3px":""}" data-set="${sh.id}">${mine.has(sh.id)?"✓ ":""}${esc(sh.name)}<small>${PART[partOf(sh,date)]} · ${String(sh.weight).replace(".",",")} dn.</small></div>`).join(""):"");
   $("sheet").classList.add("open");
   $("sheet-opts").onclick=async ev=>{
     if(ev.target.closest("[data-dutysave]")){const st=$("duty-state").value, hv=parseFloat($("duty-h").value);$("sheet").classList.remove("open");
       s.cells.filter(c=>c.date===date&&c.empId===empId&&isDutyCell(c,shMap[c.shiftId])).forEach(c=>{if(st==="cancelled"){c.duty="cancelled";delete c.dutyH}else if(st==="done"){c.duty="done";if(Number.isFinite(hv)&&hv>=0)c.dutyH=hv;else delete c.dutyH}else{delete c.duty;delete c.dutyH}});
-      await guard(()=>saveSched(s));notice(st==="cancelled"?"Dyżur anulowany: nie jest wliczany.":st==="done"&&hv>DUTY_LIMIT_H?"Dyżur dłuższy niż 5 h: liczy się jako 1 dniówka.":"Zapisano dyżur.");renderPlan();return}
+      await guard(()=>saveSched(s));notice(st==="cancelled"?"Dyżur anulowany: nie jest wliczany.":st==="done"?(hv>DUTY_LIMIT_H?"Dyżur zrealizowany, dłuższy niż 5 h: liczy się jako 1 dniówka.":"Dyżur zrealizowany: 0,5 dniówki."):"Dyżur zaplanowany: nie liczy się, dopóki nie zostanie zrealizowany.");renderPlan();return}
     const u=ev.target.closest("[data-unlock]");
     if(u){$("sheet").classList.remove("open");s.cells.filter(c=>c.date===date&&c.empId===empId).forEach(c=>{delete c.locked});await guard(()=>saveSched(s));notice("Odblokowano — program może znów zmieniać ten dzień.");renderPlan();return}
     const t=ev.target.closest("[data-set]"); if(!t) return; const shiftId=t.dataset.set; $("sheet").classList.remove("open");
@@ -758,7 +759,7 @@ function hrReport(month){ // month "YYYY-MM"
   const balAll=balances(null), since=S.hr?._since||"0000-00-00", LG=ledger(null,true);
   return S.emps.map(e=>{
     const mine=cells.filter(c=>c.empId===e.id);
-    const byDay={};mine.forEach(c=>{const sh=shMap[c.shiftId];const p=cpart(c,sh,c.date);(byDay[c.date]??={h:0,d:0,w:false,x:false});if(p==="pm"&&!c.part){if(c.duty!=="cancelled")byDay[c.date].d+=(c.duty==="done"&&Number.isFinite(c.dutyH)?c.dutyH:payHours(sh))}else{byDay[c.date].h+=payHours(sh);byDay[c.date].w=true;if(c.extra)byDay[c.date].x=true}});
+    const byDay={};mine.forEach(c=>{const sh=shMap[c.shiftId];const p=cpart(c,sh,c.date);(byDay[c.date]??={h:0,d:0,w:false,x:false});if(p==="pm"&&!c.part){if(c.duty==="done")byDay[c.date].d+=(Number.isFinite(c.dutyH)?c.dutyH:payHours(sh))}else{byDay[c.date].h+=payHours(sh);byDay[c.date].w=true;if(c.extra)byDay[c.date].x=true}});
     let days=0,duty=0;for(const v of Object.values(byDay)){if(v.w)days++;duty+=v.d}
     const wks=(LG[e.id]||[]).filter(w=>addDays(w.monday,3).startsWith(month));const wkWorked=wks.reduce((a,w)=>a+w.worked,0), wkNorm=wks.reduce((a,w)=>a+w.norm,0);const earnedD=wkWorked, normD=wkNorm, deltaD=wkWorked-wkNorm, base=Math.min(wkWorked,wkNorm)*DAY_H, over=deltaD*DAY_H;
     const abs=S.abs.filter(a=>a.empId===e.id&&inMonth(a.date));
