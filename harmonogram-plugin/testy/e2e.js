@@ -65,6 +65,7 @@ const EXE='/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_s
  await check('okno nie otworzyło się po dragu',async()=>pg.locator('#sheet.open').count().then(n=>n===0));
  await check('rubryka podzielona (2 komórki half)',async()=>pg.locator(`td.half[data-drop="${tkey}"]`).count().then(n=>n===2));
  // 7 drag między komórkami
+ await pg.setViewportSize({width:1900,height:1500}); await pg.waitForTimeout(150);
  const src=pg.locator('td[data-drop] .chip[data-drag-cell]').first(); const sk=await src.getAttribute('data-drag-cell');
  const dst=pg.locator('td[data-drop]').nth(20); await src.scrollIntoViewIfNeeded(); const dk=await dst.getAttribute('data-drop');
  const sb=await src.boundingBox(), db=await dst.boundingBox();

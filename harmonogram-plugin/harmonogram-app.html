@@ -161,6 +161,7 @@
       <button class="tab" data-tab="zalozenia" data-label="tab-zalozenia">Założenia</button>
       <button class="tab" data-tab="dysp" data-label="tab-dysp">Dyspozycja dnia</button>
       <button class="tab" data-tab="kadry" data-label="tab-kadry">Kadry</button>
+      <button class="tab" data-tab="bilans" data-label="tab-bilans">Bilans</button>
     </nav>
 
     <div class="screen" id="kadry">
@@ -174,6 +175,15 @@
       <textarea id="hr-out" style="display:none;width:100%;height:100px;font:11px monospace;margin-top:8px"></textarea>
     </div>
 
+    <div class="screen" id="bilans">
+      <p class="lead" data-label="txt-bilans">Bilans kadrowy: czy liczba kierowców pasuje do pracy, którą trzeba wykonać. Pojemność tygodnia to liczba kierowców × (5 dniówek normy + 0,5 dopuszczalnych nadgodzin). Zapotrzebowanie to suma dniówek tras w tygodniu (dyżury liczą się dopiero po realizacji, więc nie wchodzą do zapotrzebowania). Nieobecności (urlop, L4, wnioski) zmniejszają pojemność.</p>
+      <div class="row"><label class="muted">Norma (dniówek / tydzień) <input type="number" id="bil-norm" step="0.5" min="1" max="7" style="width:80px"></label><label class="muted">Dopuszczalne nadgodziny <input type="number" id="bil-ot" step="0.25" min="0" max="3" style="width:80px"></label><label class="muted">Próg „za mało pracy” (% normy) <input type="number" id="bil-low" step="5" min="10" max="100" style="width:80px"></label></div>
+      <div id="bil-main"></div>
+      <h3 style="margin:18px 0 6px;font-size:15px">Zapotrzebowanie w dni tygodnia (z Założeń)</h3>
+      <div class="grid-scroll"><table class="plan hr" id="bil-days"></table></div>
+      <h3 style="margin:18px 0 6px;font-size:15px">Tydzień po tygodniu</h3>
+      <div class="grid-scroll"><table class="plan hr" id="bil-weeks"></table></div>
+    </div>
     <div class="screen" id="dysp">
       <p class="lead" data-label="txt-dysp">To widok dla FlotoMax: kto danego dnia jest dostępny do planowania trasy, kto ma już przydzieloną trasę, kto odpoczywa lub jest nieobecny. FlotoMax pobiera te dane przez API pluginu (<code>HarmonogramPlugin.availability(data)</code>) albo z eksportu poniżej.</p>
       <div class="row"><input type="date" id="dysp-date"><button class="btn ghost sm" id="dysp-copy">Kopiuj JSON dla FlotoMax</button></div>
@@ -378,7 +388,7 @@ function generate(start,end,excludeId){
       let extra=false, pool=c;
       if(!pool.length&&pt!=="pm"){pool=emps.filter(e=>canDrive(e,sh)&&!clash(used,e.id,pt)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&canWorkX(worked,e.id,day));extra=pool.length>0}
       const emp=pick(pool,counts,sh,prevDay,bias);
-      if(emp!=null){counts[emp]++;mark(used,emp,pt);if(pt!=="pm"){(today[emp]??=[]).push(sh.id);noteWork(worked,emp,day);if((sh.weight??1)>=1.5)heavy.add(emp)}const r=restOf(sh);if(r>0)rest[emp]=addDays(day,r)}
+      if(emp!=null){counts[emp]+=(sh.weight??1);mark(used,emp,pt);if(pt!=="pm"){(today[emp]??=[]).push(sh.id);noteWork(worked,emp,day);if((sh.weight??1)>=1.5)heavy.add(emp)}const r=restOf(sh);if(r>0)rest[emp]=addDays(day,r)}
       cells.push(extra&&emp!=null?{date:day,shiftId:sh.id,slot,empId:emp,extra:true}:{date:day,shiftId:sh.id,slot,empId:emp});
     }
     prevDay=today;
@@ -392,7 +402,7 @@ function repair(sched,fromDate,extraLocked=new Set(),ban=new Set()){
   const shOf={};S.shifts.forEach(s=>shOf[s.id]=s);
   const key=c=>c.date+"|"+c.shiftId+"|"+c.slot;
   let changed=0, {rest,prevDay,worked}=seedState(sched.start,sched.id,shOf);
-  const accept=(emp,sh,day,part)=>{if(emp==null)return;counts[emp]=(counts[emp]||0)+1;if(part!=="pm")noteWork(worked,emp,day);const r=restOf(sh);if(r>0)rest[emp]=addDays(day,r)};
+  const accept=(emp,sh,day,part)=>{if(emp==null)return;counts[emp]=(counts[emp]||0)+(sh.weight??1);if(part!=="pm")noteWork(worked,emp,day);const r=restOf(sh);if(r>0)rest[emp]=addDays(day,r)};
   for(const day of range(sched.start,sched.end)){
     const used={}, today={}, heavy=new Set(), frozen=day<fromDate;
     const todays=sched.cells.filter(c=>c.date===day).sort((a,b)=>(lockedKeys.has(key(a))?0:1)-(lockedKeys.has(key(b))?0:1)||byPriority(shOf[a.shiftId]||{weight:1,id:a.shiftId},shOf[b.shiftId]||{weight:1,id:b.shiftId})||a.slot-b.slot);
@@ -453,12 +463,12 @@ async function boot(){
   docA().onSnapshot(s=>{S.abs=s.exists?structuredClone(s.data().items||[]):[];render()});
   docP().onSnapshot(s=>{S.plan=s.exists?structuredClone(s.data()):null;render()});
   docL().onSnapshot(s=>{S.labels=s.exists?structuredClone(s.data().items||{}):{};applyLabels()});
-  docHR().onSnapshot(s=>{S.hr=s.exists?structuredClone(s.data().items||{}):{};renderHR()});
+  docHR().onSnapshot(s=>{S.hr=s.exists?structuredClone(s.data().items||{}):{};renderHR();try{renderBilans()}catch(e){}});
   db.collection("schedules").onSnapshot(q=>{S.scheds={};q.docs.forEach(d=>{S.scheds[d.id]=structuredClone(d.data());if(!S.undoBusy)S.seen[d.id]=JSON.stringify(S.scheds[d.id])});if(!S.current||!S.scheds[S.current]){const ids=Object.keys(S.scheds).sort((a,b)=>(S.scheds[b].createdAt||"").localeCompare(S.scheds[a].createdAt||""));S.current=ids[0]||null}render()});
 }
 
 // ---------- render ----------
-function render(){renderEmps();renderShifts();renderList();renderPlan();renderTemplate();renderDysp();renderHR();applyLabels()}
+function render(){renderEmps();renderShifts();renderList();renderPlan();renderTemplate();renderDysp();renderHR();try{renderBilans()}catch(e){console.error(e)}applyLabels()}
 function renderTemplate(){
   const T=$("plan-template");
   if(!S.shifts.length){T.innerHTML="";return}
@@ -769,6 +779,39 @@ function hrReport(month){ // month "YYYY-MM"
   });
 }
 const fdn=v=>String(Math.round(v*100)/100).replace(".",",");
+const BIL_DEF={norm:5,ot:0.5,low:90};
+const bilCfg=()=>({...BIL_DEF,...(S.hr?._bilans||{})});
+function weekDemand(monday){
+  const sched=Object.values(S.scheds).find(s=>s.start<=monday&&addDays(monday,6)<=s.end);const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
+  const days=[];let dn=0,duty=0,heads=0;
+  for(let k=0;k<7;k++){const date=addDays(monday,k);let routes=0,d=0,du=0;
+    if(sched){for(const c of sched.cells.filter(c=>c.date===date)){const sh=shMap[c.shiftId];if(isDutyCell(c,sh))du+=sh?.weight??0.5;else{routes++;d+=sh?.weight??1}}}
+    else{for(const sh of shiftsOn(date)){const n=+sh.people||1;if((sh.part||"full")==="pm")du+=n*(sh.weight??0.5);else{routes+=n;d+=n*(sh.weight??1)}}}
+    days.push({date,routes,dn:d,duty:du});dn+=d;duty+=du;heads=Math.max(heads,routes)}
+  return{dn,duty,days,peak:heads,src:sched?"plan":"założenia"}}
+function bilansWeek(monday,cfg=bilCfg()){
+  const act=S.emps.filter(e=>e.active), dem=weekDemand(monday), mx=cfg.norm+cfg.ot;
+  let capN=0,capM=0,absDays=0;
+  for(const e of act){const ds=new Set(S.abs.filter(a=>a.empId===e.id&&["urlop","l4","wniosek"].includes(a.reason)&&a.date>=monday&&a.date<=addDays(monday,6)).map(a=>a.date));const a=Math.min(ds.size,mx);absDays+=ds.size;capN+=Math.max(0,cfg.norm-a);capM+=Math.max(0,mx-a)}
+  const D=dem.dn, low=cfg.low/100;let status,label,advice;
+  if(!act.length){status="short";label="Brak aktywnych kierowców";advice="Dodaj kierowców."}
+  else if(D>capM+1e-9){const need=Math.ceil((D-capM)/mx-1e-9), needNorm=Math.ceil((D-capN)/cfg.norm-1e-9);status="short";label="Za mało kierowców";advice=`Zapotrzebowanie ${fdn(D)} dn. przekracza pojemność z nadgodzinami (${fdn(capM)} dn.). Zatrudnij co najmniej ${need} ${need===1?"kierowcę":need<5?"kierowców":"kierowców"}, żeby zmieścić się w dopuszczalnych nadgodzinach, albo ${needNorm} żeby pracować bez nadgodzin.`;dem.hire=need;dem.hireNorm=needNorm}
+  else if(D>capN+1e-9){status="ok";label="OK, z nadgodzinami w dopuszczalnym zakresie";advice=`Wykorzystano ${Math.round((D-capN)/(capM-capN||1)*100)}% dopuszczalnych nadgodzin (${fdn(D-capN)} z ${fdn(capM-capN)} dn.).`}
+  else if(D<capN*low-1e-9){const need=Math.max(1,Math.ceil(D/cfg.norm-1e-9)), surplus=Math.max(0,act.length-need);status="idle";label="Za mało pracy w stosunku do kierowców";advice=`Zapotrzebowanie ${fdn(D)} dn. to ${Math.round(D/capN*100)}% normy (${fdn(capN)} dn.). Przy tej pracy wystarczyłoby około ${need} kierowców, czyli o ${surplus} mniej.`}
+  else{status="ok";label="OK";advice=`Zapotrzebowanie mieści się w normie bez nadgodzin (${Math.round(D/capN*100)}% normy).`}
+  return{monday,src:dem.src,drivers:act.length,absDays,demand:D,duty:dem.duty,capNorm:capN,capMax:capM,load:capN?D/capN:0,status,label,advice,hire:dem.hire||0,hireNorm:dem.hireNorm||0,peak:dem.peak,days:dem.days}}
+const BIL_COL={ok:["#dcfce7","#166534"],short:["#fee2e2","#991b1b"],idle:["#dbeafe","#1e40af"]};
+function renderBilans(){
+  const c=bilCfg();$("bil-norm").value=c.norm;$("bil-ot").value=c.ot;$("bil-low").value=c.low;
+  const mon0=weekKey(fmt(new Date()));const w0=bilansWeek(Object.values(S.scheds).length?weekKey(Object.values(S.scheds).map(s=>s.start).sort().slice(-1)[0]):mon0,c);
+  const typ=bilansWeek("2099-01-05",c); // tydzień z samych Założeń (brak harmonogramu)
+  const col=BIL_COL[typ.status];
+  $("bil-main").innerHTML=`<div style="border:2px solid ${col[1]};background:${col[0]};color:${col[1]};border-radius:14px;padding:14px 16px;margin:10px 0"><div style="font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase">Typowy tydzień z Założeń</div><div style="font-size:20px;font-weight:800;margin:2px 0 4px">${esc(typ.label)}</div><div style="font-size:13.5px">${esc(typ.advice)}</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"><span class="kpi">Kierowców aktywnych <b>${typ.drivers}</b></span><span class="kpi">Zapotrzebowanie <b>${fdn(typ.demand)} dn.</b></span><span class="kpi">Pojemność w normie <b>${fdn(typ.capNorm)} dn.</b></span><span class="kpi">Z nadgodzinami <b>${fdn(typ.capMax)} dn.</b></span><span class="kpi">Obciążenie normy <b>${Math.round(typ.load*100)}%</b></span><span class="kpi">Najwięcej tras w dniu <b>${typ.peak}</b></span></div></div>`;
+  $("bil-days").innerHTML='<tr><th>Dzień</th><th>tras (kierowców)</th><th>dniówek</th><th>dyżury (po realizacji)</th><th>status dnia</th></tr>'+typ.days.map(d=>{const wd=DAYN[wdOf(d.date)];const enough=d.routes<=typ.drivers;return `<tr><td>${wd}</td><td>${d.routes}</td><td>${fdn(d.dn)}</td><td>${fdn(d.duty)}</td><td style="color:${enough?"#166534":"#991b1b"};font-weight:700">${enough?"kierowców wystarczy":"brakuje "+(d.routes-typ.drivers)}</td></tr>`}).join("");
+  const mons=new Set(Object.values(S.scheds).map(s=>weekKey(s.start)));const last=[...mons].sort().slice(-1)[0]||mon0;for(let i=1;i<=3;i++)mons.add(addDays(last,7*i));
+  $("bil-weeks").innerHTML='<tr><th>Tydzień</th><th>źródło</th><th>kierowców</th><th>dni nieobecności</th><th>zapotrzebowanie (dn.)</th><th>pojemność w normie</th><th>z nadgodzinami</th><th>obciążenie</th><th>status</th></tr>'+[...mons].sort().map(m=>{const w=bilansWeek(m,c);const cl=BIL_COL[w.status];return `<tr><td>${m.slice(8)}.${m.slice(5,7)}</td><td>${w.src}</td><td>${w.drivers}</td><td>${w.absDays}</td><td>${fdn(w.demand)}</td><td>${fdn(w.capNorm)}</td><td>${fdn(w.capMax)}</td><td>${Math.round(w.load*100)}%</td><td style="text-align:left"><span class="tag" style="background:${cl[0]};color:${cl[1]};border-color:${cl[1]}" title="${esc(w.advice)}">${esc(w.label)}</span></td></tr>`}).join("");
+}
+["bil-norm","bil-ot","bil-low"].forEach(id=>document.addEventListener("change",ev=>{if(ev.target.id!==id)return;const v=parseFloat(ev.target.value);if(!Number.isFinite(v))return;S.hr._bilans={...(S.hr._bilans||{}),[{"bil-norm":"norm","bil-ot":"ot","bil-low":"low"}[id]]:v};guard(async()=>{await docHR().set({items:S.hr})});renderBilans()}));
 function renderHR(){
   const inp=$("hr-month"); if(!inp.value)inp.value=fmt(new Date()).slice(0,7);
   const rows=hrReport(inp.value); const f=v=>String(Math.round(v*10)/10).replace(".",",");
@@ -786,7 +829,7 @@ document.addEventListener("change",ev=>{const t=ev.target;if(!(t.dataset?.hrFree
 // ---------- API pluginu (FlotoMax) ----------
 function pluginGetData(){return {version:1,employees:S.emps,shifts:S.shifts,absences:S.abs,plan:S.plan,schedules:S.scheds,labels:S.labels}}
 async function pluginSetData(d){if(!S.db)throw new Error("brak bazy");if(d.employees){S.emps=d.employees;await saveE()}if(d.shifts){S.shifts=d.shifts;await saveS()}if(d.absences){S.abs=d.absences;await saveA()}if(d.plan){S.plan=d.plan;await savePlan()}if(d.schedules){for(const s of Object.values(d.schedules))await saveSched(s)}if(d.labels){S.labels=d.labels;await saveLabels()}}
-window.HarmonogramPlugin={getData:pluginGetData,setData:pluginSetData,availability,hrReport,requestLeave:async(employeeId,from,to)=>{const bad=checkLeave(employeeId,from,to);if(bad.length)return{ok:false,blocked:bad,message:leaveNote(bad)};for(const d of range(from,to)){S.abs=S.abs.filter(a=>!(a.empId===employeeId&&a.date===d));S.abs.push({empId:employeeId,date:d,reason:"wniosek"})}await saveA();return{ok:true}},reportDuty:async(employeeId,date,{went,hours}={})=>{const s=Object.values(S.scheds).find(x=>x.start<=date&&date<=x.end);if(!s)return{ok:false,message:"brak harmonogramu na ten dzień"};const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);let n=0;for(const c of s.cells){if(c.date===date&&c.empId===employeeId&&isDutyCell(c,shMap[c.shiftId])){n++;if(went===false){c.duty="cancelled";delete c.dutyH}else{c.duty="done";if(Number.isFinite(hours))c.dutyH=hours;else delete c.dutyH}}}if(!n)return{ok:false,message:"kierowca nie ma dyżuru tego dnia"};await saveSched(s);return{ok:true,dniowki:cellDn({duty:went===false?"cancelled":"done",dutyH:hours},shMap[Object.keys(shMap).find(k=>(shMap[k].part||"full")==="pm")])}},freeDrivers:d=>availability(d).filter(r=>r.status==="free"),generate:(a,b)=>generate(a,b,null),repair:(s,from,locked)=>repair(s,from,locked),restOf,rules:{maxWorkDays:MAX_WORK_DAYS}};
+window.HarmonogramPlugin={getData:pluginGetData,setData:pluginSetData,availability,hrReport,requestLeave:async(employeeId,from,to)=>{const bad=checkLeave(employeeId,from,to);if(bad.length)return{ok:false,blocked:bad,message:leaveNote(bad)};for(const d of range(from,to)){S.abs=S.abs.filter(a=>!(a.empId===employeeId&&a.date===d));S.abs.push({empId:employeeId,date:d,reason:"wniosek"})}await saveA();return{ok:true}},reportDuty:async(employeeId,date,{went,hours}={})=>{const s=Object.values(S.scheds).find(x=>x.start<=date&&date<=x.end);if(!s)return{ok:false,message:"brak harmonogramu na ten dzień"};const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);let n=0;for(const c of s.cells){if(c.date===date&&c.empId===employeeId&&isDutyCell(c,shMap[c.shiftId])){n++;if(went===false){c.duty="cancelled";delete c.dutyH}else{c.duty="done";if(Number.isFinite(hours))c.dutyH=hours;else delete c.dutyH}}}if(!n)return{ok:false,message:"kierowca nie ma dyżuru tego dnia"};await saveSched(s);return{ok:true,dniowki:cellDn({duty:went===false?"cancelled":"done",dutyH:hours},shMap[Object.keys(shMap).find(k=>(shMap[k].part||"full")==="pm")])}},bilans:(monday)=>bilansWeek(monday||"2099-01-05"),freeDrivers:d=>availability(d).filter(r=>r.status==="free"),generate:(a,b)=>generate(a,b,null),repair:(s,from,locked)=>repair(s,from,locked),restOf,rules:{maxWorkDays:MAX_WORK_DAYS}};
 window.addEventListener("message",ev=>{const m=ev.data;if(!m||m.type!=="harmonogram")return;if(m.action==="getData")ev.source?.postMessage({type:"harmonogram",action:"data",data:pluginGetData()},"*");if(m.action==="requestLeave"){window.HarmonogramPlugin.requestLeave(m.employeeId,m.from,m.to).then(()=>ev.source?.postMessage({type:"harmonogram",action:"leaveRequested",employeeId:m.employeeId,from:m.from,to:m.to},"*"))}if(m.action==="availability")ev.source?.postMessage({type:"harmonogram",action:"availability",date:m.date,drivers:availability(m.date)},"*")});
 $("btn-export").onclick=()=>{const ta=$("export-out");ta.value=JSON.stringify(pluginGetData(),null,1);ta.style.display="block";ta.select();try{navigator.clipboard.writeText(ta.value).then(()=>setStatus("Dane skopiowane do schowka (i widoczne poniżej)."),()=>setStatus("Dane widoczne poniżej — skopiuj je ręcznie."))}catch(e){setStatus("Dane widoczne poniżej — skopiuj je ręcznie.")}};
 $("file-import").onchange=ev=>{const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>guard(async()=>{const d=JSON.parse(r.result);await pluginSetData(d);setStatus("Dane zaimportowane.")});r.readAsText(f);ev.target.value=""};
