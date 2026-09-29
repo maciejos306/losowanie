@@ -53,6 +53,8 @@
   b.ini{font-family:Karla;font-size:10.5px;font-weight:800;letter-spacing:0;text-transform:none;padding:1px 6px;border-radius:6px;color:#1e3a5f;background:#bfdbfe;border:1px solid #60a5fa}
   b.ini.w{color:#5b4200;background:#fde68a;border:1px dashed #d4a017}
   .bal{display:block;font-weight:500;color:var(--muted);font-size:10.5px;margin-top:1px}
+  .chip.dutyx,.bar.dutyx{opacity:.5;text-decoration:line-through;filter:grayscale(.6)}
+  .chip.dutyx small{text-decoration:none}
   .chip.extra small::after{content:" · nadgodz.";font-weight:800}
   .est i{font-style:normal;font-weight:500;color:var(--muted);margin-left:6px}
   table.plan .dstart,table.tl .dstart{border-left:3px solid var(--day-sep)!important}
@@ -272,6 +274,10 @@ const leaveNote=bad=>`Zgłoszenie odrzucone: w dniach ${bad.map(b=>b.date.slice(
 const biasOf=d=>Math.max(-3,Math.min(3,d||0));
 const DAY_H=8.5, WEEK_DAYS=5;
 const payHours=sh=>{const w=sh?.weight??1;return w===1?8.5:hoursOf(sh)};
+const DUTY_LIMIT_H=5;
+const isDutyCell=(c,sh)=>!c.part&&(sh?.part||"full")==="pm";
+// dyżur: nie wyjechał = anulowany (0 dn.); wyjazd dłuższy niż 5 h (wyjazd + powrót do bazy) = 1 dniówka; inaczej 0,5
+const cellDn=(c,sh)=>{const w=sh?.weight??1;if(!isDutyCell(c,sh))return w;if(c.duty==="cancelled")return 0;if(c.duty==="done"&&Number.isFinite(c.dutyH)&&c.dutyH>DUTY_LIMIT_H)return 1;return w};
 const fd=v=>(v>0?"+":"")+String(Math.round(v*100)/100).replace(".",",");
 // księga dniówek: dniówka to „moneta”. Trasa daje tyle dniówek, ile ma wagi (dyżur 0,5; Trasa 8–11 po 2,5).
 // Norma to 5 dniówek na tydzień Pon–Ndz. Każdy dzień wolny (przydzielony przez system albo urlop) kosztuje 1 dniówkę z salda,
@@ -281,7 +287,7 @@ function ledger(excludeId,ignoreSince){
   const since=ignoreSince?"0000-00-00":(S.hr?._since||"0000-00-00"), shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
   const covered=new Set(), earned={};
   for(const [id,s] of Object.entries(S.scheds)){if(id===excludeId)continue;for(const d of range(s.start,s.end))covered.add(d);
-    for(const c of s.cells||[]){if(c.empId==null)continue;const wk=weekKey(c.date);const m=(earned[c.empId]??={});m[wk]=(m[wk]||0)+(shMap[c.shiftId]?.weight??1)}}
+    for(const c of s.cells||[]){if(c.empId==null)continue;const wk=weekKey(c.date);const m=(earned[c.empId]??={});m[wk]=(m[wk]||0)+cellDn(c,shMap[c.shiftId])}}
   const absW={};for(const a of S.abs){if(a.reason!=="urlop"&&a.reason!=="l4")continue;const wk=weekKey(a.date);const o=(((absW[a.empId]??={})[wk])??={l4:new Set(),urlop:new Set()});o[a.reason].add(a.date)}
   const weeks=[...covered].filter(d=>wdOf(d)===1&&d>=since&&[0,1,2,3,4,5,6].every(k=>covered.has(addDays(d,k)))).sort();
   const out={};
@@ -401,7 +407,7 @@ function repair(sched,fromDate,extraLocked=new Set(),ban=new Set()){
         if(!pool.length&&part!=="pm"){pool=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!clash(used,e.id,part)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&canWorkX(worked,e.id,day));extra=pool.length>0}
         emp=pick(pool,counts,sh,prevDay,bias);
         if(extra&&emp!=null)c.extra=true;else delete c.extra;
-        if(emp!==c.empId){c.empId=emp;changed++}
+        if(emp!==c.empId){c.empId=emp;delete c.duty;delete c.dutyH;changed++}
       }
       if(emp!=null){mark(used,emp,part);if(part!=="pm"){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,part)}
     }
@@ -518,7 +524,7 @@ function renderTimeline(){
         else lanes[i].push(`<div class="tl-off" style="${off}" data-pick="${e.id}|${d}">— wolne —</div>`);
         return;
       }
-      for(const c of cs){const sh=shMap[c.shiftId];const st=startOf(sh,d),hh=hoursOf(sh),end=st+hh,col=colorOf(c.shiftId),lk=c.locked?" locked":"";total+=hh;if(hh>=16)far+=hh;
+      for(const c of cs){const sh=shMap[c.shiftId];const cx=c.duty==="cancelled";const st=startOf(sh,d),hh=(c.duty==="done"&&isDutyCell(c,sh)&&Number.isFinite(c.dutyH))?c.dutyH:hoursOf(sh),end=st+hh,col=colorOf(c.shiftId),lk=(c.locked?" locked":"")+(cx?" dutyx":"");if(!cx)total+=hh;if(hh>=16)far+=hh;
         if(end<=24)lanes[i].push(`<div class="bar${lk}" style="left:${pct(st)};width:${pct(hh)};background-color:${col}" data-pick="${e.id}|${d}" title="${esc(sh?.name||"")} ${fmtH(st)}–${fmtH(end)} (${hh} h)">${esc(sh?.name||"?")}<small>${fmtH(st)}–${fmtH(end)} · ${String(hh).replace(".",",")} h</small></div>`);
         else{lanes[i].push(`<div class="bar spill${lk}" style="left:${pct(st)};width:${pct(24-st)};background-color:${col}" data-pick="${e.id}|${d}" title="${esc(sh?.name||"")} start ${fmtH(st)}, ${hh} h">${esc(sh?.name||"?")}<small>${fmtH(st)} → ${String(hh).replace(".",",")} h</small></div>`);if(i+1<days.length)lanes[i+1].push(`<div class="bar cont" style="left:0;width:${pct(end-24)};background-color:${col}">→ ${esc(sh?.name||"")}<small>do ${fmtH(end-24)}</small></div>`)}
       }
@@ -555,7 +561,7 @@ function renderPlan(){try{updUndo()}catch(e){}
     let di=-1;for(const d of days){di++;
       const we=isWe(d), span=isSun(d)?1:2, wc=(we?" weekend":"")+(di%2?" alt":"");
       const cs=byEmpDay[e.id]?.[d]||[]; const ab=am[e.id]?.[d];
-      const chip=c=>{const sh=shMap[c.shiftId];const lk=(c.locked?" locked":"")+(c.extra?" extra":"");return `<div class="chip${lk}" style="background:${colorOf(c.shiftId)}" data-pick="${e.id}|${d}" data-drag-cell="${e.id}|${d}|${c.shiftId}|${c.slot}">${esc(sh?.name||"?")}<small>${String(sh?.weight??1).replace(".",",")} dn.</small></div>`};
+      const chip=c=>{const sh=shMap[c.shiftId];const lk=(c.locked?" locked":"")+(c.extra?" extra":"");const dn=cellDn(c,sh);const dx=c.duty==="cancelled"?" dutyx":"";const lbl=c.duty==="cancelled"?"anulowany · 0 dn.":(dn!==(sh?.weight??1)?`${String(c.dutyH).replace(".",",")} h · ${String(dn).replace(".",",")} dn.`:`${String(dn).replace(".",",")} dn.`);return `<div class="chip${lk}${dx}" style="background:${colorOf(c.shiftId)}" data-pick="${e.id}|${d}" data-drag-cell="${e.id}|${d}|${c.shiftId}|${c.slot}">${esc(sh?.name||"?")}<small>${lbl}</small></div>`};
       const full=cs.find(c=>cpart(c,shMap[c.shiftId],d)==="full"), amC=cs.find(c=>cpart(c,shMap[c.shiftId],d)==="am"), pmC=cs.find(c=>cpart(c,shMap[c.shiftId],d)==="pm");
       if((full&&!pmC)||(!cs.length)){
         let inner;
@@ -586,10 +592,10 @@ function notice(t){$("notice").innerHTML=t?`<div class="notice">${t}</div>`:""}
 async function assignShift(empId,date,shiftId,opts={}){
   const s=S.scheds[S.current]; if(!s||!S.db) return;
   const key=c=>c.date+"|"+c.shiftId+"|"+c.slot; const locked=new Set(); const ban=new Set(); const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
-  if(opts.from){const f=s.cells.find(c=>c.date===opts.from.date&&c.shiftId===opts.from.shiftId&&c.slot===opts.from.slot);if(f){if(f.empId!=null&&!(f.empId===empId&&f.date===date))ban.add(f.empId+"|"+f.date);f.empId=null;delete f.locked;delete f.part;delete f.extra}}
+  if(opts.from){const f=s.cells.find(c=>c.date===opts.from.date&&c.shiftId===opts.from.shiftId&&c.slot===opts.from.slot);if(f){if(f.empId!=null&&!(f.empId===empId&&f.date===date))ban.add(f.empId+"|"+f.date);f.empId=null;delete f.locked;delete f.part;delete f.extra;delete f.duty;delete f.dutyH}}
   const mine=new Set(s.cells.filter(c=>c.date===date&&c.empId===empId).map(c=>c.shiftId));
-  if(!shiftId){ ban.add(empId+"|"+date); s.cells.filter(c=>c.date===date&&c.empId===empId).forEach(c=>{c.empId=null;delete c.locked;delete c.part;delete c.extra}); }
-  else if(mine.has(shiftId)&&opts.toggle){ ban.add(empId+"|"+date); s.cells.filter(c=>c.date===date&&c.empId===empId&&c.shiftId===shiftId).forEach(c=>{c.empId=null;delete c.locked;delete c.part;delete c.extra}); }
+  if(!shiftId){ ban.add(empId+"|"+date); s.cells.filter(c=>c.date===date&&c.empId===empId).forEach(c=>{c.empId=null;delete c.locked;delete c.part;delete c.extra;delete c.duty;delete c.dutyH}); }
+  else if(mine.has(shiftId)&&opts.toggle){ ban.add(empId+"|"+date); s.cells.filter(c=>c.date===date&&c.empId===empId&&c.shiftId===shiftId).forEach(c=>{c.empId=null;delete c.locked;delete c.part;delete c.extra;delete c.duty;delete c.dutyH}); }
   else if(!mine.has(shiftId)){
     const p=partOf(shMap[shiftId],date);
     const mineC=s.cells.filter(c=>c.date===date&&c.empId===empId);
@@ -599,14 +605,14 @@ async function assignShift(empId,date,shiftId,opts={}){
     let splitPart=null;
     if(p!=="pm"&&wdOf(date)!==0&&!dyzur&&base.length){
       if(base.length===1){const b=base[0];const q=eff(b);if(q==="full"){b.part="am";splitPart="pm"}else if(q==="am")splitPart="pm";else splitPart="am"}
-      else{const drop=base.find(c=>eff(c)==="pm")||base[1];drop.empId=null;delete drop.locked;delete drop.part;delete drop.extra;splitPart="pm"}
+      else{const drop=base.find(c=>eff(c)==="pm")||base[1];drop.empId=null;delete drop.locked;delete drop.part;delete drop.extra;delete drop.duty;delete drop.dutyH;splitPart="pm"}
     }
     if(splitPart){}else
-    s.cells.filter(c=>c.date===date&&c.empId===empId).forEach(c=>{const q=partOf(shMap[c.shiftId],date);if(p==="pm"||q==="pm"){if(p===q){c.empId=null;delete c.locked;delete c.part;delete c.extra}}else if(p==="full"||q==="full"||p===q){c.empId=null;delete c.locked;delete c.part;delete c.extra}});
+    s.cells.filter(c=>c.date===date&&c.empId===empId).forEach(c=>{const q=partOf(shMap[c.shiftId],date);if(p==="pm"||q==="pm"){if(p===q){c.empId=null;delete c.locked;delete c.part;delete c.extra;delete c.duty;delete c.dutyH}}else if(p==="full"||q==="full"||p===q){c.empId=null;delete c.locked;delete c.part;delete c.extra;delete c.duty;delete c.dutyH}});
     const slots=s.cells.filter(c=>c.date===date&&c.shiftId===shiftId);
     let target=slots.find(c=>c.empId==null)||slots.find(c=>!c.locked);
     if(!target){target={date,shiftId,slot:slots.length,empId:null};s.cells.push(target)}
-    target.empId=empId; target.locked=true; delete target.extra; if(splitPart)target.part=splitPart; else delete target.part; locked.add(key(target));
+    target.empId=empId; target.locked=true; delete target.extra;delete target.duty;delete target.dutyH; if(splitPart)target.part=splitPart; else delete target.part; locked.add(key(target));
   }
   let msg;
   if($("auto-repair").checked){const changed=repair(s,opts.from&&opts.from.date<date?opts.from.date:date,locked,ban);msg=`Zapisano i zablokowano. Sprawdzono kolizje od ${date}: ${changed===0?"nic nie trzeba było zmieniać.":changed===1?"podmieniono 1 przydział.":"podmieniono "+changed+" przydziały."}`}
@@ -653,9 +659,14 @@ function openSheet(empId,date){
   const mine=new Set(s.cells.filter(c=>c.date===date&&c.empId===empId).map(c=>c.shiftId));
   const mineCells=s.cells.filter(c=>c.date===date&&c.empId===empId); const anyLocked=mineCells.some(c=>c.locked);
   const others=S.shifts.filter(sh=>!shiftsOn(date).some(x=>x.id===sh.id));
-  $("sheet-opts").innerHTML=(anyLocked?`<div class="chip off" data-unlock="1" style="grid-column:1/-1;border-style:solid">🔓 Odblokuj ten dzień (pozwól programowi zmieniać)</div>`:"")+shiftsOn(date).map(sh=>`<div class="chip" style="background:${colorOf(sh.id)};${mine.has(sh.id)?"outline:3px solid var(--ink);outline-offset:-3px":""}" data-set="${sh.id}">${mine.has(sh.id)?"✓ ":""}${esc(sh.name)}<small>${PART[partOf(sh,date)]} · ${String(sh.weight).replace(".",",")} dn.</small></div>`).join("")+`<div class="chip off" data-set="">— wolne cały dzień —</div>`+(others.length?`<div class="muted" style="grid-column:1/-1;margin-top:6px">Poza założeniami na ten dzień:</div>`+others.map(sh=>`<div class="chip" style="background:${colorOf(sh.id)};opacity:.75;${mine.has(sh.id)?"outline:3px solid var(--ink);outline-offset:-3px":""}" data-set="${sh.id}">${mine.has(sh.id)?"✓ ":""}${esc(sh.name)}<small>${PART[partOf(sh,date)]} · ${String(sh.weight).replace(".",",")} dn.</small></div>`).join(""):"");
+  const dutyC=mineCells.filter(c=>isDutyCell(c,shMap[c.shiftId]));
+  const dutyBox=dutyC.length?`<div style="grid-column:1/-1;border:1.5px solid var(--line2);border-radius:12px;padding:10px 12px;background:var(--cream)"><div style="font-weight:800;margin-bottom:6px">Dyżur tego dnia</div><div class="row" style="margin:0"><select id="duty-state"><option value="">planowany (0,5 dn.)</option><option value="cancelled" ${dutyC[0].duty==="cancelled"?"selected":""}>nie wyjechał: anulowany (0 dn.)</option><option value="done" ${dutyC[0].duty==="done"?"selected":""}>wyjechał</option></select><label class="muted">wyjazd + powrót do bazy <input type="number" step="0.25" min="0" id="duty-h" style="width:80px" value="${Number.isFinite(dutyC[0].dutyH)?dutyC[0].dutyH:""}"> h</label><button class="btn sm" data-dutysave="1">Zapisz dyżur</button></div><div class="muted" style="font-size:11.5px;margin-top:6px">Dyżur do 5 h liczy 0,5 dniówki. Gdy wyjazd z powrotem do bazy trwa dłużej niż 5 h, liczy się 1 dniówka. Nie wyjechał: dyżur się anuluje i nie jest liczony.</div></div>`:"";
+  $("sheet-opts").innerHTML=dutyBox+(anyLocked?`<div class="chip off" data-unlock="1" style="grid-column:1/-1;border-style:solid">🔓 Odblokuj ten dzień (pozwól programowi zmieniać)</div>`:"")+shiftsOn(date).map(sh=>`<div class="chip" style="background:${colorOf(sh.id)};${mine.has(sh.id)?"outline:3px solid var(--ink);outline-offset:-3px":""}" data-set="${sh.id}">${mine.has(sh.id)?"✓ ":""}${esc(sh.name)}<small>${PART[partOf(sh,date)]} · ${String(sh.weight).replace(".",",")} dn.</small></div>`).join("")+`<div class="chip off" data-set="">— wolne cały dzień —</div>`+(others.length?`<div class="muted" style="grid-column:1/-1;margin-top:6px">Poza założeniami na ten dzień:</div>`+others.map(sh=>`<div class="chip" style="background:${colorOf(sh.id)};opacity:.75;${mine.has(sh.id)?"outline:3px solid var(--ink);outline-offset:-3px":""}" data-set="${sh.id}">${mine.has(sh.id)?"✓ ":""}${esc(sh.name)}<small>${PART[partOf(sh,date)]} · ${String(sh.weight).replace(".",",")} dn.</small></div>`).join(""):"");
   $("sheet").classList.add("open");
   $("sheet-opts").onclick=async ev=>{
+    if(ev.target.closest("[data-dutysave]")){const st=$("duty-state").value, hv=parseFloat($("duty-h").value);$("sheet").classList.remove("open");
+      s.cells.filter(c=>c.date===date&&c.empId===empId&&isDutyCell(c,shMap[c.shiftId])).forEach(c=>{if(st==="cancelled"){c.duty="cancelled";delete c.dutyH}else if(st==="done"){c.duty="done";if(Number.isFinite(hv)&&hv>=0)c.dutyH=hv;else delete c.dutyH}else{delete c.duty;delete c.dutyH}});
+      await guard(()=>saveSched(s));notice(st==="cancelled"?"Dyżur anulowany: nie jest wliczany.":st==="done"&&hv>DUTY_LIMIT_H?"Dyżur dłuższy niż 5 h: liczy się jako 1 dniówka.":"Zapisano dyżur.");renderPlan();return}
     const u=ev.target.closest("[data-unlock]");
     if(u){$("sheet").classList.remove("open");s.cells.filter(c=>c.date===date&&c.empId===empId).forEach(c=>{delete c.locked});await guard(()=>saveSched(s));notice("Odblokowano — program może znów zmieniać ten dzień.");renderPlan();return}
     const t=ev.target.closest("[data-set]"); if(!t) return; const shiftId=t.dataset.set; $("sheet").classList.remove("open");
@@ -747,7 +758,7 @@ function hrReport(month){ // month "YYYY-MM"
   const balAll=balances(null), since=S.hr?._since||"0000-00-00", LG=ledger(null,true);
   return S.emps.map(e=>{
     const mine=cells.filter(c=>c.empId===e.id);
-    const byDay={};mine.forEach(c=>{const sh=shMap[c.shiftId];const p=cpart(c,sh,c.date);(byDay[c.date]??={h:0,d:0,w:false,x:false});if(p==="pm")byDay[c.date].d+=payHours(sh);else{byDay[c.date].h+=payHours(sh);byDay[c.date].w=true;if(c.extra)byDay[c.date].x=true}});
+    const byDay={};mine.forEach(c=>{const sh=shMap[c.shiftId];const p=cpart(c,sh,c.date);(byDay[c.date]??={h:0,d:0,w:false,x:false});if(p==="pm"&&!c.part){if(c.duty!=="cancelled")byDay[c.date].d+=(c.duty==="done"&&Number.isFinite(c.dutyH)?c.dutyH:payHours(sh))}else{byDay[c.date].h+=payHours(sh);byDay[c.date].w=true;if(c.extra)byDay[c.date].x=true}});
     let days=0,duty=0;for(const v of Object.values(byDay)){if(v.w)days++;duty+=v.d}
     const wks=(LG[e.id]||[]).filter(w=>addDays(w.monday,3).startsWith(month));const wkWorked=wks.reduce((a,w)=>a+w.worked,0), wkNorm=wks.reduce((a,w)=>a+w.norm,0);const earnedD=wkWorked, normD=wkNorm, deltaD=wkWorked-wkNorm, base=Math.min(wkWorked,wkNorm)*DAY_H, over=deltaD*DAY_H;
     const abs=S.abs.filter(a=>a.empId===e.id&&inMonth(a.date));
@@ -774,7 +785,7 @@ document.addEventListener("change",ev=>{const t=ev.target;if(!(t.dataset?.hrFree
 // ---------- API pluginu (FlotoMax) ----------
 function pluginGetData(){return {version:1,employees:S.emps,shifts:S.shifts,absences:S.abs,plan:S.plan,schedules:S.scheds,labels:S.labels}}
 async function pluginSetData(d){if(!S.db)throw new Error("brak bazy");if(d.employees){S.emps=d.employees;await saveE()}if(d.shifts){S.shifts=d.shifts;await saveS()}if(d.absences){S.abs=d.absences;await saveA()}if(d.plan){S.plan=d.plan;await savePlan()}if(d.schedules){for(const s of Object.values(d.schedules))await saveSched(s)}if(d.labels){S.labels=d.labels;await saveLabels()}}
-window.HarmonogramPlugin={getData:pluginGetData,setData:pluginSetData,availability,hrReport,requestLeave:async(employeeId,from,to)=>{const bad=checkLeave(employeeId,from,to);if(bad.length)return{ok:false,blocked:bad,message:leaveNote(bad)};for(const d of range(from,to)){S.abs=S.abs.filter(a=>!(a.empId===employeeId&&a.date===d));S.abs.push({empId:employeeId,date:d,reason:"wniosek"})}await saveA();return{ok:true}},freeDrivers:d=>availability(d).filter(r=>r.status==="free"),generate:(a,b)=>generate(a,b,null),repair:(s,from,locked)=>repair(s,from,locked),restOf,rules:{maxWorkDays:MAX_WORK_DAYS}};
+window.HarmonogramPlugin={getData:pluginGetData,setData:pluginSetData,availability,hrReport,requestLeave:async(employeeId,from,to)=>{const bad=checkLeave(employeeId,from,to);if(bad.length)return{ok:false,blocked:bad,message:leaveNote(bad)};for(const d of range(from,to)){S.abs=S.abs.filter(a=>!(a.empId===employeeId&&a.date===d));S.abs.push({empId:employeeId,date:d,reason:"wniosek"})}await saveA();return{ok:true}},reportDuty:async(employeeId,date,{went,hours}={})=>{const s=Object.values(S.scheds).find(x=>x.start<=date&&date<=x.end);if(!s)return{ok:false,message:"brak harmonogramu na ten dzień"};const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);let n=0;for(const c of s.cells){if(c.date===date&&c.empId===employeeId&&isDutyCell(c,shMap[c.shiftId])){n++;if(went===false){c.duty="cancelled";delete c.dutyH}else{c.duty="done";if(Number.isFinite(hours))c.dutyH=hours;else delete c.dutyH}}}if(!n)return{ok:false,message:"kierowca nie ma dyżuru tego dnia"};await saveSched(s);return{ok:true,dniowki:cellDn({duty:went===false?"cancelled":"done",dutyH:hours},shMap[Object.keys(shMap).find(k=>(shMap[k].part||"full")==="pm")])}},freeDrivers:d=>availability(d).filter(r=>r.status==="free"),generate:(a,b)=>generate(a,b,null),repair:(s,from,locked)=>repair(s,from,locked),restOf,rules:{maxWorkDays:MAX_WORK_DAYS}};
 window.addEventListener("message",ev=>{const m=ev.data;if(!m||m.type!=="harmonogram")return;if(m.action==="getData")ev.source?.postMessage({type:"harmonogram",action:"data",data:pluginGetData()},"*");if(m.action==="requestLeave"){window.HarmonogramPlugin.requestLeave(m.employeeId,m.from,m.to).then(()=>ev.source?.postMessage({type:"harmonogram",action:"leaveRequested",employeeId:m.employeeId,from:m.from,to:m.to},"*"))}if(m.action==="availability")ev.source?.postMessage({type:"harmonogram",action:"availability",date:m.date,drivers:availability(m.date)},"*")});
 $("btn-export").onclick=()=>{const ta=$("export-out");ta.value=JSON.stringify(pluginGetData(),null,1);ta.style.display="block";ta.select();try{navigator.clipboard.writeText(ta.value).then(()=>setStatus("Dane skopiowane do schowka (i widoczne poniżej)."),()=>setStatus("Dane widoczne poniżej — skopiuj je ręcznie."))}catch(e){setStatus("Dane widoczne poniżej — skopiuj je ręcznie.")}};
 $("file-import").onchange=ev=>{const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>guard(async()=>{const d=JSON.parse(r.result);await pluginSetData(d);setStatus("Dane zaimportowane.")});r.readAsText(f);ev.target.value=""};
