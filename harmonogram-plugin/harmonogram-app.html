@@ -344,7 +344,8 @@ const PART={full:"cały dzień",am:"rano",pm:"po południu"};
 const cpart=(c,sh,day)=>(day&&wdOf(day)===0)?"full":(c&&c.part)||(sh?.part||"full");
 const partOf=(sh,day)=>(day&&wdOf(day)===0)?"full":(sh?.part||"full");
 // "pm" (po południu) to praca po godzinach: koliduje tylko z innym "pm"
-const clash=(used,emp,part)=>{const u=used[emp];if(!u)return false;if(part==="pm")return u.has("pm");return u.has("full")||u.has("am")};
+// części dnia w użyciu: full, am, pm (dyżur), pmr (trasa na drugiej połowie dnia)
+const clash=(used,emp,part)=>{const u=used[emp];if(!u)return false;if(part==="pm")return u.has("pm")||u.has("pmr");if(part==="pmr")return u.has("full")||u.has("pmr")||u.has("pm");if(part==="am")return u.has("full")||u.has("am");return u.has("full")||u.has("am")||u.has("pmr")};
 const mark=(used,emp,part)=>(used[emp]??=new Set()).add(part);
 const REASONS={odpoczynek:"Odpoczynek",urlop:"Urlop",l4:"L4",wniosek:"Wniosek urlopowy"};
 const BLOCKING_REASONS=new Set(["odpoczynek","urlop","l4"]); // wniosek nie blokuje, dopóki nie zostanie zatwierdzony
@@ -441,19 +442,19 @@ function repair(sched,fromDate,extraLocked=new Set(),ban=new Set()){
     const todays=sched.cells.filter(c=>c.date===day).sort((a,b)=>(lockedKeys.has(key(a))?0:1)-(lockedKeys.has(key(b))?0:1)||byPriority(shOf[a.shiftId]||{weight:1,id:a.shiftId},shOf[b.shiftId]||{weight:1,id:b.shiftId})||a.slot-b.slot);
     for(const c of todays){
       const sh=shOf[c.shiftId]||{id:c.shiftId,weight:1}; const w=sh.weight; let emp=c.empId;
-      const part=cpart(c,sh,day);
+      const part=cpart(c,sh,day);const dutyLike=part==="pm"&&!c.part;const pk=dutyLike?"pm":(part==="pm"?"pmr":part);
       const empObj=emps.find(e=>e.id===emp);
-      if(frozen||lockedKeys.has(key(c))){if(emp!=null){mark(used,emp,part);if(part!=="pm"){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,part)}continue}
-      const valid=emp!=null&&active.has(emp)&&canDrive(empObj,sh)&&!clash(used,emp,part)&&!am[emp]?.[day]&&!(rest[emp]&&rest[emp]>=day)&&(part==="pm"?!heavy.has(emp):(c.extra?canWorkX:canWork)(worked,emp,day));
+      if(frozen||lockedKeys.has(key(c))){if(emp!=null){mark(used,emp,pk);if(!dutyLike){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,dutyLike?"pm":"full")}continue}
+      const valid=emp!=null&&active.has(emp)&&canDrive(empObj,sh)&&!clash(used,emp,pk)&&!am[emp]?.[day]&&!(rest[emp]&&rest[emp]>=day)&&(dutyLike?!heavy.has(emp):(c.extra?canWorkX:canWork)(worked,emp,day));
       if(!valid){
-        const cand=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!clash(used,e.id,part)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&(part==="pm"?!heavy.has(e.id):canWork(worked,e.id,day)));
+        const cand=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!clash(used,e.id,pk)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&(dutyLike?!heavy.has(e.id):canWork(worked,e.id,day)));
         let pool=cand, extra=false;
-        if(!pool.length&&part!=="pm"){pool=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!clash(used,e.id,part)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&canWorkX(worked,e.id,day));extra=pool.length>0}
+        if(!pool.length&&!dutyLike){pool=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!clash(used,e.id,pk)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&canWorkX(worked,e.id,day));extra=pool.length>0}
         emp=pick(pool,counts,sh,prevDay,bias);
         if(extra&&emp!=null)c.extra=true;else delete c.extra;
         if(emp!==c.empId){c.empId=emp;delete c.duty;delete c.dutyH;changed++}
       }
-      if(emp!=null){mark(used,emp,part);if(part!=="pm"){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,part)}
+      if(emp!=null){mark(used,emp,pk);if(!dutyLike){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,dutyLike?"pm":"full")}
     }
     prevDay=today;
   }
@@ -464,10 +465,10 @@ function repair(sched,fromDate,extraLocked=new Set(),ban=new Set()){
 const docE=()=>S.db.doc("app/employees"), docS=()=>S.db.doc("app/shifts"), docA=()=>S.db.doc("app/absences"), docP=()=>S.db.doc("app/plan");
 const savePlan=()=>docP().set(S.plan);
 const saveE=()=>docE().set({items:S.emps}), saveS=()=>docS().set({items:S.shifts}), saveA=()=>docA().set({items:S.abs});
-S.seen={};S.undo={};
-const saveSched=s=>{const js=JSON.stringify(s);if(!S.noUndo&&S.seen[s.id]&&S.seen[s.id]!==js){(S.undo[s.id]??=[]).push(S.seen[s.id]);if(S.undo[s.id].length>40)S.undo[s.id].shift()}S.seen[s.id]=js;updUndo();return S.db.doc("schedules/"+s.id).set(s)};
+S.seen={};S.seenAbs={};S.absLoaded=false;S.undo={};const absSig=()=>JSON.stringify(S.abs.map(a=>a.empId+"|"+a.date+"|"+a.reason).sort());
+const saveSched=s=>{const js=JSON.stringify(s);if(!S.noUndo&&S.seen[s.id]&&S.seen[s.id]!==js){(S.undo[s.id]??=[]).push({js:S.seen[s.id],abs:S.seenAbs[s.id]??null});if(S.undo[s.id].length>40)S.undo[s.id].shift()}S.seen[s.id]=js;S.seenAbs[s.id]=absSig();updUndo();return S.db.doc("schedules/"+s.id).set(s)};
 function updUndo(){const b=$("btn-undo");if(b){const n=(S.undo[S.current]||[]).length;b.disabled=!n;b.textContent=n?`↩ Cofnij (${n})`:"↩ Cofnij"}}
-async function undoLast(){const st=S.undo[S.current];if(!st||!st.length){notice("Nie ma czego cofać.");return}const prev=JSON.parse(st.pop());S.scheds[S.current]=prev;S.noUndo=true;try{S.seen[prev.id]=JSON.stringify(prev);await guard(()=>saveSched(prev))}finally{S.noUndo=false}notice("Cofnięto ostatnią zmianę.");renderPlan();updUndo()}
+async function undoLast(){const st=S.undo[S.current];if(!st||!st.length){notice("Nie ma czego cofać.");return}const it=st.pop();const prev=JSON.parse(it.js);let fixedUndo=0;if(it.abs!==null&&it.abs!==absSig()){const amx=absMap();const bad=prev.cells.filter(c=>c.empId!=null&&!c.locked&&amx[c.empId]?.[c.date]);if(bad.length)fixedUndo=repair(prev,bad.map(c=>c.date).sort()[0])}S.scheds[S.current]=prev;S.noUndo=true;try{S.seen[prev.id]=JSON.stringify(prev);await guard(()=>saveSched(prev))}finally{S.noUndo=false}notice(fixedUndo?`Cofnięto ostatnią zmianę. ${fixedUndo} przydziałów kolidowało z późniejszymi nieobecnościami, więc program je podmienił.`:"Cofnięto ostatnią zmianę.");renderPlan();updUndo()}
 async function guard(fn){try{await fn()}catch(e){if(e?.code==="invalid_argument"&&!S.ro){S.ro=true;setStatus("Tylko podgląd — nie masz uprawnień do zapisu.")}else setStatus("Błąd zapisu: "+(e?.message||e))}}
 function setStatus(t){$("status").textContent=t}
 // ---------- edytowalne napisy ----------
@@ -493,11 +494,11 @@ async function boot(){
   S.db=db; setStatus("Połączono. Dane zapisują się automatycznie.");
   docE().onSnapshot(s=>{S.emps=s.exists?structuredClone(s.data().items||[]):[];render()});
   docS().onSnapshot(s=>{S.shifts=s.exists?structuredClone(s.data().items||[]):[];render()});
-  docA().onSnapshot(s=>{S.abs=s.exists?structuredClone(s.data().items||[]):[];render()});
+  docA().onSnapshot(s=>{S.abs=s.exists?structuredClone(s.data().items||[]):[];if(!S.absLoaded){S.absLoaded=true;for(const id of Object.keys(S.seenAbs))if(S.seenAbs[id]===null)S.seenAbs[id]=absSig()}render()});
   docP().onSnapshot(s=>{S.plan=s.exists?structuredClone(s.data()):null;render()});
   docL().onSnapshot(s=>{S.labels=s.exists?structuredClone(s.data().items||{}):{};applyLabels()});
   docHR().onSnapshot(s=>{S.hr=s.exists?structuredClone(s.data().items||{}):{};renderHR();try{renderBilans()}catch(e){}});
-  db.collection("schedules").onSnapshot(q=>{S.scheds={};q.docs.forEach(d=>{S.scheds[d.id]=structuredClone(d.data());if(!S.undoBusy)S.seen[d.id]=JSON.stringify(S.scheds[d.id])});if(!S.current||!S.scheds[S.current]){const ids=Object.keys(S.scheds).sort((a,b)=>(S.scheds[b].createdAt||"").localeCompare(S.scheds[a].createdAt||""));S.current=ids[0]||null}render()});
+  db.collection("schedules").onSnapshot(q=>{S.scheds={};q.docs.forEach(d=>{S.scheds[d.id]=structuredClone(d.data());if(!S.undoBusy){const js0=JSON.stringify(S.scheds[d.id]);if(S.seen[d.id]!==js0||!(d.id in S.seenAbs)){S.seen[d.id]=js0;S.seenAbs[d.id]=S.absLoaded?absSig():null}}});if(!S.current||!S.scheds[S.current]){const ids=Object.keys(S.scheds).sort((a,b)=>(S.scheds[b].createdAt||"").localeCompare(S.scheds[a].createdAt||""));S.current=ids[0]||null}render()});
 }
 
 // ---------- render ----------
@@ -743,7 +744,7 @@ document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&
 $("btn-reroll").onclick=()=>guard(async()=>{const s=S.scheds[S.current];if(!s)return;
   const kept=s.cells.filter(c=>c.locked&&c.empId!=null);
   s.cells=generate(s.start,s.end,s.id);
-  for(const k of kept){const t=s.cells.find(c=>c.date===k.date&&c.shiftId===k.shiftId&&c.slot===k.slot);if(t){t.empId=k.empId;t.locked=true}else s.cells.push({...k})}
+  for(const k of kept){const t=s.cells.find(c=>c.date===k.date&&c.shiftId===k.shiftId&&c.slot===k.slot);if(t){t.empId=k.empId;t.locked=true;if(k.part)t.part=k.part;else delete t.part;if(k.duty){t.duty=k.duty;if(k.dutyH!==undefined)t.dutyH=k.dutyH}}else s.cells.push({...k})}
   if(kept.length)repair(s,s.start);
   await saveSched(s);notice(kept.length?`Wylosowano ponownie, zachowując ${kept.length} zablokowanych komórek.`:"Wylosowano ponownie.")});
 $("btn-repair").onclick=()=>guard(async()=>{const s=S.scheds[S.current];if(!s)return;const from=$("repair-from").value||s.start;const n=repair(s,from);await saveSched(s);notice(`Sprawdzono kolizje od ${from}: ${n===0?"wszystko w porządku.":n===1?"podmieniono 1 przydział.":"podmieniono "+n+" przydziały."}`)});
