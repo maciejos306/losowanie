@@ -47,6 +47,13 @@
   th.sub{background:var(--cream);font-family:Karla;font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:3px 2px;text-align:center;font-weight:600}
   td.cell.half{min-width:64px}
   .est{display:block;margin-top:4px;font-family:Karla;font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:none;color:var(--ink);background:var(--paper);border:1px solid var(--line2);border-radius:999px;padding:2px 8px;cursor:pointer;width:max-content;margin-inline:auto}
+  .slots{display:block;margin-top:3px;font-family:Karla;font-size:10.5px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted)}
+  .slots b{color:var(--ink)}.slots.full,.slots.full b{color:#b91c1c}
+  .inis{display:flex;flex-wrap:wrap;gap:3px;justify-content:center;margin-top:3px}
+  b.ini{font-family:Karla;font-size:10.5px;font-weight:800;letter-spacing:0;text-transform:none;padding:1px 6px;border-radius:6px;color:#1e3a5f;background:#bfdbfe;border:1px solid #60a5fa}
+  b.ini.w{color:#5b4200;background:#fde68a;border:1px dashed #d4a017}
+  .bal{display:block;font-weight:500;color:var(--muted);font-size:10.5px;margin-top:1px}
+  .chip.extra small::after{content:" · nadgodz.";font-weight:800}
   .est i{font-style:normal;font-weight:500;color:var(--muted);margin-left:6px}
   table.plan .dstart,table.tl .dstart{border-left:3px solid var(--day-sep)!important}
   table.plan .alt,table.tl th.alt,table.tl td.alt .lane{background-image:linear-gradient(rgba(128,128,128,.13),rgba(128,128,128,.13))}
@@ -157,6 +164,10 @@
       <p class="lead" data-label="txt-kadry">Ewidencja dla działu kadr. Godziny liczone z planu: dniówka wg typu zmiany (0,5 → 5 h, 1 → 9 h, 1,5 → 13,5 h, 2 → 18 h, 2,5 → 22,5 h; do zmiany przy typie zmiany). Podstawowe = do 8 h dziennie, reszta to nadgodziny. Dyżur liczony osobno. Kolumny „stan dni wolnych” i „stan nadgodzin” wpisuje ręcznie kadrowa.</p>
       <div class="row"><span class="muted">Miesiąc:</span><input type="month" id="hr-month"><button class="btn ghost sm" id="hr-csv">Kopiuj CSV (Excel)</button></div>
       <div class="grid-scroll"><table class="plan hr" id="hr-table"></table></div>
+      <h3 style="margin:22px 0 6px;font-size:15px">Rachunek godzin i dni wolnych</h3>
+      <p class="lead">Saldo nadgodzin = ręczny bilans otwarcia (kolumna „stan nadgodzin” wyżej) + nadgodziny z planów od wybranej daty (godziny ponad 8 h dziennie, dyżury oraz dodatkowe dni pracy). Losowanie układa plan tak, żeby wyrównywać salda: kto ma więcej nadgodzin, dostaje więcej dni wolnych.</p>
+      <div class="row"><span class="muted">Rachunek liczony od:</span><input type="date" id="hr-since"></div>
+      <div class="grid-scroll"><table class="plan hr" id="hr-bal"></table></div>
       <textarea id="hr-out" style="display:none;width:100%;height:100px;font:11px monospace;margin-top:8px"></textarea>
     </div>
 
@@ -251,7 +262,20 @@ const lockedKeysOf=s=>new Set((s.cells||[]).filter(c=>c.locked).map(c=>c.date+"|
 const WD=[1,2,3,4,5,6,0];
 const wdOf=d=>new Date(d+"T00:00:00Z").getUTCDay();
 const estOf=(s,d)=>{const o=s.est?.[d];if(Number.isFinite(o))return{n:o,manual:true};return{n:shiftsOn(d).filter(x=>(x.part||"full")!=="pm").reduce((a,x)=>a+(+x.people||1),0),manual:false}};
-const estTag=(s,d)=>{const e=estOf(s,d);const got=s.cells.filter(c=>c.date===d&&c.empId!=null&&(S.shifts.find(x=>x.id===c.shiftId)?.part||"full")!=="pm").length;return `<span class="est" data-est="${d}" title="Szacowana liczba tras w tym dniu${e.manual?" (ustawiona ręcznie)":" (z Założeń)"}. Kliknij, aby zmienić — FlotoMax może ją aktualizować na bieżąco. Przydzielono: ${got}.">≈ ${e.n} ${e.n===1?"trasa":e.n>=2&&e.n<=4?"trasy":"tras"}${e.manual?" ✎":""}<i>przydz. ${got}</i></span>`};
+const leaveTag=d=>{const sl=slotsOn(d);const L=S.abs.filter(a=>a.date===d&&(a.reason==="urlop"||a.reason==="wniosek")).map(a=>({e:S.emps.find(x=>x.id===a.empId),r:a.reason})).filter(x=>x.e);const chips=L.map(x=>`<b class="ini ${x.r==="wniosek"?"w":"u"}" title="${esc(x.e.name)} · ${x.r==="wniosek"?"wniosek urlopowy (oczekuje)":"urlop zatwierdzony"}">${esc(initials(x.e))}</b>`).join("");return `<span class="slots${sl.free<1?" full":""}" title="Potrzebnych kierowców: ${sl.need}. Aktywnych: ${sl.active}. Nieobecnych: ${sl.absent}. Tyle osób może jeszcze zgłosić urlop na ten dzień.">wolnych miejsc na urlop: <b>${Math.max(0,sl.free)}</b></span>${chips?`<span class="inis">${chips}</span>`:""}`};
+const estTag=(s,d)=>{const e=estOf(s,d);const got=s.cells.filter(c=>c.date===d&&c.empId!=null&&(S.shifts.find(x=>x.id===c.shiftId)?.part||"full")!=="pm").length;return `<span class="est" data-est="${d}" title="Szacowana liczba tras w tym dniu${e.manual?" (ustawiona ręcznie)":" (z Założeń)"}. Kliknij, aby zmienić — FlotoMax może ją aktualizować na bieżąco. Przydzielono: ${got}.">≈ ${e.n} ${e.n===1?"trasa":e.n>=2&&e.n<=4?"trasy":"tras"}${e.manual?" ✎":""}<i>przydz. ${got}</i></span>${leaveTag(d)}`};
+const initials=e=>{const p=String(e.name||"?").trim().split(/\s+/);const a=(p[0]||"?")[0],b=(p[p.length-1]||"")[0]||"";const base=(a+b).toUpperCase();const dup=S.emps.filter(x=>x.id!==e.id&&x.active!==false).some(x=>{const q=String(x.name||"").trim().split(/\s+/);return ((q[0]||"?")[0]+((q[q.length-1]||"")[0]||"")).toUpperCase()===base});return dup&&p.length>1?base+(p[p.length-1][1]||"").toLowerCase():base};
+const needOn=d=>{const s=Object.values(S.scheds).find(x=>x.start<=d&&d<=x.end);return estOf(s||{est:{}},d).n};
+function slotsOn(d,exceptEmp){const act=S.emps.filter(e=>e.active);const ids=new Set(act.map(e=>e.id));const gone=new Set(S.abs.filter(a=>a.date===d&&ids.has(a.empId)&&a.empId!==exceptEmp).map(a=>a.empId));const need=needOn(d);return{active:act.length,need,absent:gone.size,free:act.length-need-gone.size}}
+function checkLeave(empId,from,to){const bad=[];for(const d of range(from,to)){const s=slotsOn(d,empId);if(s.free<1)bad.push({date:d,need:s.need,active:s.active,absent:s.absent})}return bad}
+const leaveNote=bad=>`Zgłoszenie odrzucone: w dniach ${bad.map(b=>b.date.slice(8)+"."+b.date.slice(5,7)).join(", ")} nie ma już wolnych miejsc na urlop (potrzebnych kierowców: ${bad[0].need}, aktywnych: ${bad[0].active}, nieobecnych: ${bad[0].absent}).`;
+const BIAS_H=8, biasOf=h=>Math.max(-3,Math.min(3,(h||0)/BIAS_H));
+function overtimeAccrued(excludeId){
+  const since=S.hr?._since||"0000-00-00", shMap={};S.shifts.forEach(x=>shMap[x.id]=x);const acc={},days={};
+  for(const [id,s] of Object.entries(S.scheds)){if(id===excludeId)continue;for(const c of s.cells||[]){if(c.empId==null||c.date<since)continue;const sh=shMap[c.shiftId];const p=cpart(c,sh,c.date);const v=((days[c.empId]??={})[c.date]??={h:0,d:0,x:false});if(p==="pm")v.d+=hoursOf(sh);else{v.h+=hoursOf(sh);if(c.extra)v.x=true}}}
+  for(const [e,m] of Object.entries(days)){let o=0;for(const v of Object.values(m))o+=(v.x?v.h:Math.max(0,v.h-8))+v.d;acc[e]=o}
+  return acc}
+function balances(excludeId){const acc=overtimeAccrued(excludeId),out={};S.emps.forEach(e=>out[e.id]=(+(S.hr?.[e.id]?.overtime)||0)+(acc[e.id]||0));return out}
 const shiftsOn=day=>{if(!S.plan)return S.shifts;const ids=new Set(S.plan.days?.[wdOf(day)]||[]);return S.shifts.filter(s=>ids.has(s.id))};
 const COLORS=["#16a34a","#2563eb","#d97706","#0891b2","#9333ea","#ca8a04","#475569","#dc2626","#ea580c","#be123c","#b91c1c","#0284c7","#6b7280","#65a30d","#7c3aed"];
 const PART={full:"cały dzień",am:"rano",pm:"po południu"};
@@ -303,6 +327,7 @@ function seedState(start,excludeId,shMap){
   }
   return {rest,prevDay,worked};
 }
+const canWorkX=(worked,emp,day)=>{const w=worked[weekKey(day)]?.[emp];return !w||w.has(day)||w.size<MAX_WORK_DAYS+1};
 const canWork=(worked,emp,day)=>{const w=worked[weekKey(day)]?.[emp];return !w||w.has(day)||w.size<MAX_WORK_DAYS};
 const noteWork=(worked,emp,day)=>((worked[weekKey(day)]??={})[emp]??=new Set()).add(day);
 
@@ -312,9 +337,10 @@ const byPriority=(a,b)=>(b.weight-a.weight)||(S.shifts.findIndex(s=>s.id===a.id)
 // Wybór kierowcy: 1) ten, kto wczoraj jechał tę samą trasę (ciągłość),
 // 2) dla dalekiej trasy — ktoś, kto wczoraj nie miał trasy (nie przerywamy ciągu),
 // 3) najmniej obciążony, remis losowo.
-function pick(cands,counts,sh,prevDay){
+function pick(cands,counts,sh,prevDay,bias){
   if(!cands.length)return null;
-  const same=cands.filter(e=>(prevDay[e.id]||[]).includes(sh.id));
+  const minB=bias?Math.min(...cands.map(e=>bias[e.id]||0)):0;
+  const same=cands.filter(e=>(prevDay[e.id]||[]).includes(sh.id)&&(!bias||(bias[e.id]||0)-minB<=2));
   if(same.length)return same[Math.floor(Math.random()*same.length)].id;
   let pool=cands;
   if(restOf(sh)>0){const free=cands.filter(e=>!(prevDay[e.id]||[]).length);if(free.length)pool=free}
@@ -323,16 +349,18 @@ function pick(cands,counts,sh,prevDay){
 }
 function generate(start,end,excludeId){
   const emps=S.emps.filter(e=>e.active), counts={}, am=absMap(), cells=[], shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
-  emps.forEach(e=>counts[e.id]=0);
+  const bal=balances(excludeId), bias={};emps.forEach(e=>{bias[e.id]=biasOf(bal[e.id]);counts[e.id]=bias[e.id]});
   let {rest,prevDay,worked}=seedState(start,excludeId,shMap);
   for(const day of range(start,end)){
     const used={}, today={}, heavy=new Set();
     for(const sh of [...shiftsOn(day)].sort(byPriority)) for(let slot=0;slot<sh.people;slot++){
       const pt=partOf(sh,day);
       const c=emps.filter(e=>canDrive(e,sh)&&!clash(used,e.id,pt)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&(pt==="pm"?!heavy.has(e.id):canWork(worked,e.id,day)));
-      const emp=pick(c,counts,sh,prevDay);
+      let extra=false, pool=c;
+      if(!pool.length&&pt!=="pm"){pool=emps.filter(e=>canDrive(e,sh)&&!clash(used,e.id,pt)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&canWorkX(worked,e.id,day));extra=pool.length>0}
+      const emp=pick(pool,counts,sh,prevDay,bias);
       if(emp!=null){counts[emp]++;mark(used,emp,pt);if(pt!=="pm"){(today[emp]??=[]).push(sh.id);noteWork(worked,emp,day);if((sh.weight??1)>=1.5)heavy.add(emp)}const r=restOf(sh);if(r>0)rest[emp]=addDays(day,r)}
-      cells.push({date:day,shiftId:sh.id,slot,empId:emp});
+      cells.push(extra&&emp!=null?{date:day,shiftId:sh.id,slot,empId:emp,extra:true}:{date:day,shiftId:sh.id,slot,empId:emp});
     }
     prevDay=today;
   }
@@ -341,7 +369,7 @@ function generate(start,end,excludeId){
 function repair(sched,fromDate,extraLocked=new Set(),ban=new Set()){
   const lockedKeys=new Set([...lockedKeysOf(sched),...extraLocked]);
   const emps=S.emps.filter(e=>e.active), active=new Set(emps.map(e=>e.id)), counts={}, am=absMap();
-  emps.forEach(e=>counts[e.id]=0);
+  const bal=balances(sched.id), bias={};emps.forEach(e=>{bias[e.id]=biasOf(bal[e.id]);counts[e.id]=bias[e.id]});
   const shOf={};S.shifts.forEach(s=>shOf[s.id]=s);
   const key=c=>c.date+"|"+c.shiftId+"|"+c.slot;
   let changed=0, {rest,prevDay,worked}=seedState(sched.start,sched.id,shOf);
@@ -354,10 +382,13 @@ function repair(sched,fromDate,extraLocked=new Set(),ban=new Set()){
       const part=cpart(c,sh,day);
       const empObj=emps.find(e=>e.id===emp);
       if(frozen||lockedKeys.has(key(c))){if(emp!=null){mark(used,emp,part);if(part!=="pm"){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,part)}continue}
-      const valid=emp!=null&&active.has(emp)&&canDrive(empObj,sh)&&!clash(used,emp,part)&&!am[emp]?.[day]&&!(rest[emp]&&rest[emp]>=day)&&(part==="pm"?!heavy.has(emp):canWork(worked,emp,day));
+      const valid=emp!=null&&active.has(emp)&&canDrive(empObj,sh)&&!clash(used,emp,part)&&!am[emp]?.[day]&&!(rest[emp]&&rest[emp]>=day)&&(part==="pm"?!heavy.has(emp):(c.extra?canWorkX:canWork)(worked,emp,day));
       if(!valid){
         const cand=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!clash(used,e.id,part)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&(part==="pm"?!heavy.has(e.id):canWork(worked,e.id,day)));
-        emp=pick(cand,counts,sh,prevDay);
+        let pool=cand, extra=false;
+        if(!pool.length&&part!=="pm"){pool=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!clash(used,e.id,part)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&canWorkX(worked,e.id,day));extra=pool.length>0}
+        emp=pick(pool,counts,sh,prevDay,bias);
+        if(extra&&emp!=null)c.extra=true;else delete c.extra;
         if(emp!==c.empId){c.empId=emp;changed++}
       }
       if(emp!=null){mark(used,emp,part);if(part!=="pm"){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,part)}
@@ -501,17 +532,18 @@ function renderPlan(){try{updUndo()}catch(e){}
   for(const c of historyBefore(s.start,s.id)){const sh=shMap[c.shiftId];const r=restOf(sh);if(r>0)for(let i=1;i<=r;i++){const d=addDays(c.date,i);if(d>=s.start&&!rest[c.empId]?.[d])(rest[c.empId]??={})[d]={carry:true,after:sh?.name||c.shiftId,date:c.date}}}
   const PORD={am:0,full:1,pm:2};const byEmpDay={};s.cells.forEach(c=>{if(c.empId!=null)((byEmpDay[c.empId]??={})[c.date]??=[]).push(c)});
   Object.values(byEmpDay).forEach(m=>Object.values(m).forEach(arr=>arr.sort((a,b)=>PORD[cpart(a,shMap[a.shiftId],a.date)]-PORD[cpart(b,shMap[b.shiftId],b.date)])));
+  const balAll=balances(null);
   const empsShown=S.emps.filter(e=>e.active||byEmpDay[e.id]);
   const isSun=d=>wdOf(d)===0, isWe=d=>wdOf(d)===0||wdOf(d)===6;
   let h='<tr><th class="corner" rowspan="2"></th>'+days.map((d,di)=>`<th class="day dstart${di%2?" alt":""}${isWe(d)?" weekend":""}" colspan="${isSun(d)?1:2}">${DAYN[wdOf(d)]}<small>${d.slice(8)}.${d.slice(5,7)}</small>${estTag(s,d)}</th>`).join("")+"</tr>";
   h+='<tr>'+days.map((d,di)=>{const al=di%2?" alt":"";return isSun(d)?`<th class="sub dstart${al} weekend">cały dzień</th>`:`<th class="sub dstart${al}${isWe(d)?" weekend":""}">rano</th><th class="sub${al}${isWe(d)?" weekend":""}">po poł.</th>`}).join("")+"</tr>";
   for(const e of empsShown){
     const ec=empColor(e), rowBg=`background:${tint(ec,.06)};`;
-    h+=`<tr><td class="who" style="border-left:6px solid ${ec};background:linear-gradient(${tint(ec,.12)},${tint(ec,.12)}),var(--paper)"><span class="edot" style="background:${ec}"></span>${esc(e.name)}</td>`;
+    h+=`<tr><td class="who" style="border-left:6px solid ${ec};background:linear-gradient(${tint(ec,.12)},${tint(ec,.12)}),var(--paper)"><span class="edot" style="background:${ec}"></span>${esc(e.name)}<small class="bal" title="Saldo nadgodzin (ręczny stan + z planów). Im wyższe, tym więcej dni wolnych dostaje kierowca przy losowaniu.">saldo ${(balAll[e.id]>0?"+":"")+String(Math.round((balAll[e.id]||0)*10)/10).replace(".",",")} h</small></td>`;
     let di=-1;for(const d of days){di++;
       const we=isWe(d), span=isSun(d)?1:2, wc=(we?" weekend":"")+(di%2?" alt":"");
       const cs=byEmpDay[e.id]?.[d]||[]; const ab=am[e.id]?.[d];
-      const chip=c=>{const sh=shMap[c.shiftId];const lk=c.locked?" locked":"";return `<div class="chip${lk}" style="background:${colorOf(c.shiftId)}" data-pick="${e.id}|${d}" data-drag-cell="${e.id}|${d}|${c.shiftId}|${c.slot}">${esc(sh?.name||"?")}<small>${String(sh?.weight??1).replace(".",",")} dn.</small></div>`};
+      const chip=c=>{const sh=shMap[c.shiftId];const lk=(c.locked?" locked":"")+(c.extra?" extra":"");return `<div class="chip${lk}" style="background:${colorOf(c.shiftId)}" data-pick="${e.id}|${d}" data-drag-cell="${e.id}|${d}|${c.shiftId}|${c.slot}">${esc(sh?.name||"?")}<small>${String(sh?.weight??1).replace(".",",")} dn.</small></div>`};
       const full=cs.find(c=>cpart(c,shMap[c.shiftId],d)==="full"), amC=cs.find(c=>cpart(c,shMap[c.shiftId],d)==="am"), pmC=cs.find(c=>cpart(c,shMap[c.shiftId],d)==="pm");
       if((full&&!pmC)||(!cs.length)){
         let inner;
@@ -542,10 +574,10 @@ function notice(t){$("notice").innerHTML=t?`<div class="notice">${t}</div>`:""}
 async function assignShift(empId,date,shiftId,opts={}){
   const s=S.scheds[S.current]; if(!s||!S.db) return;
   const key=c=>c.date+"|"+c.shiftId+"|"+c.slot; const locked=new Set(); const ban=new Set(); const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
-  if(opts.from){const f=s.cells.find(c=>c.date===opts.from.date&&c.shiftId===opts.from.shiftId&&c.slot===opts.from.slot);if(f){if(f.empId!=null&&!(f.empId===empId&&f.date===date))ban.add(f.empId+"|"+f.date);f.empId=null;delete f.locked;delete f.part}}
+  if(opts.from){const f=s.cells.find(c=>c.date===opts.from.date&&c.shiftId===opts.from.shiftId&&c.slot===opts.from.slot);if(f){if(f.empId!=null&&!(f.empId===empId&&f.date===date))ban.add(f.empId+"|"+f.date);f.empId=null;delete f.locked;delete f.part;delete f.extra}}
   const mine=new Set(s.cells.filter(c=>c.date===date&&c.empId===empId).map(c=>c.shiftId));
-  if(!shiftId){ ban.add(empId+"|"+date); s.cells.filter(c=>c.date===date&&c.empId===empId).forEach(c=>{c.empId=null;delete c.locked;delete c.part}); }
-  else if(mine.has(shiftId)&&opts.toggle){ ban.add(empId+"|"+date); s.cells.filter(c=>c.date===date&&c.empId===empId&&c.shiftId===shiftId).forEach(c=>{c.empId=null;delete c.locked;delete c.part}); }
+  if(!shiftId){ ban.add(empId+"|"+date); s.cells.filter(c=>c.date===date&&c.empId===empId).forEach(c=>{c.empId=null;delete c.locked;delete c.part;delete c.extra}); }
+  else if(mine.has(shiftId)&&opts.toggle){ ban.add(empId+"|"+date); s.cells.filter(c=>c.date===date&&c.empId===empId&&c.shiftId===shiftId).forEach(c=>{c.empId=null;delete c.locked;delete c.part;delete c.extra}); }
   else if(!mine.has(shiftId)){
     const p=partOf(shMap[shiftId],date);
     const mineC=s.cells.filter(c=>c.date===date&&c.empId===empId);
@@ -555,14 +587,14 @@ async function assignShift(empId,date,shiftId,opts={}){
     let splitPart=null;
     if(p!=="pm"&&wdOf(date)!==0&&!dyzur&&base.length){
       if(base.length===1){const b=base[0];const q=eff(b);if(q==="full"){b.part="am";splitPart="pm"}else if(q==="am")splitPart="pm";else splitPart="am"}
-      else{const drop=base.find(c=>eff(c)==="pm")||base[1];drop.empId=null;delete drop.locked;delete drop.part;splitPart="pm"}
+      else{const drop=base.find(c=>eff(c)==="pm")||base[1];drop.empId=null;delete drop.locked;delete drop.part;delete drop.extra;splitPart="pm"}
     }
     if(splitPart){}else
-    s.cells.filter(c=>c.date===date&&c.empId===empId).forEach(c=>{const q=partOf(shMap[c.shiftId],date);if(p==="pm"||q==="pm"){if(p===q){c.empId=null;delete c.locked;delete c.part}}else if(p==="full"||q==="full"||p===q){c.empId=null;delete c.locked;delete c.part}});
+    s.cells.filter(c=>c.date===date&&c.empId===empId).forEach(c=>{const q=partOf(shMap[c.shiftId],date);if(p==="pm"||q==="pm"){if(p===q){c.empId=null;delete c.locked;delete c.part;delete c.extra}}else if(p==="full"||q==="full"||p===q){c.empId=null;delete c.locked;delete c.part;delete c.extra}});
     const slots=s.cells.filter(c=>c.date===date&&c.shiftId===shiftId);
     let target=slots.find(c=>c.empId==null)||slots.find(c=>!c.locked);
     if(!target){target={date,shiftId,slot:slots.length,empId:null};s.cells.push(target)}
-    target.empId=empId; target.locked=true; if(splitPart)target.part=splitPart; else delete target.part; locked.add(key(target));
+    target.empId=empId; target.locked=true; delete target.extra; if(splitPart)target.part=splitPart; else delete target.part; locked.add(key(target));
   }
   let msg;
   if($("auto-repair").checked){const changed=repair(s,opts.from&&opts.from.date<date?opts.from.date:date,locked,ban);msg=`Zapisano i zablokowano. Sprawdzono kolizje od ${date}: ${changed===0?"nic nie trzeba było zmieniać.":changed===1?"podmieniono 1 przydział.":"podmieniono "+changed+" przydziały."}`}
@@ -667,7 +699,7 @@ document.body.addEventListener("click",ev=>{
   guard(async()=>{
     if(d.toggle){const e=S.emps.find(x=>x.id===d.toggle);e.active=!e.active;await saveE()}
     else if(d.delemp){if(!t.dataset.confirm){t.dataset.confirm="1";t.textContent="Na pewno?";setTimeout(()=>{delete t.dataset.confirm;t.textContent="Usuń"},2500);return}S.emps=S.emps.filter(x=>x.id!==d.delemp);S.abs=S.abs.filter(a=>a.empId!==d.delemp);await saveE();await saveA()}
-    else if(d.absadd){const from=document.querySelector(`[data-absdate="${d.absadd}"]`).value,to=document.querySelector(`[data-absdate2="${d.absadd}"]`).value||from,reason=document.querySelector(`[data-absreason="${d.absadd}"]`).value;if(!from)return;const [a,b]=from<=to?[from,to]:[to,from];if((new Date(b)-new Date(a))/864e5>120){notice("Zakres nieobecności jest za długi (max 120 dni).");return}for(const day of range(a,b)){S.abs=S.abs.filter(x=>!(x.empId===d.absadd&&x.date===day));S.abs.push({empId:d.absadd,date:day,reason})}await saveA()}
+    else if(d.absadd){const from=document.querySelector(`[data-absdate="${d.absadd}"]`).value,to=document.querySelector(`[data-absdate2="${d.absadd}"]`).value||from,reason=document.querySelector(`[data-absreason="${d.absadd}"]`).value;if(!from)return;const [a,b]=from<=to?[from,to]:[to,from];if((new Date(b)-new Date(a))/864e5>120){notice("Zakres nieobecności jest za długi (max 120 dni).");return}if(reason==="wniosek"){const bad=checkLeave(d.absadd,a,b);if(bad.length){notice(leaveNote(bad));return}}for(const day of range(a,b)){S.abs=S.abs.filter(x=>!(x.empId===d.absadd&&x.date===day));S.abs.push({empId:d.absadd,date:day,reason})}await saveA()}
     else if(d.abs){const [emp,from,to]=d.abs.split("|");S.abs=S.abs.filter(a=>!(a.empId===emp&&a.date>=from&&a.date<=to));await saveA()}
     else if(d.delshift){if(!t.dataset.confirm){t.dataset.confirm="1";t.textContent="Na pewno?";setTimeout(()=>{delete t.dataset.confirm;t.textContent="Usuń"},2500);return}S.shifts=S.shifts.filter(x=>x.id!==d.delshift);await saveS()}
     else if(d.delsched){if(!t.dataset.confirm){t.dataset.confirm="1";t.textContent="Na pewno?";setTimeout(()=>{delete t.dataset.confirm;t.textContent="Usuń"},2500);return}await S.db.doc("schedules/"+d.delsched).delete()}
@@ -700,22 +732,27 @@ function hrReport(month){ // month "YYYY-MM"
   const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
   const inMonth=d=>d.startsWith(month);
   const cells=[];for(const s of Object.values(S.scheds))for(const c of s.cells||[])if(c.empId!=null&&inMonth(c.date))cells.push(c);
+  const balAll=balances(null), since=S.hr?._since||"0000-00-00";
   return S.emps.map(e=>{
     const mine=cells.filter(c=>c.empId===e.id);
-    const byDay={};mine.forEach(c=>{const sh=shMap[c.shiftId];const p=cpart(c,sh,c.date);(byDay[c.date]??={h:0,d:0,w:false});if(p==="pm")byDay[c.date].d+=hoursOf(sh);else{byDay[c.date].h+=hoursOf(sh);byDay[c.date].w=true}});
-    let days=0,base=0,over=0,duty=0;for(const v of Object.values(byDay)){if(v.w)days++;base+=Math.min(v.h,8);over+=Math.max(0,v.h-8);duty+=v.d}
+    const byDay={};mine.forEach(c=>{const sh=shMap[c.shiftId];const p=cpart(c,sh,c.date);(byDay[c.date]??={h:0,d:0,w:false,x:false});if(p==="pm")byDay[c.date].d+=hoursOf(sh);else{byDay[c.date].h+=hoursOf(sh);byDay[c.date].w=true;if(c.extra)byDay[c.date].x=true}});
+    let days=0,base=0,over=0,duty=0;for(const v of Object.values(byDay)){if(v.w)days++;if(v.x){over+=v.h}else{base+=Math.min(v.h,8);over+=Math.max(0,v.h-8)}duty+=v.d}
     const abs=S.abs.filter(a=>a.empId===e.id&&inMonth(a.date));
     const cnt=r=>abs.filter(a=>a.reason===r).length;
     const m=S.hr[e.id]||{};
-    return {employeeId:e.id,name:e.name,days,base,over,duty,urlop:cnt("urlop"),l4:cnt("l4"),wniosek:cnt("wniosek"),freeDays:m.freeDays??"",overtime:m.overtime??""};
+    return {employeeId:e.id,name:e.name,days,base,over,duty,urlop:cnt("urlop"),l4:cnt("l4"),wniosek:cnt("wniosek"),freeDays:m.freeDays??"",overtime:m.overtime??"",saldoOver:balAll[e.id]||0,dniPrzydzielone:S.abs.filter(a=>a.empId===e.id&&a.reason==="urlop"&&a.date>=since).length,dniZgloszone:S.abs.filter(a=>a.empId===e.id&&a.reason==="wniosek").length,dodatkoweDni:Object.values(byDay).filter(v=>v.x).length};
   });
 }
 function renderHR(){
   const inp=$("hr-month"); if(!inp.value)inp.value=fmt(new Date()).slice(0,7);
   const rows=hrReport(inp.value); const f=v=>String(Math.round(v*10)/10).replace(".",",");
   $("hr-table").innerHTML=`<tr><th>Kierowca</th><th>dni pracy</th><th>godz. podst.</th><th>nadgodz.</th><th>dyżur h</th><th>urlop</th><th>L4</th><th>wnioski</th><th>stan dni wolnych</th><th>stan nadgodzin</th></tr>`+rows.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.days}</td><td>${f(r.base)}</td><td>${f(r.over)}</td><td>${f(r.duty)}</td><td>${r.urlop}</td><td>${r.l4}</td><td>${r.wniosek}</td><td><input type="number" step="0.5" data-hr-free="${r.employeeId}" value="${r.freeDays}"></td><td><input type="number" step="0.5" data-hr-over="${r.employeeId}" value="${r.overtime}"></td></tr>`).join("");
+  const since=S.hr._since||"";$("hr-since").value=since;
+  const fm=v=>(v>0?"+":"")+f(v);
+  $("hr-bal").innerHTML=`<tr><th>Kierowca</th><th title="ręczny bilans otwarcia + nadgodziny z planów">saldo nadgodzin (h)</th><th>dodatkowe dni pracy</th><th title="zatwierdzone urlopy od daty rachunku">dni wolne przydzielone</th><th title="wnioski urlopowe oczekujące na zatwierdzenie">dni wolne zgłoszone</th></tr>`+rows.map(r=>`<tr><td>${esc(r.name)}</td><td><b>${fm(r.saldoOver)}</b></td><td>${r.dodatkoweDni}</td><td>${r.dniPrzydzielone}</td><td>${r.dniZgloszone}</td></tr>`).join("");
 }
 $("hr-month").onchange=renderHR;
+$("hr-since").onchange=e=>{S.hr._since=e.target.value||null;if(!S.hr._since)delete S.hr._since;guard(async()=>{await docHR().set({items:S.hr});setStatus("Zapisano datę rachunku.")});renderHR()};
 $("hr-csv").onclick=()=>{const rows=hrReport($("hr-month").value);const csv=["Kierowca;Dni pracy;Godziny podstawowe;Nadgodziny;Dyżur h;Urlop dni;L4 dni;Wnioski;Stan dni wolnych;Stan nadgodzin"].concat(rows.map(r=>[r.name,r.days,r.base,r.over,r.duty,r.urlop,r.l4,r.wniosek,r.freeDays,r.overtime].map(v=>String(v).replace(".",",")).join(";"))).join("\n");const ta=$("hr-out");ta.value=csv;ta.style.display="block";ta.select();navigator.clipboard?.writeText(csv).then(()=>setStatus("CSV skopiowany do schowka — wklej do Excela."),()=>setStatus("CSV widoczny poniżej — skopiuj ręcznie."))};
 let hrTimer=null;
 document.addEventListener("change",ev=>{const t=ev.target;if(!(t.dataset?.hrFree||t.dataset?.hrOver))return;const id=t.dataset.hrFree||t.dataset.hrOver;(S.hr[id]??={});if(t.dataset.hrFree)S.hr[id].freeDays=t.value===""?null:+t.value;else S.hr[id].overtime=t.value===""?null:+t.value;clearTimeout(hrTimer);hrTimer=setTimeout(()=>guard(async()=>{await docHR().set({items:S.hr});setStatus("Zapisano dane kadrowe.")}),500)});
@@ -723,7 +760,7 @@ document.addEventListener("change",ev=>{const t=ev.target;if(!(t.dataset?.hrFree
 // ---------- API pluginu (FlotoMax) ----------
 function pluginGetData(){return {version:1,employees:S.emps,shifts:S.shifts,absences:S.abs,plan:S.plan,schedules:S.scheds,labels:S.labels}}
 async function pluginSetData(d){if(!S.db)throw new Error("brak bazy");if(d.employees){S.emps=d.employees;await saveE()}if(d.shifts){S.shifts=d.shifts;await saveS()}if(d.absences){S.abs=d.absences;await saveA()}if(d.plan){S.plan=d.plan;await savePlan()}if(d.schedules){for(const s of Object.values(d.schedules))await saveSched(s)}if(d.labels){S.labels=d.labels;await saveLabels()}}
-window.HarmonogramPlugin={getData:pluginGetData,setData:pluginSetData,availability,hrReport,requestLeave:async(employeeId,from,to)=>{for(const d of range(from,to)){S.abs=S.abs.filter(a=>!(a.empId===employeeId&&a.date===d));S.abs.push({empId:employeeId,date:d,reason:"wniosek"})}await saveA()},freeDrivers:d=>availability(d).filter(r=>r.status==="free"),generate:(a,b)=>generate(a,b,null),repair:(s,from,locked)=>repair(s,from,locked),restOf,rules:{maxWorkDays:MAX_WORK_DAYS}};
+window.HarmonogramPlugin={getData:pluginGetData,setData:pluginSetData,availability,hrReport,requestLeave:async(employeeId,from,to)=>{const bad=checkLeave(employeeId,from,to);if(bad.length)return{ok:false,blocked:bad,message:leaveNote(bad)};for(const d of range(from,to)){S.abs=S.abs.filter(a=>!(a.empId===employeeId&&a.date===d));S.abs.push({empId:employeeId,date:d,reason:"wniosek"})}await saveA();return{ok:true}},freeDrivers:d=>availability(d).filter(r=>r.status==="free"),generate:(a,b)=>generate(a,b,null),repair:(s,from,locked)=>repair(s,from,locked),restOf,rules:{maxWorkDays:MAX_WORK_DAYS}};
 window.addEventListener("message",ev=>{const m=ev.data;if(!m||m.type!=="harmonogram")return;if(m.action==="getData")ev.source?.postMessage({type:"harmonogram",action:"data",data:pluginGetData()},"*");if(m.action==="requestLeave"){window.HarmonogramPlugin.requestLeave(m.employeeId,m.from,m.to).then(()=>ev.source?.postMessage({type:"harmonogram",action:"leaveRequested",employeeId:m.employeeId,from:m.from,to:m.to},"*"))}if(m.action==="availability")ev.source?.postMessage({type:"harmonogram",action:"availability",date:m.date,drivers:availability(m.date)},"*")});
 $("btn-export").onclick=()=>{const ta=$("export-out");ta.value=JSON.stringify(pluginGetData(),null,1);ta.style.display="block";ta.select();try{navigator.clipboard.writeText(ta.value).then(()=>setStatus("Dane skopiowane do schowka (i widoczne poniżej)."),()=>setStatus("Dane widoczne poniżej — skopiuj je ręcznie."))}catch(e){setStatus("Dane widoczne poniżej — skopiuj je ręcznie.")}};
 $("file-import").onchange=ev=>{const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>guard(async()=>{const d=JSON.parse(r.result);await pluginSetData(d);setStatus("Dane zaimportowane.")});r.readAsText(f);ev.target.value=""};

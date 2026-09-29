@@ -56,6 +56,10 @@ Ważne pułapki:
 - Ręczna zmiana blokuje komórkę (ciemna ramka). Automatyczna naprawa kolizji rusza dopiero od tego dnia i nie tyka zablokowanych.
 - Kat. C: Trasa 10 wymaga kat. C.
 - Wniosek urlopowy jest żółty i nie blokuje, dopóki spedytor go nie zatwierdzi (wtedy staje się urlopem).
+- Limit urlopów w dniu: wolne miejsca = aktywni kierowcy − szacowana liczba tras − nieobecni. Zgłoszenie urlopu (wniosek), które przekroczyłoby limit w którymkolwiek dniu zakresu, jest **odrzucane** (UI i `requestLeave`, które zwraca `{ok:false,blocked}`). L4, odpoczynek i urlop wpisany bezpośrednio przez kadry nie są blokowane.
+- Inicjały kierowców z wnioskiem (żółte) i zatwierdzonym urlopem (niebieskie) widać w nagłówku każdego dnia u wszystkich użytkowników.
+- Rachunek godzin: saldo nadgodzin = ręczny bilans otwarcia (`app/hr`, pole `overtime`) + nadgodziny z planów od daty `app/hr._since` (godziny ponad 8 h dziennie, dyżury, dodatkowe dni pracy). Kadry pokazują też dni wolne przydzielone (zatwierdzone urlopy) i zgłoszone (wnioski).
+- Sprawiedliwe losowanie: kierowcy z wyższym saldem dostają więcej dni wolnych (przesunięcie licznika o saldo/8, ograniczone do ±3). Gdy brakuje ludzi, komórka może dostać dodatkowy dzień pracy (`cell.extra`, maks. 6 dni w tygodniu, odpoczynek po dalekich trasach zawsze zachowany), liczony w całości jako nadgodziny.
 - Kadry: godziny podstawowe do 8 h/dzień, nadgodziny, dyżur, urlop, L4, wnioski + ręczne pola, eksport CSV.
 - Statystyczne starty: Trasy 1–7 i Zwroty 01:30 (sobota 02:30) 8 h; T8 22:00/20 h; T9, T10 21:00/20 h; T11 19:00/20 h; T12 13:00/16 h; Dyżur 14:30/5 h.
 
