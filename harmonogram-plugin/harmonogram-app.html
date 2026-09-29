@@ -338,7 +338,7 @@ function generate(start,end,excludeId){
   }
   return cells;
 }
-function repair(sched,fromDate,extraLocked=new Set()){
+function repair(sched,fromDate,extraLocked=new Set(),ban=new Set()){
   const lockedKeys=new Set([...lockedKeysOf(sched),...extraLocked]);
   const emps=S.emps.filter(e=>e.active), active=new Set(emps.map(e=>e.id)), counts={}, am=absMap();
   emps.forEach(e=>counts[e.id]=0);
@@ -356,7 +356,7 @@ function repair(sched,fromDate,extraLocked=new Set()){
       if(frozen||lockedKeys.has(key(c))){if(emp!=null){mark(used,emp,part);if(part!=="pm"){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,part)}continue}
       const valid=emp!=null&&active.has(emp)&&canDrive(empObj,sh)&&!clash(used,emp,part)&&!am[emp]?.[day]&&!(rest[emp]&&rest[emp]>=day)&&(part==="pm"?!heavy.has(emp):canWork(worked,emp,day));
       if(!valid){
-        const cand=emps.filter(e=>canDrive(e,sh)&&!clash(used,e.id,part)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&(part==="pm"?!heavy.has(e.id):canWork(worked,e.id,day)));
+        const cand=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!clash(used,e.id,part)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&(part==="pm"?!heavy.has(e.id):canWork(worked,e.id,day)));
         emp=pick(cand,counts,sh,prevDay);
         if(emp!==c.empId){c.empId=emp;changed++}
       }
@@ -427,6 +427,7 @@ function renderEmps(){
   const am=absMap();
   $("emp-list").innerHTML=S.emps.length?S.emps.map(e=>`<li><div><div class="nm"><input type="color" value="${empColor(e)}" data-empcolor="${e.id}" title="kolor kierowcy" style="width:28px;height:24px;padding:0;border:none;background:none;vertical-align:middle;margin-right:6px;cursor:pointer">${esc(e.name)}${e.active?"":' <span class="tag">nieaktywny</span>'} <span class="tag" style="${hasCatC(e)?"":"color:var(--l4-ink)"}">${hasCatC(e)?"kat. C":"bez kat. C"}</span></div>
     <div class="sb">Nieobecności: ${(groupAbs(S.abs.filter(a=>a.empId===e.id)).map(g=>`<span class="tag ${g.reason}">${g.from===g.to?g.from:g.from+" – "+g.to} · ${REASONS[g.reason]||g.reason}${g.reason==="wniosek"?`<button data-absok="${e.id}|${g.from}|${g.to}" title="zatwierdź urlop" style="color:#1e4a2f;font-weight:800">✓ zatwierdź</button>`:""}<button data-abs="${e.id}|${g.from}|${g.to}" title="usuń">✕</button></span>`).join("")||"brak")}</div>
+    <div class="row" style="margin:6px 0 0"><label class="muted">Stawka <input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" value="${Number.isFinite(e.rate)?e.rate:""}" data-rate="${e.id}" style="width:110px"></label><select data-rateunit="${e.id}" title="jednostka stawki"><option value="h" ${(e.rateUnit||"h")==="h"?"selected":""}>zł / godz.</option><option value="d" ${e.rateUnit==="d"?"selected":""}>zł / dniówkę</option><option value="m" ${e.rateUnit==="m"?"selected":""}>zł / miesiąc</option></select><span class="muted" style="font-size:11px">widoczna tylko tutaj (kadry)</span></div>
     <div class="row" style="margin:6px 0 0"><input type="date" data-absdate="${e.id}" title="od"><span class="muted">–</span><input type="date" data-absdate2="${e.id}" title="do (opcjonalnie)"><select data-absreason="${e.id}"><option value="wniosek">Wniosek urlopowy</option><option value="urlop">Urlop (zatwierdzony)</option><option value="l4">L4</option><option value="odpoczynek">Odpoczynek</option></select><button class="btn ghost sm" data-absadd="${e.id}">Dodaj nieobecność</button></div></div>
     <div><button class="btn ghost sm" data-catc="${e.id}">${hasCatC(e)?"Odbierz kat. C":"Nadaj kat. C"}</button> <button class="btn ghost sm" data-toggle="${e.id}">${e.active?"Dezaktywuj":"Aktywuj"}</button> <button class="btn danger sm" data-delemp="${e.id}">Usuń</button></div></li>`).join(""):"<li>Brak pracowników.</li>";
 }
@@ -540,11 +541,11 @@ function notice(t){$("notice").innerHTML=t?`<div class="notice">${t}</div>`:""}
 // ---------- przypisanie ręczne (wspólne) ----------
 async function assignShift(empId,date,shiftId,opts={}){
   const s=S.scheds[S.current]; if(!s||!S.db) return;
-  const key=c=>c.date+"|"+c.shiftId+"|"+c.slot; const locked=new Set(); const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
-  if(opts.from){const f=s.cells.find(c=>c.date===opts.from.date&&c.shiftId===opts.from.shiftId&&c.slot===opts.from.slot);if(f){f.empId=null;delete f.locked;delete f.part}}
+  const key=c=>c.date+"|"+c.shiftId+"|"+c.slot; const locked=new Set(); const ban=new Set(); const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
+  if(opts.from){const f=s.cells.find(c=>c.date===opts.from.date&&c.shiftId===opts.from.shiftId&&c.slot===opts.from.slot);if(f){if(f.empId!=null&&!(f.empId===empId&&f.date===date))ban.add(f.empId+"|"+f.date);f.empId=null;delete f.locked;delete f.part}}
   const mine=new Set(s.cells.filter(c=>c.date===date&&c.empId===empId).map(c=>c.shiftId));
-  if(!shiftId){ s.cells.filter(c=>c.date===date&&c.empId===empId).forEach(c=>{c.empId=null;delete c.locked;delete c.part}); }
-  else if(mine.has(shiftId)&&opts.toggle){ s.cells.filter(c=>c.date===date&&c.empId===empId&&c.shiftId===shiftId).forEach(c=>{c.empId=null;delete c.locked;delete c.part}); }
+  if(!shiftId){ ban.add(empId+"|"+date); s.cells.filter(c=>c.date===date&&c.empId===empId).forEach(c=>{c.empId=null;delete c.locked;delete c.part}); }
+  else if(mine.has(shiftId)&&opts.toggle){ ban.add(empId+"|"+date); s.cells.filter(c=>c.date===date&&c.empId===empId&&c.shiftId===shiftId).forEach(c=>{c.empId=null;delete c.locked;delete c.part}); }
   else if(!mine.has(shiftId)){
     const p=partOf(shMap[shiftId],date);
     const mineC=s.cells.filter(c=>c.date===date&&c.empId===empId);
@@ -564,7 +565,7 @@ async function assignShift(empId,date,shiftId,opts={}){
     target.empId=empId; target.locked=true; if(splitPart)target.part=splitPart; else delete target.part; locked.add(key(target));
   }
   let msg;
-  if($("auto-repair").checked){const changed=repair(s,date,locked);msg=`Zapisano i zablokowano. Sprawdzono kolizje od ${date}: ${changed===0?"nic nie trzeba było zmieniać.":changed===1?"podmieniono 1 przydział.":"podmieniono "+changed+" przydziały."}`}
+  if($("auto-repair").checked){const changed=repair(s,opts.from&&opts.from.date<date?opts.from.date:date,locked,ban);msg=`Zapisano i zablokowano. Sprawdzono kolizje od ${date}: ${changed===0?"nic nie trzeba było zmieniać.":changed===1?"podmieniono 1 przydział.":"podmieniono "+changed+" przydziały."}`}
   else msg="Zapisano i zablokowano (bez sprawdzania kolizji).";
   await guard(()=>saveSched(s)); notice(msg); renderPlan();
 }
@@ -726,6 +727,7 @@ window.HarmonogramPlugin={getData:pluginGetData,setData:pluginSetData,availabili
 window.addEventListener("message",ev=>{const m=ev.data;if(!m||m.type!=="harmonogram")return;if(m.action==="getData")ev.source?.postMessage({type:"harmonogram",action:"data",data:pluginGetData()},"*");if(m.action==="requestLeave"){window.HarmonogramPlugin.requestLeave(m.employeeId,m.from,m.to).then(()=>ev.source?.postMessage({type:"harmonogram",action:"leaveRequested",employeeId:m.employeeId,from:m.from,to:m.to},"*"))}if(m.action==="availability")ev.source?.postMessage({type:"harmonogram",action:"availability",date:m.date,drivers:availability(m.date)},"*")});
 $("btn-export").onclick=()=>{const ta=$("export-out");ta.value=JSON.stringify(pluginGetData(),null,1);ta.style.display="block";ta.select();try{navigator.clipboard.writeText(ta.value).then(()=>setStatus("Dane skopiowane do schowka (i widoczne poniżej)."),()=>setStatus("Dane widoczne poniżej — skopiuj je ręcznie."))}catch(e){setStatus("Dane widoczne poniżej — skopiuj je ręcznie.")}};
 $("file-import").onchange=ev=>{const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>guard(async()=>{const d=JSON.parse(r.result);await pluginSetData(d);setStatus("Dane zaimportowane.")});r.readAsText(f);ev.target.value=""};
-document.addEventListener("change",ev=>{const c=ev.target.closest("[data-empcolor]");if(!c)return;guard(async()=>{const e=S.emps.find(x=>x.id===c.dataset.empcolor);e.color=c.value;await saveE()})});
+document.addEventListener("change",ev=>{const r=ev.target.closest("[data-rate],[data-rateunit]");if(r){guard(async()=>{const id=r.dataset.rate||r.dataset.rateunit;const e=S.emps.find(x=>x.id===id);if(!e)return;if(r.dataset.rate){const v=parseFloat(String(r.value).replace(",","."));if(Number.isFinite(v)&&v>=0)e.rate=Math.round(v*100)/100;else delete e.rate}else e.rateUnit=r.value;await saveE()});return}
+const c=ev.target.closest("[data-empcolor]");if(!c)return;guard(async()=>{const e=S.emps.find(x=>x.id===c.dataset.empcolor);e.color=c.value;await saveE()})});
 render(); boot();
 </script>
