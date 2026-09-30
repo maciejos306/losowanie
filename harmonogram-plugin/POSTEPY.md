@@ -24,3 +24,11 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 - Saldo dniówek nie zmniejsza się przy odbiorze dni wolnych; stawka kierowcy liczy się tylko w karcie Rejestr; nowe dane kierowcy (prawo jazdy, badania, kod 95) czekają na dane z FlotoMax.
 - Niedziela 04.10 w planie z PDF ma trzy razy Trasa 11 i dwa dyżury 30.09 (Twardzik niezrealizowany i Roman „Nagel + Perfekt”); do potwierdzenia.
 - Nazwa „Dyżur” ma w przepisach o czasie pracy kierowców inne znaczenie.
+
+
+## v46
+- Okno kalendarza (Bilans): formularz/fokus/przewinięcie przetrwają przebudowę, data zatwierdzana po opuszczeniu pola (rok 2000–2100), Enter dodaje, pierwszy klik Usuń działa po edycji.
+- Asystent `ustaw_dzien_wolny`: czytelne błędy przy usuwaniu nieistniejącego dnia / święta ustawowego, cofnięcie dotyka tylko danego dnia.
+- API (workingDays/bilansRange/yearStats/calendar): walidacja zakresu dat.
+- Test: testy/cal3.js (16/16). Pełna regresja zielona.
+- Nadal otwarte: Kadry – urlop w święto liczony jako dzień urlopu; norma miesięczna Kadr (tygodnie) vs kalendarzowa w Bilansie; stare teksty „5 dniówek”.
