@@ -1,0 +1,239 @@
+{
+  "cells": [
+    {
+      "date": "2026-09-28",
+      "empId": "e7",
+      "shiftId": "nagel",
+      "slot": 0
+    },
+    {
+      "date": "2026-09-29",
+      "empId": "e4",
+      "locked": true,
+      "shiftId": "t1",
+      "slot": 0
+    },
+    {
+      "date": "2026-09-29",
+      "empId": "e6",
+      "shiftId": "t2",
+      "slot": 0
+    },
+    {
+      "date": "2026-09-29",
+      "empId": "e3",
+      "shiftId": "t3",
+      "slot": 0
+    },
+    {
+      "date": "2026-09-29",
+      "empId": "e2",
+      "shiftId": "t4",
+      "slot": 0
+    },
+    {
+      "date": "2026-09-29",
+      "empId": "e5",
+      "locked": true,
+      "shiftId": "t6",
+      "slot": 0
+    },
+    {
+      "date": "2026-09-29",
+      "empId": "e8",
+      "shiftId": "t7",
+      "slot": 0
+    },
+    {
+      "date": "2026-09-29",
+      "empId": "e4",
+      "shiftId": "nagel",
+      "slot": 0
+    },
+    {
+      "date": "2026-09-30",
+      "empId": "e4",
+      "shiftId": "t8",
+      "slot": 0
+    },
+    {
+      "date": "2026-09-30",
+      "empId": "e7",
+      "shiftId": "t9",
+      "slot": 0
+    },
+    {
+      "date": "2026-09-30",
+      "empId": "e3",
+      "shiftId": "t10",
+      "slot": 0
+    },
+    {
+      "date": "2026-09-30",
+      "empId": "e1",
+      "shiftId": "t1",
+      "slot": 0
+    },
+    {
+      "date": "2026-09-30",
+      "empId": "e6",
+      "shiftId": "t2",
+      "slot": 0
+    },
+    {
+      "date": "2026-09-30",
+      "empId": "e2",
+      "shiftId": "t3",
+      "slot": 0
+    },
+    {
+      "date": "2026-09-30",
+      "empId": "e5",
+      "shiftId": "t6",
+      "slot": 0
+    },
+    {
+      "date": "2026-09-30",
+      "empId": "e8",
+      "shiftId": "nagel",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-01",
+      "empId": "e8",
+      "shiftId": "t11",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-01",
+      "empId": "e1",
+      "shiftId": "t1",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-01",
+      "empId": "e6",
+      "shiftId": "t2",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-01",
+      "empId": "e2",
+      "shiftId": "t3",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-01",
+      "empId": "e5",
+      "shiftId": "t6",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-01",
+      "empId": "e5",
+      "shiftId": "nagel",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-02",
+      "empId": "e1",
+      "shiftId": "t1",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-02",
+      "empId": "e6",
+      "shiftId": "t2",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-02",
+      "empId": "e2",
+      "shiftId": "t3",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-02",
+      "empId": "e3",
+      "shiftId": "t4",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-02",
+      "empId": "e7",
+      "shiftId": "t7",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-02",
+      "empId": "e4",
+      "shiftId": "nagel",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-03",
+      "empId": "e1",
+      "shiftId": "t1",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-03",
+      "empId": "e6",
+      "shiftId": "t2",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-03",
+      "empId": "e2",
+      "shiftId": "t3",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-03",
+      "empId": "e3",
+      "shiftId": "t4",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-03",
+      "empId": "e7",
+      "shiftId": "t6",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-03",
+      "empId": "e8",
+      "shiftId": "t7",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-03",
+      "empId": "e4",
+      "shiftId": "zwroty",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-04",
+      "empId": "e5",
+      "shiftId": "t9",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-04",
+      "empId": "e4",
+      "shiftId": "t11",
+      "slot": 0
+    },
+    {
+      "date": "2026-10-04",
+      "empId": "e3",
+      "shiftId": "t12",
+      "slot": 0
+    }
+  ],
+  "createdAt": "2026-09-28T12:00:00.000Z",
+  "end": "2026-10-04",
+  "id": "week-2026-09-28",
+  "name": "Tydzień 28.09 – 04.10 (wgrany z arkusza)",
+  "start": "2026-09-28"
+}
