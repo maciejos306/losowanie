@@ -6,7 +6,10 @@ window.__fakeSample=Object.assign(async(input,opts)=>{
   const say=t=>{opts.onText&&opts.onText({text:t,delta:t});return t};
   if(opts.signal?.aborted)throw{code:'cancelled',message:'x'};
   let out;
-  if(/zakoncz/i.test(last)){out='K: '+await call('zakoncz_trase',{employeeId:'e6',date:'2026-09-30',shiftId:'t10',departure:'20:00',return:'16:30'})}
+  if(/swieta/i.test(last)){out='S: '+await call('dni_wolne_i_swieta',{from:'2026-08-01',to:'2026-12-31'})}
+  else if(/okres/i.test(last)){out='O: '+await call('bilans_okresu',{from:'2026-12-01',to:'2026-12-31'})}
+  else if(/dzienwolny/i.test(last)){out='W: '+await call('ustaw_dzien_wolny',{date:'2026-10-12',name:'Dzień wolny firmowy',kind:'firmowy',routes:'none'})}
+  else if(/zakoncz/i.test(last)){out='K: '+await call('zakoncz_trase',{employeeId:'e6',date:'2026-09-30',shiftId:'t10',departure:'20:00',return:'16:30'})}
   else if(/zlecenie/i.test(last)){out='Z: '+await call('dodaj_zlecenie_dodatkowe',{employeeId:'e2',date:'2026-10-07',orders:'Nagel + Perfekt'})}
   else if(/wyjazd/i.test(last)){out='J: '+await call('rozlicz_dyzur',{employeeId:'e2',date:'2026-10-07',went:true,departure:'14:30',return:'21:00'})}
   else if(/wolne miejsca/i.test(last)){out='M: '+await call('wolne_miejsca_urlop',{from:'2026-10-06'})}

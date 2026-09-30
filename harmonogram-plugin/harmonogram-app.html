@@ -55,6 +55,7 @@
   .bal{display:block;font-weight:500;color:var(--muted);font-size:10.5px;margin-top:1px}
   .chip.closed{box-shadow:inset 0 0 0 2.5px rgba(255,255,255,.92),0 0 0 1.5px rgba(0,0,0,.3);background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.14) 0 6px,transparent 6px 12px)}
   .bar.closed{box-shadow:inset 0 0 0 2px rgba(255,255,255,.92);background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.14) 0 6px,transparent 6px 12px)}
+  .hol{display:block;margin:3px auto 0;width:max-content;max-width:96%;font-family:Karla;font-size:10.5px;font-weight:800;letter-spacing:0;text-transform:none;color:#7c2d12;background:#ffedd5;border:1px solid #fb923c;border-radius:999px;padding:1px 8px;white-space:normal;text-align:center}
   .daydone,.daypart{display:block;margin:3px auto 0;width:max-content;font-family:Karla;font-size:10.5px;font-weight:800;letter-spacing:0;text-transform:none;border-radius:999px;padding:1px 8px}
   .daydone{color:#14532d;background:#bbf7d0;border:1px solid #16a34a}
   .daypart{color:#1e3a8a;background:#dbeafe;border:1px solid #60a5fa}
@@ -204,9 +205,16 @@
     </div>
 
     <div class="screen" id="bilans">
-      <p class="lead" data-label="txt-bilans">Bilans kadrowy: czy liczba kierowców pasuje do pracy, którą trzeba wykonać. Pojemność tygodnia to liczba kierowców × (5 dniówek normy + 0,5 dopuszczalnych nadgodzin). Zapotrzebowanie to suma dniówek tras w tygodniu (dyżury liczą się dopiero po realizacji, więc nie wchodzą do zapotrzebowania). Nieobecności (urlop, L4, wnioski) zmniejszają pojemność.</p>
+      <p class="lead" data-label="txt-bilans">Bilans kadrowy: czy liczba kierowców pasuje do pracy, którą trzeba wykonać. Pojemność tygodnia to liczba kierowców × (5 dniówek normy + 0,5 dopuszczalnych nadgodzin). Zapotrzebowanie to suma dniówek tras w tygodniu (dyżury liczą się dopiero po realizacji, więc nie wchodzą do zapotrzebowania). Nieobecności (urlop, L4, wnioski) zmniejszają pojemność, a święta i dni wolne zmniejszają liczbę dni pracujących w tygodniu, miesiącu i roku.</p>
       <div class="row"><label class="muted">Norma (dniówek / tydzień) <input type="number" id="bil-norm" step="0.5" min="1" max="7" style="width:80px"></label><label class="muted">Dopuszczalne nadgodziny <input type="number" id="bil-ot" step="0.25" min="0" max="3" style="width:80px"></label><label class="muted">Próg „za mało pracy” (% normy) <input type="number" id="bil-low" step="5" min="10" max="100" style="width:80px"></label></div>
       <div id="bil-main"></div>
+      <details open style="margin:14px 0"><summary style="cursor:pointer;font-weight:800;font-size:15px;padding:4px 0">Kalendarz pracy: święta i dni wolne</summary>
+        <p class="lead" style="margin-top:6px">Święta ustawowe program uzupełnia sam (także Wielkanoc i święta ruchome, od 2025 Wigilię). Święto w dzień powszedni zmniejsza wymiar pracy o 1 dzień, a święto w sobotę też o 1 dzień (pracodawca oddaje inny dzień wolny). Święto w niedzielę nie zmienia normy. Tu możesz dodać własne dni wolne (np. dzień wolny firmowy), wyłączyć święto albo ustawić, że w danym dniu trasy nie jadą.</p>
+        <div id="bil-cal"></div></details>
+      <h3 style="margin:18px 0 6px;font-size:15px">Miesiące i rok: czy kierowców wystarczy</h3>
+      <p class="lead" style="margin:0 0 6px">Pojemność miesiąca i roku = kierowcy × dni pracujące wg Kodeksu pracy (z uwzględnieniem świąt), powiększona o dopuszczalne nadgodziny. Zapotrzebowanie to suma dniówek tras z harmonogramu, a tam, gdzie go nie ma, z Założeń (bez dni oznaczonych „trasy nie jadą”). Dzień nieobecności zabiera średnio tyle dniówek, ile przypada na dzień kalendarzowy okresu.</p>
+      <div id="bil-year"></div>
+      <div class="grid-scroll"><table class="plan hr" id="bil-months"></table></div>
       <h3 style="margin:18px 0 6px;font-size:15px">Zapotrzebowanie w dni tygodnia (z Założeń)</h3>
       <div class="grid-scroll"><table class="plan hr" id="bil-days"></table></div>
       <h3 style="margin:18px 0 6px;font-size:15px">Tydzień po tygodniu</h3>
@@ -312,9 +320,10 @@ const lockedKeysOf=s=>new Set((s.cells||[]).filter(c=>c.locked).map(c=>c.date+"|
 // plan = {days:{"1":[shiftId,...],...}} klucz = dzień tygodnia (0=Nd..6=So); null = wszystkie trasy codziennie
 const WD=[1,2,3,4,5,6,0];
 const wdOf=d=>new Date(d+"T00:00:00Z").getUTCDay();
-const estOf=(s,d)=>{const o=s.est?.[d];if(Number.isFinite(o))return{n:o,manual:true};return{n:shiftsOn(d).filter(x=>(x.part||"full")!=="pm").reduce((a,x)=>a+(+x.people||1),0),manual:false}};
+const estOf=(s,d)=>{const o=s.est?.[d];if(Number.isFinite(o))return{n:o,manual:true};const he=typeof calDay==="function"?calDay(d):null;if(he&&he.routes==="none")return{n:0,manual:false};return{n:shiftsOn(d).filter(x=>(x.part||"full")!=="pm").reduce((a,x)=>a+(+x.people||1),0),manual:false}};
+const holTag=d=>{const e=typeof calDay==="function"?calDay(d):null;if(!e)return"";return `<span class="hol" title="${esc(e.name)}${e.routes==="none"?" · trasy nie jadą":""}">${e.kind==="firmowy"?"dzień wolny":"★ święto"}: ${esc(e.name)}${e.routes==="none"?" · bez tras":""}</span>`};
 const leaveTag=d=>{const sl=slotsOn(d);const L=S.abs.filter(a=>a.date===d&&(a.reason==="urlop"||a.reason==="wniosek")).map(a=>({e:S.emps.find(x=>x.id===a.empId),r:a.reason})).filter(x=>x.e);const chips=L.map(x=>`<b class="ini ${x.r==="wniosek"?"w":"u"}" title="${esc(x.e.name)} · ${x.r==="wniosek"?"wniosek urlopowy (oczekuje)":"urlop zatwierdzony"}">${esc(initials(x.e))}</b>`).join("");return `<span class="slots${sl.free<1?" full":""}" title="Potrzebnych kierowców: ${sl.need}. Aktywnych: ${sl.active}. Nieobecnych: ${sl.absent}. Tyle osób może jeszcze zgłosić urlop na ten dzień.">wolnych miejsc na urlop: <b>${Math.max(0,sl.free)}</b></span>${chips?`<span class="inis">${chips}</span>`:""}`};
-const estTag=(s,d)=>{const e=estOf(s,d);const got=s.cells.filter(c=>c.date===d&&c.empId!=null&&(S.shifts.find(x=>x.id===c.shiftId)?.part||"full")!=="pm").length;return `<span class="est" data-est="${d}" title="Szacowana liczba tras w tym dniu${e.manual?" (ustawiona ręcznie)":" (z Założeń)"}. Kliknij, aby zmienić — FlotoMax może ją aktualizować na bieżąco. Przydzielono: ${got}.">≈ ${e.n} ${e.n===1?"trasa":e.n>=2&&e.n<=4?"trasy":"tras"}${e.manual?" ✎":""}<i>przydz. ${got}</i></span>${leaveTag(d)}${closedTag(s,d)}`};
+const estTag=(s,d)=>{const e=estOf(s,d);const got=s.cells.filter(c=>c.date===d&&c.empId!=null&&(S.shifts.find(x=>x.id===c.shiftId)?.part||"full")!=="pm").length;return `<span class="est" data-est="${d}" title="Szacowana liczba tras w tym dniu${e.manual?" (ustawiona ręcznie)":" (z Założeń)"}. Kliknij, aby zmienić — FlotoMax może ją aktualizować na bieżąco. Przydzielono: ${got}.">≈ ${e.n} ${e.n===1?"trasa":e.n>=2&&e.n<=4?"trasy":"tras"}${e.manual?" ✎":""}<i>przydz. ${got}</i></span>${holTag(d)}${leaveTag(d)}${closedTag(s,d)}`};
 const initials=e=>{const p=String(e.name||"?").trim().split(/\s+/);const a=(p[0]||"?")[0],b=(p[p.length-1]||"")[0]||"";const base=(a+b).toUpperCase();const dup=S.emps.filter(x=>x.id!==e.id&&x.active!==false).some(x=>{const q=String(x.name||"").trim().split(/\s+/);return ((q[0]||"?")[0]+((q[q.length-1]||"")[0]||"")).toUpperCase()===base});return dup&&p.length>1?base+(p[p.length-1][1]||"").toLowerCase():base};
 const needOn=d=>{const s=Object.values(S.scheds).find(x=>x.start<=d&&d<=x.end);return estOf(s||{est:{}},d).n};
 function slotsOn(d,exceptEmp){const act=S.emps.filter(e=>e.active);const ids=new Set(act.map(e=>e.id));const gone=new Set(S.abs.filter(a=>a.date===d&&ids.has(a.empId)&&a.empId!==exceptEmp).map(a=>a.empId));const need=needOn(d);return{active:act.length,need,absent:gone.size,free:act.length-need-gone.size}}
@@ -357,10 +366,10 @@ function ledger(excludeId,ignoreSince){
   const absW={};for(const a of S.abs){if(a.reason!=="urlop"&&a.reason!=="l4")continue;const wk=weekKey(a.date);const o=(((absW[a.empId]??={})[wk])??={l4:new Set(),urlop:new Set()});o[a.reason].add(a.date)}
   const weeks=[...covered].filter(d=>wdOf(d)===1&&d>=since&&[0,1,2,3,4,5,6].every(k=>covered.has(addDays(d,k)))).sort();
   const out={};
-  for(const e of S.emps){const arr=[];for(const wk of weeks){const w=earned[e.id]?.[wk], ab=absW[e.id]?.[wk];if(w===undefined&&!ab)continue;const worked=w||0, norm=Math.max(0,WEEK_DAYS-Math.min(WEEK_DAYS,ab?ab.l4.size:0));arr.push({monday:wk,worked,norm,delta:worked-norm,urlop:ab?ab.urlop.size:0})}out[e.id]=arr}
+  for(const e of S.emps){const arr=[];for(const wk of weeks){const w=earned[e.id]?.[wk], ab=absW[e.id]?.[wk];if(w===undefined&&!ab)continue;const worked=w||0, base0=weekNormDays(wk), l4e=ab?[...ab.l4].filter(x=>!isOffDay(x)).length:0, norm=Math.max(0,base0-Math.min(base0,l4e));arr.push({monday:wk,worked,norm,delta:worked-norm,urlop:ab?ab.urlop.size:0})}out[e.id]=arr}
   return out}
 function balances(excludeId){const L=ledger(excludeId),out={};S.emps.forEach(e=>out[e.id]=(+(S.hr?.[e.id]?.overtime)||0)+(L[e.id]||[]).reduce((a,w)=>a+w.delta,0));return out}
-const shiftsOn=day=>{if(!S.plan)return S.shifts;const ids=new Set(S.plan.days?.[wdOf(day)]||[]);return S.shifts.filter(s=>ids.has(s.id))};
+const shiftsOn=day=>{if(typeof calDay==="function"){const he=calDay(day);if(he&&he.routes==="none")return[]}if(!S.plan)return S.shifts;const ids=new Set(S.plan.days?.[wdOf(day)]||[]);return S.shifts.filter(s=>ids.has(s.id))};
 const COLORS=["#16a34a","#2563eb","#d97706","#0891b2","#9333ea","#ca8a04","#475569","#dc2626","#ea580c","#be123c","#b91c1c","#0284c7","#6b7280","#65a30d","#7c3aed"];
 const PART={full:"cały dzień",am:"rano",pm:"po południu"};
 const cpart=(c,sh,day)=>(day&&wdOf(day)===0)?"full":(c&&c.part)||(sh?.part||"full");
@@ -853,38 +862,126 @@ function hrReport(month){ // month "YYYY-MM"
   });
 }
 const fdn=v=>String(Math.round(v*100)/100).replace(".",",");
+// ---------- kalendarz: święta ustawowe i dni wolne od pracy ----------
+const calRaw=()=>S.hr?._cal||{};
+const calCfg=()=>{const c=calRaw();return{holidayRoutes:c.holidayRoutes==="none"?"none":"plan",autoOff:!!c.autoOff,custom:Array.isArray(c.custom)?c.custom:[],disabled:c.disabled||{},routes:c.routes||{}}};
+function easterDate(y){ // algorytm Meeusa/Jonesa/Butchera (kalendarz gregoriański)
+  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;
+  return y+"-"+String(mo).padStart(2,"0")+"-"+String(da).padStart(2,"0")}
+const PL_FIXED=[["01-01","Nowy Rok"],["01-06","Trzech Króli"],["05-01","Święto Pracy"],["05-03","Święto Konstytucji 3 Maja"],["08-15","Wniebowzięcie NMP"],["11-01","Wszystkich Świętych"],["11-11","Narodowe Święto Niepodległości"],["12-25","Boże Narodzenie"],["12-26","Drugi dzień Bożego Narodzenia"]];
+function plHolidays(y){ // dni ustawowo wolne od pracy w Polsce
+  const out=[];const add=(date,name)=>out.push({date,name,auto:true,kind:"ustawowe"});
+  PL_FIXED.forEach(([md,n])=>{if(md==="01-06"&&y<2011)return;add(y+"-"+md,n)});
+  if(y>=2025)add(y+"-12-24","Wigilia Bożego Narodzenia");
+  const e=easterDate(y);add(e,"Wielkanoc");add(addDays(e,1),"Poniedziałek Wielkanocny");add(addDays(e,49),"Zielone Świątki");add(addDays(e,60),"Boże Ciało");
+  return out.sort((a,b)=>a.date.localeCompare(b.date))}
+let calCache={};
+function calYear(y){
+  const cfg=calCfg();const key=y+"|"+JSON.stringify([cfg.autoOff,cfg.custom,cfg.disabled,cfg.routes,cfg.holidayRoutes]);if(calCache[key])return calCache[key];
+  if(Object.keys(calCache).length>40)calCache={};
+  const m={};
+  if(!cfg.autoOff)for(const h of plHolidays(y))m[h.date]={...h,disabled:!!cfg.disabled[h.date],routes:cfg.routes[h.date]==="none"||cfg.routes[h.date]==="plan"?cfg.routes[h.date]:cfg.holidayRoutes};
+  for(const c of cfg.custom)if(/^\d{4}-\d{2}-\d{2}$/.test(String(c.date||""))&&String(c.date).startsWith(y+"-"))m[c.date]={date:c.date,name:c.name||"Dzień wolny",auto:false,kind:c.kind==="swieto"?"swieto":"firmowy",disabled:false,routes:c.routes==="none"?"none":"plan",id:c.id};
+  return calCache[key]=m}
+const calDay=d=>{const e=calYear(+String(d).slice(0,4))[d];return e&&!e.disabled?e:null};
+const isOffDay=d=>!!calDay(d);
+// wkład dnia do normy (dni): pon–pt = 1, a dzień wolny = 0; święto w sobotę = −1 (pracodawca musi dać inny dzień wolny); niedziela = 0
+function nDay(d){const wd=wdOf(d),e=calDay(d);if(wd>=1&&wd<=5)return e?0:1;if(wd===6)return e&&e.kind!=="firmowy"?-1:0;return 0}
+const weekNormDays=monday=>{let s=0;for(let k=0;k<7;k++)s+=nDay(addDays(monday,k));return Math.max(0,s)};
+const weekHolidays=monday=>{const o=[];for(let k=0;k<7;k++){const d=addDays(monday,k),e=calDay(d);if(e)o.push({date:d,name:e.name})}return o};
+function calList(y){ // pełna lista na rok do okna edycji i dla API
+  const m=calYear(y);return Object.values(m).sort((a,b)=>a.date.localeCompare(b.date)).map(e=>({...e,weekday:DAYN[wdOf(e.date)],normEffect:e.disabled?0:(()=>{const wd=wdOf(e.date);return wd>=1&&wd<=5?-1:wd===6&&e.kind!=="firmowy"?-1:0})()}))}
+function yearStats(y){
+  const end=y+"-12-31";let days=0,weekdays=0,norm=0,sat=0,sun=0;
+  for(const d of range(y+"-01-01",end)){days++;const wd=wdOf(d);if(wd>=1&&wd<=5)weekdays++;norm+=nDay(d)}
+  const hol=calList(y).filter(e=>!e.disabled&&e.kind!=="firmowy");for(const e of hol){const wd=wdOf(e.date);if(wd===6)sat++;if(wd===0)sun++}
+  return{year:y,days,weekdays,holidays:hol.length,holidaysOnSaturday:sat,holidaysOnSunday:sun,normDays:norm,normHours:norm*8}}
+// zapotrzebowanie jednego dnia: z harmonogramu, a gdy go nie ma, z Założeń (z uwzględnieniem dni bez tras)
+function dayDemand(date,shMap){
+  const sched=Object.values(S.scheds).find(s=>s.start<=date&&date<=s.end);let routes=0,dn=0,duty=0;
+  if(sched){for(const c of sched.cells)if(c.date===date){const sh=shMap[c.shiftId];if(isDutyCell(c,sh))duty+=sh?.weight??0.5;else{routes++;dn+=sh?.weight??1}}}
+  else{const e=calDay(date);if(!(e&&e.routes==="none"))for(const sh of shiftsOn(date)){const n=+sh.people||1;if((sh.part||"full")==="pm")duty+=n*(sh.weight??0.5);else{routes+=n;dn+=n*(sh.weight??1)}}}
+  return{routes,dn,duty,src:sched?"plan":"założenia"}}
 const BIL_DEF={norm:5,ot:0.5,low:90};
 const bilCfg=()=>({...BIL_DEF,...(S.hr?._bilans||{})});
 function weekDemand(monday){
-  const sched=Object.values(S.scheds).find(s=>s.start<=monday&&addDays(monday,6)<=s.end);const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
-  const days=[];let dn=0,duty=0,heads=0;
-  for(let k=0;k<7;k++){const date=addDays(monday,k);let routes=0,d=0,du=0;
-    if(sched){for(const c of sched.cells.filter(c=>c.date===date)){const sh=shMap[c.shiftId];if(isDutyCell(c,sh))du+=sh?.weight??0.5;else{routes++;d+=sh?.weight??1}}}
-    else{for(const sh of shiftsOn(date)){const n=+sh.people||1;if((sh.part||"full")==="pm")du+=n*(sh.weight??0.5);else{routes+=n;d+=n*(sh.weight??1)}}}
-    days.push({date,routes,dn:d,duty:du});dn+=d;duty+=du;heads=Math.max(heads,routes)}
-  return{dn,duty,days,peak:heads,src:sched?"plan":"założenia"}}
-function bilansWeek(monday,cfg=bilCfg()){
-  const act=S.emps.filter(e=>e.active), dem=weekDemand(monday), mx=cfg.norm+cfg.ot;
-  let capN=0,capM=0,absDays=0;
-  for(const e of act){const ds=new Set(S.abs.filter(a=>a.empId===e.id&&["urlop","l4","wniosek"].includes(a.reason)&&a.date>=monday&&a.date<=addDays(monday,6)).map(a=>a.date));const a=Math.min(ds.size,mx);absDays+=ds.size;capN+=Math.max(0,cfg.norm-a);capM+=Math.max(0,mx-a)}
-  const D=dem.dn, low=cfg.low/100;let status,label,advice;
-  if(!act.length){status="short";label="Brak aktywnych kierowców";advice="Dodaj kierowców."}
-  else if(D>capM+1e-9){const need=Math.ceil((D-capM)/mx-1e-9), needNorm=Math.ceil((D-capN)/cfg.norm-1e-9);status="short";label="Za mało kierowców";advice=`Zapotrzebowanie ${fdn(D)} dn. przekracza pojemność z nadgodzinami (${fdn(capM)} dn.). Zatrudnij co najmniej ${need} ${need===1?"kierowcę":need<5?"kierowców":"kierowców"}, żeby zmieścić się w dopuszczalnych nadgodzinach, albo ${needNorm} żeby pracować bez nadgodzin.`;dem.hire=need;dem.hireNorm=needNorm}
+  const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);const days=[];let dn=0,duty=0,heads=0,plan=0;
+  for(let k=0;k<7;k++){const date=addDays(monday,k);const r=dayDemand(date,shMap);if(r.src==="plan")plan++;days.push({date,routes:r.routes,dn:r.dn,duty:r.duty,holiday:calDay(date)?.name||""});dn+=r.dn;duty+=r.duty;heads=Math.max(heads,r.routes)}
+  return{dn,duty,days,peak:heads,src:plan===7?"plan":plan?"plan + założenia":"założenia"}}
+function bilansVerdict(D,capN,capM,drivers,perN,perM,cfg){
+  const low=cfg.low/100;let status,label,advice,hire=0,hireNorm=0;
+  if(!drivers){status="short";label="Brak aktywnych kierowców";advice="Dodaj kierowców."}
+  else if(D>capM+1e-9){hire=Math.ceil((D-capM)/(perM||1)-1e-9);hireNorm=Math.ceil((D-capN)/(perN||1)-1e-9);status="short";label="Za mało kierowców";advice=`Zapotrzebowanie ${fdn(D)} dn. przekracza pojemność z nadgodzinami (${fdn(capM)} dn.). Zatrudnij co najmniej ${hire} ${hire===1?"kierowcę":"kierowców"}, żeby zmieścić się w dopuszczalnych nadgodzinach, albo ${hireNorm} żeby pracować bez nadgodzin.`}
   else if(D>capN+1e-9){status="ok";label="OK, z nadgodzinami w dopuszczalnym zakresie";advice=`Wykorzystano ${Math.round((D-capN)/(capM-capN||1)*100)}% dopuszczalnych nadgodzin (${fdn(D-capN)} z ${fdn(capM-capN)} dn.).`}
-  else if(D<capN*low-1e-9){const need=Math.max(1,Math.ceil(D/cfg.norm-1e-9)), surplus=Math.max(0,act.length-need);status="idle";label="Za mało pracy w stosunku do kierowców";advice=`Zapotrzebowanie ${fdn(D)} dn. to ${Math.round(D/capN*100)}% normy (${fdn(capN)} dn.). Przy tej pracy wystarczyłoby około ${need} kierowców, czyli o ${surplus} mniej.`}
-  else{status="ok";label="OK";advice=`Zapotrzebowanie mieści się w normie bez nadgodzin (${Math.round(D/capN*100)}% normy).`}
-  return{monday,src:dem.src,drivers:act.length,absDays,demand:D,duty:dem.duty,capNorm:capN,capMax:capM,load:capN?D/capN:0,status,label,advice,hire:dem.hire||0,hireNorm:dem.hireNorm||0,peak:dem.peak,days:dem.days}}
+  else if(D<capN*low-1e-9){const need=Math.max(1,Math.ceil(D/(perN||1)-1e-9)),surplus=Math.max(0,drivers-need);status="idle";label="Za mało pracy w stosunku do kierowców";advice=`Zapotrzebowanie ${fdn(D)} dn. to ${Math.round(D/(capN||1)*100)}% normy (${fdn(capN)} dn.). Przy tej pracy wystarczyłoby około ${need} kierowców, czyli o ${surplus} mniej.`}
+  else{status="ok";label="OK";advice=`Zapotrzebowanie mieści się w normie bez nadgodzin (${Math.round(D/(capN||1)*100)}% normy).`}
+  return{status,label,advice,hire,hireNorm}}
+function bilansWeek(monday,cfg=bilCfg()){
+  const act=S.emps.filter(e=>e.active), dem=weekDemand(monday);
+  const nd=weekNormDays(monday), red=Math.max(0,5-nd), base=Math.max(0,cfg.norm-red), mx=base+cfg.ot*(base/(cfg.norm||5));
+  let capN=0,capM=0,absDays=0;
+  for(const e of act){const ds=new Set(S.abs.filter(a=>a.empId===e.id&&["urlop","l4","wniosek"].includes(a.reason)&&a.date>=monday&&a.date<=addDays(monday,6)&&!isOffDay(a.date)).map(a=>a.date));const a=Math.min(ds.size,mx);absDays+=ds.size;capN+=Math.max(0,base-a);capM+=Math.max(0,mx-a)}
+  const D=dem.dn, v=bilansVerdict(D,capN,capM,act.length,base,mx,cfg);
+  return{monday,src:dem.src,drivers:act.length,absDays,demand:D,duty:dem.duty,capNorm:capN,capMax:capM,load:capN?D/capN:0,status:v.status,label:v.label,advice:v.advice,hire:v.hire,hireNorm:v.hireNorm,peak:dem.peak,days:dem.days,normDays:nd,holidays:weekHolidays(monday)}}
+// bilans dowolnego okresu (miesiąc, rok): kalendarzowo, z dniami pracującymi wg Kodeksu pracy
+function bilansRange(from,to,cfg=bilCfg()){
+  const act=S.emps.filter(e=>e.active),ids=new Set(act.map(e=>e.id)),shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
+  const days=[...range(from,to)],mult=1+cfg.ot/(cfg.norm||5);let norm=0,D=0,duty=0,plan=0;const hol=[];
+  for(const d of days){norm+=nDay(d);const e=calDay(d);if(e)hol.push({date:d,name:e.name,weekday:DAYN[wdOf(d)]});const r=dayDemand(d,shMap);D+=r.dn;duty+=r.duty;if(r.src==="plan")plan++}
+  norm=Math.max(0,norm);const rho=days.length?norm/days.length:0,absSet=new Set();
+  for(const a of S.abs)if(["urlop","l4","wniosek"].includes(a.reason)&&ids.has(a.empId)&&a.date>=from&&a.date<=to&&!isOffDay(a.date))absSet.add(a.empId+"|"+a.date);
+  const N=act.length,absCap=absSet.size*rho,capN=Math.max(0,N*norm-absCap),capM=Math.max(0,(N*norm-absCap)*mult);
+  const v=bilansVerdict(D,capN,capM,N,norm,norm*mult,cfg);
+  return{from,to,calendarDays:days.length,normDays:norm,normHours:norm*8,holidays:hol,drivers:N,absDays:absSet.size,demand:D,duty,capNorm:capN,capMax:capM,load:capN?D/capN:0,status:v.status,label:v.label,advice:v.advice,hire:v.hire,hireNorm:v.hireNorm,src:plan===days.length?"plan":plan?"plan + założenia":"założenia"}}
 const BIL_COL={ok:["#dcfce7","#166534"],short:["#fee2e2","#991b1b"],idle:["#dbeafe","#1e40af"]};
 function renderBilans(){
   const c=bilCfg();$("bil-norm").value=c.norm;$("bil-ot").value=c.ot;$("bil-low").value=c.low;
   const mon0=weekKey(fmt(new Date()));const w0=bilansWeek(Object.values(S.scheds).length?weekKey(Object.values(S.scheds).map(s=>s.start).sort().slice(-1)[0]):mon0,c);
-  const typ=bilansWeek("2099-01-05",c); // tydzień z samych Założeń (brak harmonogramu)
+  const typ=bilansWeek("2099-02-02",c); // tydzień z samych Założeń (brak harmonogramu)
   const col=BIL_COL[typ.status];
   $("bil-main").innerHTML=`<div style="border:2px solid ${col[1]};background:${col[0]};color:${col[1]};border-radius:14px;padding:14px 16px;margin:10px 0"><div style="font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase">Typowy tydzień z Założeń</div><div style="font-size:20px;font-weight:800;margin:2px 0 4px">${esc(typ.label)}</div><div style="font-size:13.5px">${esc(typ.advice)}</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"><span class="kpi">Kierowców aktywnych <b>${typ.drivers}</b></span><span class="kpi">Zapotrzebowanie <b>${fdn(typ.demand)} dn.</b></span><span class="kpi">Pojemność w normie <b>${fdn(typ.capNorm)} dn.</b></span><span class="kpi">Z nadgodzinami <b>${fdn(typ.capMax)} dn.</b></span><span class="kpi">Obciążenie normy <b>${Math.round(typ.load*100)}%</b></span><span class="kpi">Najwięcej tras w dniu <b>${typ.peak}</b></span></div></div>`;
   $("bil-days").innerHTML='<tr><th>Dzień</th><th>tras (kierowców)</th><th>dniówek</th><th>dyżury (po realizacji)</th><th>status dnia</th></tr>'+typ.days.map(d=>{const wd=DAYN[wdOf(d.date)];const enough=d.routes<=typ.drivers;return `<tr><td>${wd}</td><td>${d.routes}</td><td>${fdn(d.dn)}</td><td>${fdn(d.duty)}</td><td style="color:${enough?"#166534":"#991b1b"};font-weight:700">${enough?"kierowców wystarczy":"brakuje "+(d.routes-typ.drivers)}</td></tr>`}).join("");
+  try{renderBilCal();renderBilYear()}catch(e){console.error(e)}
   const mons=new Set(Object.values(S.scheds).map(s=>weekKey(s.start)));const last=[...mons].sort().slice(-1)[0]||mon0;for(let i=1;i<=3;i++)mons.add(addDays(last,7*i));
-  $("bil-weeks").innerHTML='<tr><th>Tydzień</th><th>źródło</th><th>kierowców</th><th>dni nieobecności</th><th>zapotrzebowanie (dn.)</th><th>pojemność w normie</th><th>z nadgodzinami</th><th>obciążenie</th><th>status</th></tr>'+[...mons].sort().map(m=>{const w=bilansWeek(m,c);const cl=BIL_COL[w.status];return `<tr><td>${m.slice(8)}.${m.slice(5,7)}</td><td>${w.src}</td><td>${w.drivers}</td><td>${w.absDays}</td><td>${fdn(w.demand)}</td><td>${fdn(w.capNorm)}</td><td>${fdn(w.capMax)}</td><td>${Math.round(w.load*100)}%</td><td style="text-align:left"><span class="tag" style="background:${cl[0]};color:${cl[1]};border-color:${cl[1]}" title="${esc(w.advice)}">${esc(w.label)}</span></td></tr>`}).join("");
+  $("bil-weeks").innerHTML='<tr><th>Tydzień</th><th>źródło</th><th>dni prac.</th><th style="text-align:left">święta</th><th>kierowców</th><th>dni nieobecności</th><th>zapotrzebowanie (dn.)</th><th>pojemność w normie</th><th>z nadgodzinami</th><th>obciążenie</th><th>status</th></tr>'+[...mons].sort().map(m=>{const w=bilansWeek(m,c);const cl=BIL_COL[w.status];return `<tr><td>${m.slice(8)}.${m.slice(5,7)}</td><td>${w.src}</td><td>${w.normDays}</td><td style="text-align:left;white-space:normal">${w.holidays.map(h=>esc(h.name)).join(", ")||"—"}</td><td>${w.drivers}</td><td>${w.absDays}</td><td>${fdn(w.demand)}</td><td>${fdn(w.capNorm)}</td><td>${fdn(w.capMax)}</td><td>${Math.round(w.load*100)}%</td><td style="text-align:left"><span class="tag" style="background:${cl[0]};color:${cl[1]};border-color:${cl[1]}" title="${esc(w.advice)}">${esc(w.label)}</span></td></tr>`}).join("");
 }
+// ---------- okno kalendarza pracy i bilans miesięczny/roczny ----------
+let calYearSel=new Date().getFullYear();
+const MONTHS_PL=["styczeń","luty","marzec","kwiecień","maj","czerwiec","lipiec","sierpień","wrzesień","październik","listopad","grudzień"];
+async function saveCal(mut){const c={...calRaw()};mut(c);S.hr._cal=c;calCache={};try{await docHR().set({items:S.hr})}catch(e){if(typeof guard==="function")await guard(async()=>{throw e})}try{render()}catch(e){console.error(e)}}
+function renderBilCal(){
+  const box=$("bil-cal");if(!box)return;const y=calYearSel,cfg=calCfg(),st=yearStats(y),list=calList(y);
+  const eff=e=>{if(e.disabled)return"wyłączone: zwykły dzień pracy";const wd=wdOf(e.date);if(wd===0)return"niedziela: bez zmiany normy";if(wd===6)return e.kind==="firmowy"?"sobota: bez zmiany normy":"−1 dzień (inny dzień wolny za święto w sobotę)";return"−1 dzień normy"};
+  const kindL={ustawowe:"ustawowe (auto)",swieto:"dodatkowe święto",firmowy:"dzień wolny firmowy"};
+  const rSel=(attr,id,v)=>`<select ${attr}="${esc(id)}"><option value="plan" ${v!=="none"?"selected":""}>jadą wg Założeń</option><option value="none" ${v==="none"?"selected":""}>nie jadą</option></select>`;
+  const rows=list.map(e=>e.auto?`<tr${e.disabled?' style="opacity:.55"':""}><td>${e.date.slice(8)}.${e.date.slice(5,7)}</td><td>${e.weekday}</td><td style="text-align:left">${esc(e.name)}</td><td style="text-align:left">${kindL[e.kind]}</td><td style="text-align:left">${eff(e)}</td><td>${rSel("data-cal-routes",e.date,e.routes)}</td><td><label style="display:inline-flex;gap:5px;align-items:center;font-size:12px"><input type="checkbox" data-cal-on="${e.date}" ${e.disabled?"":"checked"} style="min-height:0;width:16px;height:16px"> uwzględniaj</label></td></tr>`
+    :`<tr><td><input type="date" value="${e.date}" data-cal-cdate="${esc(e.id)}" style="width:140px"></td><td>${e.weekday}</td><td style="text-align:left"><input type="text" value="${esc(e.name)}" data-cal-cname="${esc(e.id)}" style="width:190px"></td><td style="text-align:left"><select data-cal-ckind="${esc(e.id)}"><option value="firmowy" ${e.kind==="firmowy"?"selected":""}>dzień wolny firmowy</option><option value="swieto" ${e.kind==="swieto"?"selected":""}>dodatkowe święto</option></select></td><td style="text-align:left">${eff(e)}</td><td>${rSel("data-cal-croutes",e.id,e.routes)}</td><td><button class="btn danger sm" data-cal-del="${esc(e.id)}">Usuń</button></td></tr>`).join("");
+  box.innerHTML=`<div class="row" style="margin:0 0 8px"><label class="muted">Rok <input type="number" id="cal-year" value="${y}" min="2000" max="2100" style="width:90px"></label><label class="muted" style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="cal-auto" ${cfg.autoOff?"":"checked"} style="min-height:0;width:18px;height:18px"> święta ustawowe uzupełniaj automatycznie</label><label class="muted">W dni ustawowo wolne trasy <select id="cal-hr"><option value="plan" ${cfg.holidayRoutes==="plan"?"selected":""}>jadą wg Założeń</option><option value="none" ${cfg.holidayRoutes==="none"?"selected":""}>nie jadą</option></select></label></div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px"><span class="kpi">Dni w roku <b>${st.days}</b></span><span class="kpi">Dni robocze pon–pt <b>${st.weekdays}</b></span><span class="kpi">Święta ustawowe <b>${st.holidays}</b> <small>(soboty ${st.holidaysOnSaturday}, niedziele ${st.holidaysOnSunday})</small></span><span class="kpi">Wymiar pracy wg Kodeksu pracy <b>${st.normDays} dni = ${st.normHours} h</b></span></div>
+  <div class="grid-scroll"><table class="plan hr"><tr><th>Data</th><th>Dzień</th><th style="text-align:left">Nazwa</th><th style="text-align:left">Rodzaj</th><th style="text-align:left">Wpływ na normę</th><th>Trasy w tym dniu</th><th></th></tr>${rows||'<tr><td colspan="7" style="text-align:center">Brak dni wolnych w tym roku.</td></tr>'}</table></div>
+  <div class="row" style="margin:10px 0 0"><span class="muted">Dodaj własny dzień wolny:</span><input type="date" id="cal-add-date" style="width:150px"><input type="text" id="cal-add-name" placeholder="nazwa, np. dzień wolny firmowy" style="width:230px"><select id="cal-add-kind"><option value="firmowy">dzień wolny firmowy</option><option value="swieto">dodatkowe święto</option></select><select id="cal-add-routes"><option value="plan">trasy jadą wg Założeń</option><option value="none">trasy nie jadą</option></select><button class="btn sm" id="cal-add">Dodaj</button></div>`;
+}
+function renderBilYear(){
+  const box=$("bil-year"),tb=$("bil-months");if(!box||!tb)return;const y=calYearSel,c=bilCfg(),yr=bilansRange(y+"-01-01",y+"-12-31",c),col=BIL_COL[yr.status];
+  const months=MONTHS_PL.map((nm,i)=>{const from=y+"-"+String(i+1).padStart(2,"0")+"-01",last=new Date(Date.UTC(y,i+1,0)).getUTCDate();return{nm,r:bilansRange(from,y+"-"+String(i+1).padStart(2,"0")+"-"+String(last).padStart(2,"0"),c)}});
+  const worst=months.reduce((a,m)=>m.r.load>a.r.load?m:a,months[0]);
+  box.innerHTML=`<div style="border:2px solid ${col[1]};background:${col[0]};color:${col[1]};border-radius:14px;padding:12px 16px;margin:8px 0"><div style="font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase">Rok ${y}: zapotrzebowanie kontra dni pracujące</div><div style="font-size:19px;font-weight:800;margin:2px 0 4px">${esc(yr.label)}</div><div style="font-size:13.5px">${esc(yr.advice)}</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"><span class="kpi">Kierowców <b>${yr.drivers}</b></span><span class="kpi">Dni pracujące wg KP <b>${yr.normDays}</b></span><span class="kpi">Zapotrzebowanie <b>${fdn(yr.demand)} dn.</b></span><span class="kpi">Pojemność w normie <b>${fdn(yr.capNorm)} dn.</b></span><span class="kpi">Z nadgodzinami <b>${fdn(yr.capMax)} dn.</b></span><span class="kpi">Obciążenie <b>${Math.round(yr.load*100)}%</b></span><span class="kpi">Najbardziej obciążony <b>${worst.nm} (${Math.round(worst.r.load*100)}%)</b></span></div></div>`;
+  tb.innerHTML='<tr><th style="text-align:left">Miesiąc</th><th>dni pracujące</th><th style="text-align:left">święta i dni wolne</th><th>kierowców</th><th>dni nieobecności</th><th>zapotrzebowanie (dn.)</th><th>pojemność w normie</th><th>z nadgodzinami</th><th>obciążenie</th><th>status</th></tr>'+months.map(m=>{const r=m.r,cl=BIL_COL[r.status];return `<tr><td style="text-align:left">${m.nm}</td><td>${r.normDays}</td><td style="text-align:left;white-space:normal;min-width:160px">${r.holidays.map(h=>h.date.slice(8)+"."+h.date.slice(5,7)+" "+esc(h.name)).join(", ")||"—"}</td><td>${r.drivers}</td><td>${r.absDays}</td><td>${fdn(r.demand)}</td><td>${fdn(r.capNorm)}</td><td>${fdn(r.capMax)}</td><td>${Math.round(r.load*100)}%</td><td style="text-align:left"><span class="tag" style="background:${cl[0]};color:${cl[1]};border-color:${cl[1]}" title="${esc(r.advice)}">${esc(r.label)}</span></td></tr>`}).join("");
+}
+document.addEventListener("change",ev=>{const t=ev.target,d=t.dataset||{};
+  if(t.id==="cal-year"){const v=parseInt(t.value,10);if(v>=2000&&v<=2100){calYearSel=v;renderBilans()}return}
+  if(t.id==="cal-auto"){saveCal(c=>{c.autoOff=!t.checked});return}
+  if(t.id==="cal-hr"){saveCal(c=>{c.holidayRoutes=t.value==="none"?"none":"plan"});return}
+  if(d.calOn){saveCal(c=>{c.disabled={...(c.disabled||{})};if(t.checked)delete c.disabled[d.calOn];else c.disabled[d.calOn]=true});return}
+  if(d.calRoutes){saveCal(c=>{c.routes={...(c.routes||{})};c.routes[d.calRoutes]=t.value==="none"?"none":"plan"});return}
+  const cid=d.calCname||d.calCkind||d.calCroutes||d.calCdate;
+  if(cid){saveCal(c=>{c.custom=(Array.isArray(c.custom)?c.custom:[]).map(x=>{if(x.id!==cid)return x;const y={...x};if(d.calCname!==undefined)y.name=t.value.trim()||"Dzień wolny";if(d.calCkind!==undefined)y.kind=t.value==="swieto"?"swieto":"firmowy";if(d.calCroutes!==undefined)y.routes=t.value==="none"?"none":"plan";if(d.calCdate!==undefined&&/^\d{4}-\d{2}-\d{2}$/.test(t.value))y.date=t.value;return y})})}
+});
+document.addEventListener("click",ev=>{
+  const del=ev.target.closest("[data-cal-del]");if(del){const id=del.dataset.calDel;saveCal(c=>{c.custom=(c.custom||[]).filter(x=>x.id!==id)});return}
+  if(ev.target.id==="cal-add"){const date=$("cal-add-date").value,name=$("cal-add-name").value.trim()||"Dzień wolny";if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){setStatus("Podaj datę dnia wolnego.");return}
+    const item={id:uid(),date,name,kind:$("cal-add-kind").value==="swieto"?"swieto":"firmowy",routes:$("cal-add-routes").value==="none"?"none":"plan"};if(+date.slice(0,4)>=2000)calYearSel=+date.slice(0,4);saveCal(c=>{c.custom=[...(Array.isArray(c.custom)?c.custom:[]),item]})}
+});
 ["bil-norm","bil-ot","bil-low"].forEach(id=>document.addEventListener("change",ev=>{if(ev.target.id!==id)return;const v=parseFloat(ev.target.value);if(!Number.isFinite(v))return;S.hr._bilans={...(S.hr._bilans||{}),[{"bil-norm":"norm","bil-ot":"ot","bil-low":"low"}[id]]:v};guard(async()=>{await docHR().set({items:S.hr})});renderBilans()}));
 function renderHR(){
   const inp=$("hr-month"); if(!inp.value)inp.value=fmt(new Date()).slice(0,7);
@@ -934,7 +1031,7 @@ async function assignOrderImpl({employeeId,name,date,orders,order}={}){
   const ords=parseOrders(orders||order);if(ords.length)c.orders=ords;else delete c.orders;delete c.duty;delete c.dutyH;delete c.out;delete c.back;
   await saveSched(s2);
   const st=startOf(sh,date),h=hoursOf(sh);return{ok:true,kierowca:e.name,zlecenia:ords,planowany:{start:fmtH(st),godziny:h,koniec:fmtH((st+h)%24)},uwaga:"Dyżur liczy się po zrealizowaniu: czas od odjazdu z bazy do powrotu do 5 h daje 0,5 dniówki, powyżej 5 h 1 dniówkę."}}
-window.HarmonogramPlugin={getData:pluginGetData,setData:pluginSetData,availability,hrReport,requestLeave:async(employeeId,from,to)=>{const bad=checkLeave(employeeId,from,to);if(bad.length)return{ok:false,blocked:bad,message:leaveNote(bad)};for(const d of range(from,to)){S.abs=S.abs.filter(a=>!(a.empId===employeeId&&a.date===d));S.abs.push({empId:employeeId,date:d,reason:"wniosek"})}await saveA();return{ok:true}},reportDuty:reportDutyImpl,reportTrip:async(employeeId,date,o={})=>reportDutyImpl(employeeId,date,{went:o.went,departure:o.departure,return:o.return,hours:o.hours}),assignOrder:assignOrderImpl,completeRoute:completeRouteImpl,bilans:(monday)=>bilansWeek(monday||"2099-01-05"),freeDrivers:d=>availability(d).filter(r=>r.status==="free"),generate:(a,b)=>generate(a,b,null),repair:(s,from,locked)=>repair(s,from,locked),restOf,rules:{maxWorkDays:MAX_WORK_DAYS}};
+window.HarmonogramPlugin={getData:pluginGetData,setData:pluginSetData,availability,hrReport,requestLeave:async(employeeId,from,to)=>{const bad=checkLeave(employeeId,from,to);if(bad.length)return{ok:false,blocked:bad,message:leaveNote(bad)};for(const d of range(from,to)){S.abs=S.abs.filter(a=>!(a.empId===employeeId&&a.date===d));S.abs.push({empId:employeeId,date:d,reason:"wniosek"})}await saveA();return{ok:true}},reportDuty:reportDutyImpl,reportTrip:async(employeeId,date,o={})=>reportDutyImpl(employeeId,date,{went:o.went,departure:o.departure,return:o.return,hours:o.hours}),assignOrder:assignOrderImpl,completeRoute:completeRouteImpl,calendar:(y)=>calList(+y||new Date().getFullYear()),workingDays:(a,b)=>bilansRange(a,b),yearStats:(y)=>yearStats(+y||new Date().getFullYear()),bilansRange:(a,b)=>bilansRange(a,b),bilans:(monday)=>bilansWeek(monday||"2099-02-02"),freeDrivers:d=>availability(d).filter(r=>r.status==="free"),generate:(a,b)=>generate(a,b,null),repair:(s,from,locked)=>repair(s,from,locked),restOf,rules:{maxWorkDays:MAX_WORK_DAYS}};
 window.addEventListener("message",ev=>{const m=ev.data;if(!m||m.type!=="harmonogram")return;if(m.action==="getData")ev.source?.postMessage({type:"harmonogram",action:"data",data:pluginGetData()},"*");if(m.action==="requestLeave"){window.HarmonogramPlugin.requestLeave(m.employeeId,m.from,m.to).then(()=>ev.source?.postMessage({type:"harmonogram",action:"leaveRequested",employeeId:m.employeeId,from:m.from,to:m.to},"*"))}if(m.action==="assignOrder"){assignOrderImpl(m).then(r=>ev.source?.postMessage({type:"harmonogram",action:"orderAssigned",requestId:m.requestId,result:r},"*"))}if(m.action==="completeRoute"){completeRouteImpl(m).then(r=>ev.source?.postMessage({type:"harmonogram",action:"routeCompleted",requestId:m.requestId,result:r},"*"))}if(m.action==="reportTrip"){window.HarmonogramPlugin.reportTrip(m.employeeId,m.date,m).then(r=>ev.source?.postMessage({type:"harmonogram",action:"tripReported",requestId:m.requestId,result:r},"*"))}if(m.action==="availability")ev.source?.postMessage({type:"harmonogram",action:"availability",date:m.date,drivers:availability(m.date)},"*")});
 $("btn-export").onclick=()=>{const ta=$("export-out");ta.value=JSON.stringify(pluginGetData(),null,1);ta.style.display="block";ta.select();try{navigator.clipboard.writeText(ta.value).then(()=>setStatus("Dane skopiowane do schowka (i widoczne poniżej)."),()=>setStatus("Dane widoczne poniżej — skopiuj je ręcznie."))}catch(e){setStatus("Dane widoczne poniżej — skopiuj je ręcznie.")}};
 $("file-import").onchange=ev=>{const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>guard(async()=>{const d=JSON.parse(r.result);await pluginSetData(d);setStatus("Dane zaimportowane.")});r.readAsText(f);ev.target.value=""};
@@ -956,7 +1053,7 @@ render(); boot();
     if(hits.length===1)return hits[0];
     throw new Error(hits.length?"Kilku kierowców pasuje: "+hits.map(h=>h.name).join(", ")+". Doprecyzuj.":"Nie znaleziono kierowcy: "+x);
   }
-  const rangeCheck=(a,b)=>{if(a>b)[a,b]=[b,a];if((new Date(b)-new Date(a))/864e5>120)throw new Error("Zakres jest za długi (maks. 120 dni).");return[a,b]};
+  const rangeCheck=(a,b,max=120)=>{if(a>b)[a,b]=[b,a];if((new Date(b)-new Date(a))/864e5>max)throw new Error(`Zakres jest za długi (maks. ${max} dni).`);return[a,b]};
   const monthRange=()=>{const t=fmt(new Date());const m=t.slice(0,7);const last=new Date(+m.slice(0,4),+m.slice(5,7),0).getDate();return[m+"-01",m+"-"+String(last).padStart(2,"0")]};
   const nice=d=>d.slice(8)+"."+d.slice(5,7)+"."+d.slice(0,4);
 
@@ -1008,6 +1105,12 @@ render(); boot();
     await saveSched(s);const v=h!=null?dutyVerdict(h):null;
     return{msg:went===false?`Dyżur ${e.name} (${nice(date)}) anulowany: 0 dniówek.`:`Dyżur ${e.name} (${nice(date)}) zrealizowany${v?": "+v.text:": 0,5 dniówki (brak czasu wyjazdu)"}.`,undo:async()=>{cs.forEach((c,i)=>{for(const k of ["duty","dutyH","out","back","orders"]){if(prev[i][k]===undefined)delete c[k];else c[k]=prev[i][k]}});await saveSched(s)}};
   }
+  function dniWolne(input){const y=new Date().getFullYear();let a=input.from?needDate(input.from,"from"):y+"-01-01",b=input.to?needDate(input.to,"to"):(input.from?a:y+"-12-31");[a,b]=rangeCheck(a,b,1100);const ys=new Set();for(const d of range(a,b))ys.add(+d.slice(0,4));const list=[];for(const yy of ys)for(const e of calList(yy))if(e.date>=a&&e.date<=b)list.push({data:e.date,dzien:e.weekday,nazwa:e.nazwa||e.name,rodzaj:e.kind,wlaczone:!e.disabled,wplyw_na_norme_dni:e.normEffect,trasy:e.routes==="none"?"nie jadą":"jadą wg Założeń"});const r=bilansRange(a,b);return{od:a,do:b,dni_kalendarzowe:r.calendarDays,dni_pracujace_wg_kodeksu_pracy:r.normDays,wymiar_godzin:r.normHours,swieta_i_dni_wolne:list}}
+  function bilansOkresu(input){let a=needDate(input.from,"from"),b=input.to?needDate(input.to,"to"):a;[a,b]=rangeCheck(a,b,1100);const r=bilansRange(a,b);return{od:a,do:b,kierowcow_aktywnych:r.drivers,dni_pracujace_wg_KP:r.normDays,swieta:r.holidays.map(h=>h.date+" "+h.name),dni_nieobecnosci:r.absDays,zapotrzebowanie_dniowek:round(r.demand),pojemnosc_norma:round(r.capNorm),pojemnosc_z_nadgodzinami:round(r.capMax),obciazenie_normy_proc:Math.round(r.load*100),status:r.label,zalecenie:r.advice,do_zatrudnienia_z_nadgodzinami:r.hire,do_zatrudnienia_bez_nadgodzin:r.hireNorm,zrodlo_zapotrzebowania:r.src}}
+  async function actDzienWolny(date,name,kind,routes,remove){
+    const snap=JSON.stringify(calRaw());
+    await saveCal(c=>{const cur=Array.isArray(c.custom)?c.custom:[];if(remove){c.custom=cur.filter(x=>x.date!==date)}else{c.custom=[...cur.filter(x=>x.date!==date),{id:uid(),date,name:name||"Dzień wolny",kind:kind==="swieto"?"swieto":"firmowy",routes:routes==="none"?"none":"plan"}]}});
+    return{msg:remove?`Usunięto własny dzień wolny ${nice(date)}.`:`Dodano dzień wolny ${nice(date)}: ${name||"Dzień wolny"}${routes==="none"?" (trasy nie jadą)":""}.`,undo:async()=>{S.hr._cal=JSON.parse(snap);calCache={};await docHR().set({items:S.hr});render()}}}
   async function actZakoncz(e,date,shiftId,dep,back,completed){
     const s=schedsOver(date,date)[0];if(!s)throw new Error("Nie ma harmonogramu obejmującego dzień "+date+".");
     const snap=JSON.stringify(s);const r=await completeRouteImpl({employeeId:e.id,date,shiftId,departure:dep,return:back,completed});if(!r.ok)throw new Error(r.message);
@@ -1037,6 +1140,9 @@ render(); boot();
     {name:"usun_nieobecnosc",description:"ZMIANA. Usuwa wszystkie nieobecności kierowcy w zakresie dat.",inputSchema:{type:"object",properties:{employeeId:empP,from:ymd,to:ymd},required:["employeeId","from","to"]},execute:i=>{const e=findEmp(i.employeeId),a=needDate(i.from,"from"),b=needDate(i.to,"to");return offer(`Usuń nieobecności: ${e.name}, ${nice(a)}–${nice(b)}`,()=>actAbs(e,a,b,null,true))}},
     {name:"przypisz_trase",description:"ZMIANA. Przydziela kierowcy trasę (id typu zmiany z listy) w danym dniu w istniejącym harmonogramie albo zwalnia go z dnia (shiftId puste). Program sprawdzi kolizje od tego dnia.",inputSchema:{type:"object",properties:{employeeId:empP,date:ymd,shiftId:{type:"string",description:"Id typu zmiany, np. t3. Puste = wolne cały dzień"}},required:["employeeId","date"]},execute:i=>{const e=findEmp(i.employeeId),d=needDate(i.date,"date");const sid=i.shiftId?String(i.shiftId):null;const nm=sid?(S.shifts.find(x=>x.id===sid||norm(x.name)===norm(sid))?.name||sid):"wolne";return offer(`${e.name}: ${nm}, ${nice(d)}`,()=>actTrasa(e,d,sid))}},
     {name:"rozlicz_dyzur",description:"ZMIANA. Rozlicza dyżur kierowcy: went=false gdy nie wyjechał (anulowany, 0 dniówek). Gdy wyjechał, podaj godzinę odjazdu z bazy (departure) i powrotu do bazy (return) w HH:MM albo od razu czas hours. Program sam porównuje czas z 5 h: do 5 h to 0,5 dniówki, powyżej 5 h to 1 dniówka. Opcjonalnie orders, np. Nagel + Perfekt.",inputSchema:{type:"object",properties:{employeeId:empP,date:ymd,went:{type:"boolean"},departure:{type:"string",description:"Odjazd z bazy HH:MM"},return:{type:"string",description:"Powrót do bazy HH:MM"},hours:{type:"number"},orders:{type:"string"}},required:["employeeId","date","went"]},execute:i=>{const e=findEmp(i.employeeId),d=needDate(i.date,"date");const w=i.went!==false;const th=tripHours(i.departure,i["return"]);const h=th!=null?th:(Number.isFinite(+i.hours)?+i.hours:null);return offer(`Dyżur ${e.name}, ${nice(d)}: ${w?"wyjechał"+(h!=null?", "+h+" h, "+dutyVerdict(h).text:""):"nie wyjechał (anulowany)"}`,()=>actDyzur(e,d,w,i.hours,i.departure,i["return"],i.orders))}},
+    {name:"dni_wolne_i_swieta",description:"Święta ustawowe i dni wolne od pracy w zakresie dat, liczba dni pracujących wg Kodeksu pracy i wymiar godzin. Bez dat: cały bieżący rok. Zwraca JSON.",inputSchema:{type:"object",properties:{from:ymd,to:ymd}},execute:i=>dniWolne(i)},
+    {name:"bilans_okresu",description:"Bilans kadrowy dowolnego okresu (miesiąc, kwartał, rok): zapotrzebowanie w dniówkach kontra pojemność kierowców z uwzględnieniem świąt i nieobecności, status i zalecenie zatrudnienia.",inputSchema:{type:"object",properties:{from:ymd,to:ymd},required:["from"]},execute:i=>bilansOkresu(i)},
+    {name:"ustaw_dzien_wolny",description:"ZMIANA. Dodaje albo usuwa własny dzień wolny od pracy (kind: firmowy lub swieto; routes: plan lub none = trasy nie jadą). Święta ustawowe są uzupełniane automatycznie. remove=true usuwa własny dzień.",inputSchema:{type:"object",properties:{date:ymd,name:{type:"string"},kind:{type:"string",enum:["firmowy","swieto"]},routes:{type:"string",enum:["plan","none"]},remove:{type:"boolean"}},required:["date"]},execute:i=>{const d=needDate(i.date,"date");const rm=i.remove===true;return offer(`${rm?"Usuń dzień wolny":"Dzień wolny"}: ${nice(d)}${rm?"":" "+(i.name||"")+(i.routes==="none"?" (trasy nie jadą)":"")}`,()=>actDzienWolny(d,i.name?String(i.name):"",i.kind,i.routes,rm))}},
     {name:"zakoncz_trase",description:"ZMIANA. Oznacza trasę kierowcy jako zakończoną (dane z FlotoMax) w dniu, na który trasa jest wpisana w grafiku. Dalekie trasy 8-11 wyjeżdżają wieczorem dzień wcześniej, ale podaj dzień rozwózki z grafiku. Opcjonalnie godziny odjazdu i powrotu (HH:MM). completed=false zdejmuje oznaczenie.",inputSchema:{type:"object",properties:{employeeId:empP,date:ymd,shiftId:{type:"string",description:"Id trasy, np. t10; puste = wszystkie trasy kierowcy tego dnia"},departure:{type:"string",description:"HH:MM"},return:{type:"string",description:"HH:MM"},completed:{type:"boolean"}},required:["employeeId","date"]},execute:i=>{const e=findEmp(i.employeeId),d=needDate(i.date,"date");const c=i.completed!==false;return offer(`${c?"Zakończona trasa":"Zdjęcie zakończenia"}: ${e.name}, ${nice(d)}${i.shiftId?" ("+i.shiftId+")":""}`,()=>actZakoncz(e,d,i.shiftId?String(i.shiftId):null,i.departure,i["return"],c))}},
     {name:"dodaj_zlecenie_dodatkowe",description:"ZMIANA. Kładzie na grafik dyżur (zlecenie dodatkowe od spedytora, np. Nagel + Perfekt) dla kierowcy w danym dniu. Godziny i start bierze z Założeń. Zastępuje zaplanowany dyżur kogoś innego. Dniówki liczą się dopiero po zrealizowaniu (rozlicz_dyzur).",inputSchema:{type:"object",properties:{employeeId:empP,date:ymd,orders:{type:"string",description:"Nazwy zleceń, np. Nagel + Perfekt"}},required:["employeeId","date"]},execute:i=>{const e=findEmp(i.employeeId),d=needDate(i.date,"date");return offer(`Dyżur dla ${e.name}, ${nice(d)}: ${parseOrders(i.orders).join(" + ")||"zlecenie dodatkowe"}`,()=>actZlecenie(e,d,i.orders))}}
   ]}
@@ -1050,6 +1156,7 @@ ZASADY:
 - Wszystkie liczby (dniówki, salda, bilans, dostępność, wolne miejsca) pobieraj narzędziami. Nigdy ich nie zgaduj ani nie licz z pamięci.
 - Daty do narzędzi podawaj jako RRRR-MM-DD. Gdy użytkownik poda dzień i miesiąc bez roku (np. „1.02”), wybierz rok dający datę najbliższą dzisiejszej, preferując przyszłość. Jeśli koniec zakresu wypada przed początkiem, przenieś koniec na następny rok.
 - Kierowców dopasuj do listy poniżej (nazwiska w dopełniaczu, np. „Knury”, sprowadź do mianownika) i przekazuj ich id. Gdy nazwa pasuje do kilku osób albo nie pasuje do nikogo, dopytaj jednym zdaniem.
+- Święta ustawowe i dni wolne program zna sam (kalendarz w karcie Bilans). Pytania o dni pracujące, święta, wymiar pracy i czy kierowców wystarczy w miesiącu lub roku załatwiaj narzędziami dni_wolne_i_swieta i bilans_okresu.
 - Dyżur to zlecenie dodatkowe od spedytora (np. Nagel, Perfekt). Gdy użytkownik mówi, że kierowca dostał zlecenia, użyj dodaj_zlecenie_dodatkowe; gdy wykonał wyjazd, rozlicz_dyzur z godziną odjazdu i powrotu (program porówna z 5 h).
 - Zmiany w danych wykonuj narzędziami oznaczonymi ZMIANA, jednym wywołaniem na jedną prośbę. Narzędzie może zwrócić, że zmiana czeka na zatwierdzenie. Wtedy napisz dokładnie, co zostanie zmienione, i że czeka na zatwierdzenie w oknie. Nigdy nie twierdź, że coś wykonano, jeśli narzędzie tego nie potwierdziło. Gdy narzędzie zwróci błąd, wyjaśnij go prostym językiem.
 - Pojęcia: dniówka to moneta rozliczeniowa (1 dniówka = 8,5 h). Trasa daje tyle dniówek, ile ma wagi. Norma to 5 dniówek na tydzień, a dzień wolny lub urlop kosztuje 1 dniówkę z salda. Dyżur liczy się tylko zrealizowany (0,5 dniówki, a wyjazd dłuższy niż 5 h to 1). Nieobecności: l4, urlop (zatwierdzony), wniosek (oczekujący), odpoczynek.

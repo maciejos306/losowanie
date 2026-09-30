@@ -5,7 +5,7 @@ await pg.goto('file://'+process.cwd()+'/local.html');await pg.waitForTimeout(500
 const ok=(k,v,x='')=>console.log((v?'OK   ':'FAIL ')+k+(x?'  '+x:''));
 const r=await pg.evaluate(()=>{const o={};
  S.abs=[];S.hr={};
- const T=()=>bilansWeek("2099-01-05");
+ const T=()=>bilansWeek("2099-02-02");
  let w=T();o.n8=[w.drivers,w.demand,w.capNorm,w.capMax,w.status];
  S.emps.forEach((e,i)=>e.active=i<6);w=T();o.n6=[w.drivers,w.capNorm,w.capMax,w.status,w.hire,w.hireNorm];
  S.emps.forEach((e,i)=>e.active=true);
@@ -13,7 +13,7 @@ const r=await pg.evaluate(()=>{const o={};
  for(let i=0;i<3;i++)S.emps.push({id:"x"+i,name:"Nowy "+i,active:true});w=T();o.n11=[w.drivers,w.capNorm,w.status,w.advice];
  S.emps.length=8;
  // nieobecność zmniejsza pojemność
- S.abs=[{empId:"e1",date:"2099-01-05",reason:"urlop"},{empId:"e1",date:"2099-01-06",reason:"urlop"}];w=T();o.abs=[w.capNorm,w.capMax,w.absDays,w.status];
+ S.abs=[{empId:"e1",date:"2099-02-02",reason:"urlop"},{empId:"e1",date:"2099-02-03",reason:"urlop"}];w=T();o.abs=[w.capNorm,w.capMax,w.absDays,w.status];
  S.abs=[];
  // granice: dokładnie 5,5 x N
  const cfg={norm:5,ot:.5,low:90};const save=S.plan;
@@ -27,7 +27,7 @@ const r=await pg.evaluate(()=>{const o={};
  // z harmonogramu: liczy tygodniowe dniówki z komórek
  const s=Object.values(S.scheds)[0];const mon=weekKey(s.start);const bw=bilansWeek(mon);o.sched=[bw.src,bw.demand];
  let manual=0;const W={};S.shifts.forEach(x=>W[x.id]=x);s.cells.filter(c=>c.date>=mon&&c.date<=addDays(mon,6)&&W[c.shiftId].part!=='pm').forEach(c=>manual+=W[c.shiftId].weight);o.schedManual=manual;
- o.api=typeof HarmonogramPlugin.bilans("2099-01-05").status;
+ o.api=typeof HarmonogramPlugin.bilans("2099-02-02").status;
  return o});
 console.log(JSON.stringify(r));
 ok('8 kierowców, 41,5 dn. → OK z nadgodzinami (40/44)',r.n8[1]===41.5&&r.n8[2]===40&&r.n8[3]===44&&r.n8[4]==='ok');
