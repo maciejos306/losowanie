@@ -1,36 +1,26 @@
-# Harmonogram dyżurów: zapis postępów
+# Harmonogram dyżurów: zapis postępów i start na innym urządzeniu
 
-Stan na koniec sesji 29.09.2026. Żywa wersja: https://claude.ai/artifact/MEtsioA6AVgn9HZJUZCxYu (wersja 39, capabilities `db` i `sample`).
-Plik `harmonogram-app.html` w tym folderze jest tą samą wersją. Instrukcja pracy dla drugiej osoby: `PRZEKAZANIE.md`.
+Stan na 30.09.2026. Żywa wersja: https://claude.ai/artifact/MEtsioA6AVgn9HZJUZCxYu (wersja 45, capabilities `db` i `sample`, artefakt prywatny, właściciel maciejos306).
+Ten folder zawiera tę samą wersję w pliku `harmonogram-app.html`, testy w `testy/` i dane w `dane/`. Szczegóły reguł i struktury: `PRZEKAZANIE.md`.
+
+## Jak zacząć na innym urządzeniu
+1. Sklonuj repozytorium `maciejos306/losowanie` i przełącz się na gałąź `claude/program-harmonogram-aabbmy`.
+2. Uruchom Claude Code w tym repozytorium i wklej: „Przeczytaj harmonogram-plugin/POSTEPY.md i PRZEKAZANIE.md i kontynuuj pracę”.
+3. Żeby zmieniać żywy program, publikuj plik `harmonogram-plugin/harmonogram-app.html` zawsze z adresem artefaktu (`url`) i z `capabilities: {db:{}, sample:{}}`. Bez adresu powstaje osobny artefakt z pustą bazą. Do zmian w żywej bazie potrzebny jest dostęp z prawem edycji do artefaktu.
+4. Testy: w `harmonogram-plugin/testy` zainstaluj Playwright (`npm i playwright`), popraw ścieżkę przeglądarki (`executablePath`) i uruchom `node shot.js`, a potem wybrany test. Testy z asystentem używają `local_ai.html` z atrapą modelu (`fake.js`), którą skleja się z `local.html`.
+5. Dane w żywej bazie nie są w repozytorium poza kopią tygodnia 28.09–04.10 (`dane/`). Eksport całości: w programie Kadry lub „Eksport danych (JSON)”.
 
 ## Co działa
-- Plan tygodnia w widoku kafelków i godzin (oś 24 h), rano i po południu, niedziela bez podziału, wyraźne granice dni.
-- Losowanie z ciągłością tras, odpoczynkiem po dalekich trasach, normą 5 dni pracy, kat. C i poprzednim tygodniem.
-- Ręczne zmiany: przeciąganie, blokowanie komórek, naprawa kolizji od wybranego dnia, dzielenie dnia na dwie trasy, Cofnij (Ctrl+Z).
-- Nieobecności (odpoczynek, urlop, L4, wniosek) z zakresami dat. Wniosek ponad limit wolnych miejsc w dniu jest odrzucany. Inicjały i wolne miejsca widać w nagłówku dnia.
-- Szacowana liczba tras pod dniem (z Założeń, edytowalna).
-- Rachunek w dniówkach: norma 5 na tydzień, dzień wolny lub urlop kosztuje 1 dniówkę, dalekie trasy i dodatkowe dni je podnoszą, dyżur liczy się tylko zrealizowany (0,5, a wyjazd ponad 5 h to 1). Losowanie wyrównuje salda.
-- Kadry: raport miesięczny, rachunek dniówek, saldo, CSV, stawka kierowcy (tylko do wpisania).
-- Karta Bilans: pojemność (kierowcy × 5,5 dniówki) kontra zapotrzebowanie, statusy i zalecenie zatrudnienia.
-- Asystent AI (okno po prawej): pytania i polecenia, zmiany za zatwierdzeniem, Cofnij.
-- API dla FlotoMax: `window.HarmonogramPlugin` (getData, setData, availability, hrReport, requestLeave, freeDrivers, generate, repair, reportDuty, bilans) oraz postMessage.
+Plan tygodnia (kafelki i oś godzin), losowanie z regułami, ręczne zmiany z blokowaniem, Cofnij, nieobecności i wnioski z limitem wolnych miejsc, inicjały urlopów w nagłówkach dni, szacowana liczba tras, rachunek w dniówkach z normą 5 na tydzień, dyżur liczony po realizacji (0,5 lub 1 dniówka po 5 h), zlecenia dodatkowe i wyjazdy, dalekie trasy wyjeżdżające dzień wcześniej, oznaczanie zakończonych tras i dni, Kadry, stawka kierowcy, karta Bilans (tydzień, miesiąc, rok), kalendarz świąt i dni wolnych (polskie święta automatycznie), karta Rejestr (dniówki i roboczogodziny, porównanie systemów rozliczania), asystent AI z narzędziami i zatwierdzaniem zmian, API dla FlotoMax (`window.HarmonogramPlugin` i postMessage).
 
-## Poprawki z ostatniej symulacji
-- Trasa w drugiej połowie dnia była traktowana jak dyżur i nie kolidowała z trasą na cały dzień.
-- Ponowne losowanie gubiło podział dnia i status dyżuru w zablokowanych komórkach.
-- Cofnięcie mogło przywrócić plan z kierowcą na dniu urlopu lub L4. Teraz program naprawia takie kolizje, gdy nieobecności zmieniły się po zrobieniu kopii.
-- Czyszczenie dnia kierowcy mogło oddać mu tę samą trasę.
-
-## Testy (`testy/`)
-`e2e.js` (27 kroków), `edge.js`, `feat.js`, `ledger.js`, `duty.js`, `bilans.js`, `split.js`, `big2.js` (40 tygodni), `settle.js` i `settle_many.js` (rozliczenia dzienne, tygodniowe, miesięczne liczone niezależnie), `fuzz.js` (losowe operacje, niezmienniki planu), `aitest.js` z atrapą `fake.js` (obsługa okna asystenta i narzędzi).
-Uruchamianie: `node shot.js`, potem wybrany test. Dla `aitest.js` i `fuzz.js` trzeba zbudować `local_ai.html` z atrapą modelu (patrz nagłówek `fake.js`).
+## Ostatnie poprawki (z niezależnego przeglądu)
+Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej samej dacie łączą się, okresy bez dni pracujących nie proponują absurdalnych zatrudnień, dni „trasy nie jadą” nie liczą niezakończonych tras i nie dostają tras z losowania, norma z ustawień skaluje miesiąc i rok, nieobecny cały okres kierowca nie zostawia „fantomowej” pojemności, ustawienia Bilansu mają zakresy, zniekształcone dane kalendarza nie psują programu, L4 w niedzielę będącą świętem nadal zmniejsza normę.
 
 ## Otwarte tematy
+- Przegląd zgłosił jeszcze, bez poprawek: Kadry liczą urlop w dniu będącym świętem jako dzień urlopu; norma miesięczna w Kadrach (tygodnie wg czwartku) różni się od kalendarzowej w Bilansie; kilka komunikatów wciąż mówi „5 dniówek na tydzień” mimo zmiany normy w ustawieniach. Nie przeglądano jeszcze osobno okna kalendarza (UI) ani narzędzi asystenta pod kątem ostatniej wersji.
 - Asystent nie był sprawdzony z prawdziwym modelem, tylko z atrapą. Pierwsze użycie wymaga zgody w przeglądarce.
-- Saldo dniówek nie zmniejsza się przy odbiorze dni wolnych. Można dodać rodzaj nieobecności „odbiór”.
-- Stawka kierowcy jest tylko zapisywana, jeszcze nie liczy wynagrodzenia.
-- Nowe pola kierowcy (prawo jazdy, badania, kod 95, karta kierowcy) i alerty ważności: czekają na dane z FlotoMax.
-- Asystent w FlotoMax obok zestawienia tras: do zrobienia w makiecie FlotoMax.
-- Licznik lub limit poleceń asystenta na osobę (na życzenie).
-- Potwierdzić z kadrową przeliczenia godzin i zasadę przerwy kierowcy.
-- Zmiana nazwy „Dyżur”, bo w przepisach o czasie pracy kierowców ma inne znaczenie.
+- Dane z aplikacji kierowców i FlotoMax nie wpływają na program, dopóki FlotoMax nie wywoła `completeRoute`, `reportTrip` i `assignOrder`.
+- W święta trasy domyślnie jadą wg Założeń. Decyzja biznesowa do potwierdzenia.
+- Saldo dniówek nie zmniejsza się przy odbiorze dni wolnych; stawka kierowcy liczy się tylko w karcie Rejestr; nowe dane kierowcy (prawo jazdy, badania, kod 95) czekają na dane z FlotoMax.
+- Niedziela 04.10 w planie z PDF ma trzy razy Trasa 11 i dwa dyżury 30.09 (Twardzik niezrealizowany i Roman „Nagel + Perfekt”); do potwierdzenia.
+- Nazwa „Dyżur” ma w przepisach o czasie pracy kierowców inne znaczenie.

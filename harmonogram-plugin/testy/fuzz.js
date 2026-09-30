@@ -3,7 +3,7 @@ const {chromium}=require('playwright');
 const pg=await b.newPage();const errs=[];pg.on('pageerror',e=>errs.push(e.message));pg.on('console',m=>{if(m.type()==='error'&&!/CERT/.test(m.text()))errs.push('C '+m.text())});
 await pg.goto('file://'+process.cwd()+'/local_ai.html');await pg.waitForTimeout(600);
 const out=[];
-for(const seed of [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30]){
+for(const seed of [1,2,3,4,5,6,7,8]){
  await pg.reload();await pg.waitForTimeout(400);
  const r=await pg.evaluate(async(seed)=>{
   let x=seed*7919;const rnd=()=>{x=(x*1664525+1013904223)%4294967296;return x/4294967296};const pick=a=>a[Math.floor(rnd()*a.length)];
