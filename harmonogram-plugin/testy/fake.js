@@ -6,7 +6,8 @@ window.__fakeSample=Object.assign(async(input,opts)=>{
   const say=t=>{opts.onText&&opts.onText({text:t,delta:t});return t};
   if(opts.signal?.aborted)throw{code:'cancelled',message:'x'};
   let out;
-  if(/swieta/i.test(last)){out='S: '+await call('dni_wolne_i_swieta',{from:'2026-08-01',to:'2026-12-31'})}
+  if(/rejestr/i.test(last)){out='R: '+await call('rejestr_dniowek_i_godzin',{from:'2026-10-05',to:'2026-10-11'})}
+  else if(/swieta/i.test(last)){out='S: '+await call('dni_wolne_i_swieta',{from:'2026-08-01',to:'2026-12-31'})}
   else if(/okres/i.test(last)){out='O: '+await call('bilans_okresu',{from:'2026-12-01',to:'2026-12-31'})}
   else if(/dzienwolny/i.test(last)){out='W: '+await call('ustaw_dzien_wolny',{date:'2026-10-12',name:'Dzień wolny firmowy',kind:'firmowy',routes:'none'})}
   else if(/zakoncz/i.test(last)){out='K: '+await call('zakoncz_trase',{employeeId:'e6',date:'2026-09-30',shiftId:'t10',departure:'20:00',return:'16:30'})}
