@@ -6,7 +6,8 @@ window.__fakeSample=Object.assign(async(input,opts)=>{
   const say=t=>{opts.onText&&opts.onText({text:t,delta:t});return t};
   if(opts.signal?.aborted)throw{code:'cancelled',message:'x'};
   let out;
-  if(/zlecenie/i.test(last)){out='Z: '+await call('dodaj_zlecenie_dodatkowe',{employeeId:'e2',date:'2026-10-07',orders:'Nagel + Perfekt'})}
+  if(/zakoncz/i.test(last)){out='K: '+await call('zakoncz_trase',{employeeId:'e6',date:'2026-09-30',shiftId:'t10',departure:'20:00',return:'16:30'})}
+  else if(/zlecenie/i.test(last)){out='Z: '+await call('dodaj_zlecenie_dodatkowe',{employeeId:'e2',date:'2026-10-07',orders:'Nagel + Perfekt'})}
   else if(/wyjazd/i.test(last)){out='J: '+await call('rozlicz_dyzur',{employeeId:'e2',date:'2026-10-07',went:true,departure:'14:30',return:'21:00'})}
   else if(/wolne miejsca/i.test(last)){out='M: '+await call('wolne_miejsca_urlop',{from:'2026-10-06'})}
   else if(/podlicz/i.test(last)){out='P: '+await call('podlicz_dniowki',{employeeId:'e6',from:'2026-10-01',to:'2026-10-31'})}
