@@ -477,6 +477,8 @@ function repair(sched,fromDate,extraLocked=new Set(),ban=new Set()){
   const shOf={};S.shifts.forEach(s=>shOf[s.id]=s);
   const key=c=>c.date+"|"+c.shiftId+"|"+c.slot;
   let changed=0, {rest,prevDay,worked}=seedState(sched.start,sched.id,shOf);
+  const lockDays={};sched.cells.forEach(c=>{if(c.empId!=null&&lockedKeys.has(key(c)))(lockDays[c.empId]??=new Set()).add(c.date)});
+  const restHitsLock=(emp,sh,day)=>{const r=restOf(sh);for(let i=1;i<=r;i++)if(lockDays[emp]?.has(addDays(day,i)))return true;return false};
   const accept=(emp,sh,day,part)=>{if(emp==null)return;counts[emp]=(counts[emp]||0)+(sh.weight??1);if(part!=="pm")noteWork(worked,emp,day);const r=restOf(sh);if(r>0)rest[emp]=addDays(day,r)};
   for(const day of range(sched.start,sched.end)){
     const used={}, today={}, heavy=new Set(), frozen=day<fromDate;
@@ -486,11 +488,11 @@ function repair(sched,fromDate,extraLocked=new Set(),ban=new Set()){
       const part=cpart(c,sh,day);const dutyLike=part==="pm"&&!c.part;const pk=dutyLike?"pm":(part==="pm"?"pmr":part);
       const empObj=emps.find(e=>e.id===emp);
       if(frozen||lockedKeys.has(key(c))){if(emp!=null){mark(used,emp,pk);if(!dutyLike){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,dutyLike?"pm":"full")}continue}
-      const valid=emp!=null&&active.has(emp)&&canDrive(empObj,sh)&&!clash(used,emp,pk)&&!am[emp]?.[day]&&!(rest[emp]&&rest[emp]>=day)&&(dutyLike?!heavy.has(emp):(c.extra?canWorkX:canWork)(worked,emp,day));
+      const valid=emp!=null&&active.has(emp)&&canDrive(empObj,sh)&&!restHitsLock(emp,sh,day)&&!clash(used,emp,pk)&&!am[emp]?.[day]&&!(rest[emp]&&rest[emp]>=day)&&(dutyLike?!heavy.has(emp):(c.extra?canWorkX:canWork)(worked,emp,day));
       if(!valid){
-        const cand=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!clash(used,e.id,pk)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&(dutyLike?!heavy.has(e.id):canWork(worked,e.id,day)));
+        const cand=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!restHitsLock(e.id,sh,day)&&!clash(used,e.id,pk)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&(dutyLike?!heavy.has(e.id):canWork(worked,e.id,day)));
         let pool=cand, extra=false;
-        if(!pool.length&&!dutyLike){pool=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!clash(used,e.id,pk)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&canWorkX(worked,e.id,day));extra=pool.length>0}
+        if(!pool.length&&!dutyLike){pool=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!restHitsLock(e.id,sh,day)&&!clash(used,e.id,pk)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&canWorkX(worked,e.id,day));extra=pool.length>0}
         emp=pick(pool,counts,sh,prevDay,bias);
         if(extra&&emp!=null)c.extra=true;else delete c.extra;
         if(emp!==c.empId){c.empId=emp;delete c.duty;delete c.dutyH;delete c.closed;delete c.out;delete c.back;changed++}
@@ -711,7 +713,7 @@ async function assignShift(empId,date,shiftId,opts={}){
     target.empId=empId; target.locked=true; delete target.extra;delete target.duty;delete target.dutyH;delete target.closed;delete target.out;delete target.back; if(splitPart)target.part=splitPart; else delete target.part; locked.add(key(target));
   }
   let msg;
-  if($("auto-repair").checked){const changed=repair(s,opts.from&&opts.from.date<date?opts.from.date:date,locked,ban);msg=`Zapisano i zablokowano. Sprawdzono kolizje od ${date}: ${changed===0?"nic nie trzeba było zmieniać.":changed===1?"podmieniono 1 przydział.":"podmieniono "+changed+" przydziały."}`}
+  if($("auto-repair").checked){const back=Math.max(0,...S.shifts.map(restOf));let from0=opts.from&&opts.from.date<date?opts.from.date:date;if(shiftId){const b0=addDays(date,-back);if(b0<from0)from0=b0<s.start?s.start:b0}const changed=repair(s,from0,locked,ban);msg=`Zapisano i zablokowano. Sprawdzono kolizje od ${from0}: ${changed===0?"nic nie trzeba było zmieniać.":changed===1?"podmieniono 1 przydział.":"podmieniono "+changed+" przydziały."}`}
   else msg="Zapisano i zablokowano (bez sprawdzania kolizji).";
   await guard(()=>saveSched(s)); notice(msg); renderPlan();
 }

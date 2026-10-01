@@ -37,3 +37,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 - Pracownicy: dodawanie kierowcy z wyborem kat. C / kat. B, Enter dodaje, odrzucanie duplikatów. Test: testy/emp.js.
 - Dopisany kierowca Tomasz Dziadura (kat. B, id e9) w bazie na żywo.
 - Integracja z FlotoMax: artefakt nie ma dostępu do sieci; planowana droga przez serwer MCP FlotoMax (łącznik claude.ai + capability mcp).
+
+## v48
+- Naprawa: ręcznie wstawiona (zablokowana) trasa w dniu odpoczynku po wcześniejszej dalekiej trasie (np. T8 → T11 dzień później). Naprawa kolizji (repair) nie przydziela trasy, po której odpoczynek wypada na zablokowany przydział tej osoby; przy ręcznym wstawieniu sprawdzanie zaczyna się kilka dni wcześniej (maks. liczba dni odpoczynku). Test: testy/rest8.js.
