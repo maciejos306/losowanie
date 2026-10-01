@@ -1,0 +1,11 @@
+const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell'});const pg=await b.newPage();const errs=[];pg.on('pageerror',e=>errs.push(e.message));
+await pg.goto('file://'+process.cwd()+'/local.html');await pg.waitForTimeout(600);await pg.click('nav .tab[data-tab="ludzie"]');
+const ok=(k,v)=>console.log((v?'OK   ':'FAIL ')+k);
+await pg.fill('#emp-name','  Tomasz   Dziadura ');await pg.selectOption('#emp-cat','B');await pg.press('#emp-name','Enter');await pg.waitForTimeout(200);
+const e=await pg.evaluate(()=>S.emps.find(x=>x.name==='Tomasz Dziadura'));ok('dodany Enterem, kat. B',e&&e.catC===false&&e.active);
+const n=await pg.evaluate(()=>S.emps.length);await pg.fill('#emp-name','tomasz dziadura');await pg.click('#btn-emp');await pg.waitForTimeout(200);
+ok('duplikat odrzucony',n===await pg.evaluate(()=>S.emps.length));
+ok('widoczny na liście jako bez kat. C',/Tomasz Dziadura[\s\S]*bez kat\. C/.test(await pg.innerText('#emp-list')));
+await pg.fill('#emp-name','Nowy Testowy');await pg.click('#btn-emp');await pg.waitForTimeout(200);
+ok('domyślnie kat. C',await pg.evaluate(()=>S.emps.find(x=>x.name==='Nowy Testowy').catC===true));
+console.log('ERRS',errs);await b.close()})();

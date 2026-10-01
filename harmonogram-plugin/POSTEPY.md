@@ -32,3 +32,8 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 - API (workingDays/bilansRange/yearStats/calendar): walidacja zakresu dat.
 - Test: testy/cal3.js (16/16). Pełna regresja zielona.
 - Nadal otwarte: Kadry – urlop w święto liczony jako dzień urlopu; norma miesięczna Kadr (tygodnie) vs kalendarzowa w Bilansie; stare teksty „5 dniówek”.
+
+## v47
+- Pracownicy: dodawanie kierowcy z wyborem kat. C / kat. B, Enter dodaje, odrzucanie duplikatów. Test: testy/emp.js.
+- Dopisany kierowca Tomasz Dziadura (kat. B, id e9) w bazie na żywo.
+- Integracja z FlotoMax: artefakt nie ma dostępu do sieci; planowana droga przez serwer MCP FlotoMax (łącznik claude.ai + capability mcp).

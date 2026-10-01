@@ -286,7 +286,7 @@
     </div>
 
     <div class="screen" id="ludzie">
-      <div class="row"><input id="emp-name" placeholder="Imię i nazwisko" style="flex:1;min-width:200px"><button class="btn" id="btn-emp">Dodaj</button></div>
+      <div class="row"><input id="emp-name" placeholder="Imię i nazwisko" aria-label="Imię i nazwisko nowego kierowcy" style="flex:1;min-width:200px"><select id="emp-cat" aria-label="Kategoria prawa jazdy"><option value="C">kat. C</option><option value="B">kat. B (bez C)</option></select><button class="btn" id="btn-emp">Dodaj kierowcę</button></div>
       <ul class="cards" id="emp-list"></ul>
     </div>
 
@@ -805,7 +805,8 @@ $("btn-reroll").onclick=()=>guard(async()=>{const s=S.scheds[S.current];if(!s)re
   if(kept.length)repair(s,s.start);
   await saveSched(s);notice(kept.length?`Wylosowano ponownie, zachowując ${kept.length} zablokowanych komórek.`:"Wylosowano ponownie.")});
 $("btn-repair").onclick=()=>guard(async()=>{const s=S.scheds[S.current];if(!s)return;const from=$("repair-from").value||s.start;const n=repair(s,from);await saveSched(s);notice(`Sprawdzono kolizje od ${from}: ${n===0?"wszystko w porządku.":n===1?"podmieniono 1 przydział.":"podmieniono "+n+" przydziały."}`)});
-$("btn-emp").onclick=()=>guard(async()=>{const n=$("emp-name").value.trim();if(!n)return;S.emps.push({id:uid(),name:n,active:true});$("emp-name").value="";await saveE()});
+$("btn-emp").onclick=()=>guard(async()=>{const n=$("emp-name").value.trim().replace(/\s+/g," ");if(!n){notice("Wpisz imię i nazwisko kierowcy.");return}if(S.emps.some(e=>e.name.toLowerCase()===n.toLowerCase())){notice(`Kierowca ${n} już jest na liście.`);return}S.emps.push({id:uid(),name:n,active:true,catC:$("emp-cat").value==="C"});$("emp-name").value="";$("emp-cat").value="C";await saveE();notice(`Dodano kierowcę ${n}.`)});
+$("emp-name").addEventListener("keydown",ev=>{if(ev.key==="Enter"){ev.preventDefault();$("btn-emp").click()}});
 $("btn-shift").onclick=()=>guard(async()=>{const n=$("shift-name").value.trim();if(!n)return;S.shifts.push({id:uid(),name:n,people:+$("shift-people").value,weight:+$("shift-weight").value,part:$("shift-part").value});$("shift-name").value="";await saveS()});
 $("btn-plan-all").onclick=()=>guard(async()=>{S.plan={days:{}};for(const w of WD)S.plan.days[w]=S.shifts.map(s=>s.id);await savePlan()});
 $("btn-plan-none").onclick=()=>guard(async()=>{S.plan={days:{}};for(const w of WD)S.plan.days[w]=[];await savePlan()});
