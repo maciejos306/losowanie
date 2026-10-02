@@ -114,3 +114,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 - Oś godzin: Pula etykiet w kolumnie po lewej (sticky), kompaktowe wiersze (38 px) — wszyscy kierowcy na ekranie; suma tygodnia w jednej linii (szczegóły w podpowiedzi).
 - Plan FlotoMax: wyjazd dzień wcześniej per trasa (c.prevDep) gdy plannedDeparture wypada dzień przed datą dostawy; zmiana etykiety trasy we FlotoMax usuwa stare miejsce (bez „duchów”).
 - Naniesiono plan 03–05.10 z FlotoMax (nowe etykiety: Trasa 13 w niedzielę).
+
+## v66
+- Sobota i niedziela wyraźniej: tło kolumn #E7E9F2 (ciemny: #232A33), nagłówek z niebieską kreską u góry.

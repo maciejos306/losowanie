@@ -181,9 +181,9 @@
   .status{font-size:11.5px;color:var(--muted);padding:6px 16px;border-top:1px solid var(--line);background:var(--cream)}
 
   /* ===== szata „Grafik” (projekt planera) ===== */
-  :root{--bg:#F3F4F1;--paper:#fff;--ink:#1C2321;--muted:#56615C;--line:#EEF1EE;--line2:#DDE2DE;--accent:#1F5F8B;--cream:#FAFBF9;--weekend:#F1F2EE;--rest:#F7EFD9;--rest-ink:#6B5212;--urlop:#DCE8F3;--urlop-ink:#143F5D;--danger:#B3261E;--amber:#F2A541;--side:#1C2321}
-  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121615;--paper:#1A1F1D;--ink:#E8ECE9;--muted:#9AA5A0;--line:#262D2A;--line2:#333D3A;--accent:#5B9BC8;--cream:#161B19;--weekend:#1E2421;--rest:#3A3218;--rest-ink:#E8C87A;--urlop:#1D3346;--urlop-ink:#9CC4EA;--side:#0E1211}}
-  :root[data-theme="dark"]{--bg:#121615;--paper:#1A1F1D;--ink:#E8ECE9;--muted:#9AA5A0;--line:#262D2A;--line2:#333D3A;--accent:#5B9BC8;--cream:#161B19;--weekend:#1E2421;--rest:#3A3218;--rest-ink:#E8C87A;--urlop:#1D3346;--urlop-ink:#9CC4EA;--side:#0E1211}
+  :root{--bg:#F3F4F1;--paper:#fff;--ink:#1C2321;--muted:#56615C;--line:#EEF1EE;--line2:#DDE2DE;--accent:#1F5F8B;--cream:#FAFBF9;--weekend:#E7E9F2;--rest:#F7EFD9;--rest-ink:#6B5212;--urlop:#DCE8F3;--urlop-ink:#143F5D;--danger:#B3261E;--amber:#F2A541;--side:#1C2321}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121615;--paper:#1A1F1D;--ink:#E8ECE9;--muted:#9AA5A0;--line:#262D2A;--line2:#333D3A;--accent:#5B9BC8;--cream:#161B19;--weekend:#232A33;--rest:#3A3218;--rest-ink:#E8C87A;--urlop:#1D3346;--urlop-ink:#9CC4EA;--side:#0E1211}}
+  :root[data-theme="dark"]{--bg:#121615;--paper:#1A1F1D;--ink:#E8ECE9;--muted:#9AA5A0;--line:#262D2A;--line2:#333D3A;--accent:#5B9BC8;--cream:#161B19;--weekend:#232A33;--rest:#3A3218;--rest-ink:#E8C87A;--urlop:#1D3346;--urlop-ink:#9CC4EA;--side:#0E1211}
   body,input,select,button,.btn,nav button,th.sub,.est,.slots,b.ini,.hol,.daydone,.daypart{font-family:'IBM Plex Sans',system-ui,sans-serif}
   .bal,.mono{font-family:'IBM Plex Mono',ui-monospace,monospace}
   .side{background:var(--side);padding:24px 16px}
@@ -213,6 +213,7 @@
   .floto{background:var(--paper);border:1px solid var(--line2);border-radius:10px}
   .kpi{background:var(--paper);border:1px solid var(--line2);border-radius:10px}
   #notice:not(:empty){border-radius:8px}
+  th.weekend,table.tl th.weekend{background:var(--weekend)!important;box-shadow:inset 0 3px 0 rgba(31,95,139,.35)}
 
   /* oś godzin: pula po lewej, kompaktowe wiersze (wszyscy kierowcy na ekranie) */
   .tl-wrap{display:flex;gap:10px;align-items:flex-start}
