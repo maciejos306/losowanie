@@ -93,3 +93,7 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 - Dziennik wyjazdów `triplog/<routeId>`: plan (planned*) i rzeczywistość (departed/returned, hours, restHours) do przewidywania.
 - Żywsze kolory etykiet, wiersze kierowców z poświatą ich koloru.
 - DO ZROBIENIA: nowe etykiety od 12.10 (Trasa 5 znika, numeracja −1 od 5) — czekam na listę od właściciela.
+
+## v60
+- Oś godzin: na kafelkach tras z odpoczynkiem kat. C pasek „☾ 9 h odpoczynku” (położenie orientacyjne: przed ostatnimi 2 h powrotu).
+- Czas zaplanowanej trasy = mediana faktycznych przejazdów tej trasy w ten sam dzień tygodnia (ostatnie 120 dni, min. 2), inaczej z Typów zmian.
