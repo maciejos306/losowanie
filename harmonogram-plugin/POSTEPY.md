@@ -97,3 +97,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 ## v60
 - Oś godzin: na kafelkach tras z odpoczynkiem kat. C pasek „☾ 9 h odpoczynku” (położenie orientacyjne: przed ostatnimi 2 h powrotu).
 - Czas zaplanowanej trasy = mediana faktycznych przejazdów tej trasy w ten sam dzień tygodnia (ostatnie 120 dni, min. 2), inaczej z Typów zmian.
+
+## v61
+- Oś godzin: godziny trasy pogrubione na początku drugiej linii kafelka; kolumna „Σ godzin”: bieżący tydzień (godziny pracy, liczba kafelków, nadwyżka ponad 40 h) i suma widocznych dni.
