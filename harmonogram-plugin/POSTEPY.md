@@ -132,3 +132,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v70 — wyraźniejszy urlop
 - Urlop w tabeli i na osi godzin: ciemnoniebieskie pasy, biały napis WIELKIMI LITERAMI, obramowanie i cień.
+
+## v71 — suma dnia
+- Na osi godzin w każdym dniu kierowcy (w prawym dolnym rogu, na szarym pasie nocy) etykieta „Σ x h” = łączny czas pracy wszystkich zadań tego dnia (np. trasa rano + Zwroty/dyżur), bez 9 h odpoczynku w trasie kat. C.
