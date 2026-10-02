@@ -277,7 +277,7 @@
       <div class="kal" id="kal-grid"></div>
     </div>
     <div class="screen" id="rejestr">
-      <p class="lead" data-label="txt-rejestr">Rejestr tygodni: ile dniówek (monet) i ile roboczogodzin zrobił w tygodniu każdy kierowca. Godziny są rzeczywiste, gdy znamy odjazd od bazy i powrót, a w pozostałych przypadkach pochodzą z Założeń. Odpoczynek w trasie kierowcy kat. C nie jest czasem pracy: odliczamy faktyczny odpoczynek zgłoszony we FlotoMax, a gdy go brak (plan), 9 h na długiej trasie (od 2 dniówek, wyjazd co najmniej 12 h). Na tej podstawie widać, który system rozliczania, dniówkami czy godzinami, jest dla kierowcy i dla firmy korzystniejszy.</p>
+      <p class="lead" data-label="txt-rejestr">Rejestr tygodni: ile dniówek (monet) i ile roboczogodzin zrobił w tygodniu każdy kierowca. Godziny są rzeczywiste, gdy znamy odjazd od bazy i powrót, a w pozostałych przypadkach pochodzą z Założeń. Odpoczynek w trasie kierowcy kat. C nie jest czasem pracy: odliczamy faktyczny odpoczynek zgłoszony we FlotoMax, a gdy go brak (plan), 9 h na trasie wymagającej kat. C (np. Trasa 10) trwającej co najmniej 12 h. Na tej podstawie widać, który system rozliczania, dniówkami czy godzinami, jest dla kierowcy i dla firmy korzystniejszy.</p>
       <div class="row"><label class="muted">Tydzień <select id="reg-week"></select></label><label class="muted">Zakres porównania <select id="reg-scope"><option value="week">wybrany tydzień</option><option value="month">miesiąc wybranego tygodnia</option><option value="all">wszystkie tygodnie</option></select></label><label class="muted">Dodatek za godziny ponad normę (system godzinowy) <input type="number" id="reg-prem" min="0" max="300" step="5" style="width:80px"> %</label><button class="btn ghost sm" id="reg-csv">Kopiuj CSV</button></div>
       <div id="reg-verdict"></div>
       <div class="grid-scroll"><table class="plan hr" id="reg-table"></table></div>
@@ -419,7 +419,8 @@ const DAY_H=8.5, WEEK_DAYS=5;
 // odliczamy go, gdy wyjazd trwał co najmniej 12 h (krótszy nie mieści 9 h odpoczynku i pracy)
 const TRIP_REST_H=9,TRIP_REST_MIN=12;
 // faktyczny odpoczynek z FlotoMax (restHours przy wyjeździe) ma pierwszeństwo przed regułą
-const tripRestH=(e,sh,hh,c)=>c&&Number.isFinite(c.restH)?Math.min(c.restH,hh):(e&&hasCatC(e)&&sh&&(sh.weight??1)>=2&&(sh.part||"full")!=="pm"&&hh>=TRIP_REST_MIN?TRIP_REST_H:0);
+// odpoczynek 9 h dotyczy tras jeżdżonych pojazdem wymagającym kat. C (Typy zmian → „wymaga kat. C”, np. Trasa 10)
+const tripRestH=(e,sh,hh,c)=>c&&Number.isFinite(c.restH)?Math.min(c.restH,hh):(e&&hasCatC(e)&&sh&&sh.reqC&&(sh.part||"full")!=="pm"&&hh>=TRIP_REST_MIN?TRIP_REST_H:0);
 const workH=(e,sh,hh,c)=>Math.round(Math.max(0,hh-tripRestH(e,sh,hh,c))*100)/100;
 const payHours=sh=>{const w=sh?.weight??1;return w===1?8.5:hoursOf(sh)};
 const DUTY_LIMIT_H=5;

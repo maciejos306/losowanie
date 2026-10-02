@@ -5,7 +5,7 @@ await pg.goto('file://'+process.cwd()+'/local_ai.html');await pg.waitForTimeout(
 const ok=(k,v,x='')=>console.log((v?'OK   ':'FAIL ')+k+(x?'  '+x:''));
 const r=await pg.evaluate(async()=>{const o={};
  Object.keys(__docs).filter(k=>k.startsWith('schedules/')).forEach(k=>delete __docs[k]);Object.keys(S.scheds).forEach(id=>delete S.scheds[id]);
- S.abs=[];S.hr={};calCache={};S.shifts.forEach(s=>{if(['t8','t9','t10','t11'].includes(s.id))s.rest=1});
+ S.abs=[];S.hr={};calCache={};S.shifts.forEach(s=>{if(['t8','t9','t10','t11'].includes(s.id))s.rest=1;if(s.id==='t10')s.reqC=true});
  const D=[0,1,2,3,4,5,6].map(i=>addDays('2026-10-05',i));const c=[];
  const add=(i,sh,e,extra={})=>c.push({date:D[i],shiftId:sh,slot:c.filter(x=>x.date===D[i]&&x.shiftId===sh).length,empId:e,...extra});
  for(let i=0;i<5;i++)add(i,'t1','e1');                        // 5 dn, 40 h (plan)
@@ -22,7 +22,7 @@ const r=await pg.evaluate(async()=>{const o={};
  for(const x of c){const sh=W[x.shiftId];const duty=sh.part==='pm';let dn=0,h=0;
   if(duty){if(x.duty==='done'){dn=(x.out&&x.back?(((x.back.split(':')[0]*60+ +x.back.split(':')[1])-(x.out.split(':')[0]*60+ +x.out.split(':')[1])+1440)%1440)/60:(x.dutyH??5))>5?1:0.5;h=x.out&&x.back?(((x.back.split(':')[0]*60+ +x.back.split(':')[1])-(x.out.split(':')[0]*60+ +x.out.split(':')[1])+1440)%1440)/60:(x.dutyH??5)}}
   else{dn=sh.weight;h=x.out&&x.back?(((x.back.split(':')[0]*60+ +x.back.split(':')[1])-(x.out.split(':')[0]*60+ +x.out.split(':')[1])+1440)%1440)/60:sh.hours;
-   const em=S.emps.find(e=>e.id===x.empId);if(em.catC!==false&&sh.weight>=2&&h>=12)h-=9} // 9 h odpoczynku w trasie kat. C nie jest czasem pracy
+   const em=S.emps.find(e=>e.id===x.empId);if(em.catC!==false&&sh.reqC&&h>=12)h-=9} // 9 h odpoczynku w trasie kat. C nie jest czasem pracy
   const a=orc[x.empId]??={dn:0,h:0};a.dn+=dn;a.h+=h}
  const rows=weekRegister('2026-10-05');o.rows=Object.fromEntries(rows.map(r=>[r.id,{dn:r.dn,h:r.h,hAct:r.hAct,hPlan:r.hPlan}]));o.orc=orc;
  o.mism=Object.keys(orc).filter(k=>Math.abs(orc[k].dn-o.rows[k].dn)>1e-9||Math.abs(orc[k].h-o.rows[k].h)>1e-9);
@@ -48,7 +48,7 @@ const r=await pg.evaluate(async()=>{const o={};
 console.log(JSON.stringify(r));
 ok('rejestr zgadza się z niezależnym wyliczeniem dla wszystkich kierowców',r.mism.length===0,JSON.stringify(r.mism));
 ok('e1: 5 dniówek, 40 h z planu',r.rows.e1.dn===5&&r.rows.e1.h===40&&r.rows.e1.hPlan===40&&r.rows.e1.hAct===0);
-ok('e2: Trasa 8 + 4 krótkie = 6,5 dn. i 43 h pracy (52 h minus 9 h odpoczynku w trasie)',r.rows.e2.dn===6.5&&r.rows.e2.h===43,JSON.stringify(r.rows.e2)+' hpd '+r.hpd);
+ok('e2: Trasa 8 + 4 krótkie = 6,5 dn. i 52 h (T8 bez kat. C: bez odpoczynku 9 h)',r.rows.e2.dn===6.5&&r.rows.e2.h===52,JSON.stringify(r.rows.e2)+' hpd '+r.hpd);
 ok('dyżur z odjazdem 14:30 i powrotem 21:00 = 6,5 h rzecz. = 1 dniówka',r.rows.e3.dn===1&&r.rows.e3.hAct===6.5);
 ok('dyżur niezrealizowany i anulowany: 0 dn., 0 h',r.rows.e4.dn===0&&r.rows.e4.h===0&&r.rows.e6.dn===0&&r.rows.e6.h===0);
 ok('Trasa 10 z odjazdem 20:00 i powrotem 16:30: 2,5 dn. i 11,5 h pracy (20,5 h minus 9 h odpoczynku)',r.rows.e5.dn===2.5&&r.rows.e5.hAct===11.5);
@@ -56,8 +56,8 @@ ok('dyżur z wpisanym czasem 4 h = 0,5 dn. i 4 h rzecz.',r.rows.e7.dn===0.5&&r.r
 ok('trasa zakończona bez godzin: godziny z planu (8)',r.rows.e8.dn===1&&r.rows.e8.hPlan===8&&r.rows.e8.hAct===0);
 ok('norma tygodnia 5 dn.',r.norm===5);
 ok('stawka 30 zł/h: wg dniówek 1275, wg godzin 1200 (40 h w normie 42,5 h)',Math.abs(r.e1[0]-1275)<1e-6&&Math.abs(r.e1[1]-1200)<1e-6,JSON.stringify(r.e1));
-ok('stawka 255 zł/dn.: wg dniówek 1657,50, wg godzin 1297,50 (43 h, 0,5 h ponad normę +50%)',Math.abs(r.e2[0]-1657.5)<1e-6&&Math.abs(r.e2[1]-1297.5)<1e-6,JSON.stringify(r.e2));
-ok('dodatek 0%: wg godzin 1290 (43 h × 30 zł)',Math.abs(r.e2prem0-1290)<1e-6,String(r.e2prem0));
+ok('stawka 255 zł/dn.: wg dniówek 1657,50, wg godzin 1702,50 (52 h, 9,5 h ponad normę +50%)',Math.abs(r.e2[0]-1657.5)<1e-6&&Math.abs(r.e2[1]-1702.5)<1e-6,JSON.stringify(r.e2));
+ok('dodatek 0%: wg godzin 1560 (52 h × 30 zł)',Math.abs(r.e2prem0-1560)<1e-6,String(r.e2prem0));
 ok('stawka miesięczna dzielona przez dni pracujące miesiąca (22)',r.e3[2]===22&&Math.abs(r.e3[0]-6000/22*1)<1e-6,JSON.stringify(r.e3));
 ok('brak stawki: brak wynagrodzeń',r.noRate===false);
 ok('regSum sumuje tygodnie',r.sum===6.5);

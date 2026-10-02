@@ -9,8 +9,8 @@ const r=await pg.evaluate(([w,shifts,emps])=>{FL.mcp=null;Object.keys(S.scheds).
   reg:weekRegister('2026-09-28').filter(x=>/Knura|Czoga/.test(x.name)).map(x=>x.name+':'+x.hAct)}},[L('live3/schedules/week-2026-09-28.json'),L('live3/app/shifts.json').items,L('live3/app/employees.json').items]);
 console.log(JSON.stringify(r));
 ok('Knura T10 33,03 h → 24,03 h pracy',r.knura===24.03);
-ok('Czogała T8 18,36 h → 9,36 h pracy',r.czog===9.36);
-ok('T12 Piórkowskiego 19,03 h → 10,03 h',r.t12===10.03);
+ok('Czogała T8 (bez kat. C): bez odliczenia 18,36 h',r.czog===18.36);
+ok('T12 (bez kat. C): bez odliczenia',r.t12===19.03);
 ok('bez kat. C: bez odliczenia',r.bubonLong===18);
 ok('wyjazd krótszy niż 12 h: bez odliczenia',r.short===10);
 ok('zwykła trasa: bez odliczenia',r.t1===9.5);

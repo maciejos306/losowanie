@@ -103,3 +103,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v62
 - Pauza 9 h na kafelku: pełna wysokość, ukośne pasy, środek pauzy ≈ 5/12 długości trasy (między 1/3 a 1/2).
+
+## v63
+- Odpoczynek 9 h w trasie tylko na trasach wymagających kat. C (Typy zmian → wymaga kat. C; obecnie T10). Przejazdy z FlotoMax: restHours z FlotoMax.
