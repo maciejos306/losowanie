@@ -462,7 +462,7 @@ const isDutyCell=(c,sh)=>!c.part&&(sh?.part||"full")==="pm";
 // dyżur liczy się tylko zrealizowany: zaplanowany lub anulowany = 0 dn.; wyjechał do 5 h = 0,5; wyjazd + powrót do bazy dłuższy niż 5 h = 1 dniówka
 const cellDn=(c,sh)=>{const w=sh?.weight??1;if(!isDutyCell(c,sh))return w;if(c.duty!=="done")return 0;const dh=Number.isFinite(c.dutyH)?c.dutyH:tripHours(c.out,c.back);if(dh!=null&&dh>DUTY_LIMIT_H)return 1;return w};
 // wyjazd dzień wcześniej: z typu zmiany albo z planu FlotoMax dla konkretnej trasy (c.prevDep)
-const cellPrev=(c,sh)=>!!sh&&(startsPrevDay(sh)||!!c?.prevDep)&&!isDutyCell(c||{},sh);
+const cellPrev=(c,sh)=>!!sh&&(c&&typeof c.prevDep==="boolean"?c.prevDep:startsPrevDay(sh))&&!isDutyCell(c||{},sh);
 const startsPrevDay=sh=>!!sh&&(typeof sh.startPrev==="boolean"?sh.startPrev:(startOf(sh)>=18&&(sh.weight??1)>=2.5));
 const isClosed=(c,sh)=>!!c.closed||(isDutyCell(c,sh)&&(c.duty==="done"||c.duty==="cancelled"));
 // typowy czas trasy w danym dniu tygodnia: mediana faktycznych przejazdów (FlotoMax) z ostatnich 120 dni; min. 2 przejazdy
@@ -1556,8 +1556,8 @@ function applyFlotoTrips(trips){const done=[],skipped=[],touched=new Set(),shMap
   return{done,skipped,scheds:[...touched],newShifts}}
 // zaplanowane zlecenia z FlotoMax (spedytor): blokują przydział w grafiku; zmiany grafiku dotyczą tylko przyszłości
 function setPlannedTime(c,sh,a){if(c.out||c.manualT)return false;const d=flHM(a.plannedDepartureAt),hrs=tripHours(a.plannedDepartureAt,a.plannedReturnAt);let ch=false;
-  if(d&&!isDutyCell(c,sh)&&(d.date===a.date||d.date===addDays(a.date,-1))){const st=Math.round(d.h*60)/60;const pv=d.date!==a.date&&!startsPrevDay(sh);
-    if(c.startH!==st){c.startH=st;ch=true}if(!!c.prevDep!==pv){if(pv)c.prevDep=true;else delete c.prevDep;ch=true}}
+  if(d&&!isDutyCell(c,sh)&&(d.date===a.date||d.date===addDays(a.date,-1))){const st=Math.round(d.h*60)/60;const pv=d.date!==a.date;
+    if(c.startH!==st){c.startH=st;ch=true}if(c.prevDep!==pv){c.prevDep=pv;ch=true}}
   if(hrs!=null&&hrs>0&&hrs<48){const v=Math.round(hrs*60)/60;if(c.durH!==v){c.durH=v;ch=true}}return ch}
 async function applyFlotoAssignments(list,from,to){const r={placed:[],need:[],noSched:{},made:[],warn:[]},today=warsawDay(),dirty=new Set(),cur=S.current,live=new Set(),needC=[];
   const all=Array.isArray(list)?list:[];all.forEach(a=>{if(a&&a.routeId!=null&&a.kind)FL.kinds[a.routeId]=a.kind});

@@ -120,3 +120,7 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v67
 - Godziny z planu FlotoMax co do minuty (bez zaokrąglania do 15 min); podziałka osi co 3 h; na części kafelka przed wyjazdem najpierw „wyj. HH:MM”.
+
+## v68
+- cellPrev: c.prevDep (true/false) z planu FlotoMax ma pierwszeństwo przed typem trasy — wyjazd tego samego dnia jest możliwy dla T8–T12.
+- 04.10: T11 Wranik nd 13:30→pn 15:15 i T12 Piórkowski nd 15:40→pn 09:44 poprawione ręcznie i zablokowane (manualT), bo API FlotoMax podaje sobotę.

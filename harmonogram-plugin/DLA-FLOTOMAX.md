@@ -20,3 +20,4 @@ Używa narzędzi: list_drivers, list_assignments, list_trips, list_absences, rep
    Planowana godzina wyjazdu (`plannedDepartureAt`) powinna to uwzględniać; Harmonogram pokaże ją na osi.
 3. Odpoczynek 9 h kat. C na długiej trasie nie jest czasem pracy: dalej podawać `restHours` przy każdym wyjeździe.
 4. Wyjazd Romana Wranika (Nagel 30.09, 2 min) do poprawienia.
+5. `list_assignments`: dla Tras 11 i 12 z 04.10 `plannedDepartureAt` jest dzień za wcześnie (sobota 03.10 13:30 / 15:40), a karta trasy pokazuje niedzielę 04.10 13:30 / 15:40 (Trasa 13 jest poprawna). Popraw wyliczanie planowanego wyjazdu przy cofaniu o odpoczynek kat. C / godzinę otwarcia odbiorcy. Harmonogram przyjmuje teraz wyjazd tego samego dnia także dla tras zwykle wyjeżdżających dzień wcześniej (c.prevDep = true/false wg planu).
