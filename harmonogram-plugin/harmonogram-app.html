@@ -256,6 +256,7 @@
 .lg-tile{display:flex;flex-direction:column;align-items:center;gap:6px;width:130px;padding:14px 8px;border:1px solid var(--line);border-radius:12px;background:var(--paper,#fff);cursor:pointer;font:600 13px inherit;color:inherit}.lg-tile:hover{border-color:#2f7fd0;box-shadow:0 0 0 3px rgba(47,127,208,.2)}
 .lg-tile span{width:44px;height:44px;border-radius:50%;background:#2f7fd0;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
 #lg-pin{font-size:28px;letter-spacing:.5em;text-align:center;width:170px;padding:8px}.lg-msg{color:#b3261e;font-size:13px;min-height:18px}
+body:not(.pay-ok) label:has([data-rate]),body:not(.pay-ok) [data-rate],body:not(.pay-ok) [data-rateunit]{display:none!important}
 body.no-ai #ai-fab,body.no-ai #ai-panel{display:none!important}body.ro-plan #plan .tl-pool{display:none}
 </style>
 
@@ -287,6 +288,7 @@ body.no-ai #ai-fab,body.no-ai #ai-panel{display:none!important}body.ro-plan #pla
       <button class="tab" data-tab="bilans" data-label="tab-bilans">Bilans</button>
       <button class="tab" data-tab="rejestr" data-label="tab-rejestr">Rejestr</button>
       <button class="tab" data-tab="kalendarz" data-label="tab-kalendarz">Kalendarz</button>
+      <button class="tab" data-tab="place" hidden>Płace 🔒</button>
       <button class="tab" data-tab="konta" hidden>Konta</button>
     </nav>
     <div class="floto" id="floto" role="status" aria-live="polite"><span class="fl-dot" aria-hidden="true"></span><span id="floto-txt">FlotoMax: łączenie…</span><button class="btn ghost sm" id="floto-btn">⟳ Pobierz z FlotoMax</button><button class="btn ghost sm" id="floto-send" title="Wysyła do FlotoMax grafik od bieżącego tygodnia (każdy tydzień nadpisuje poprzednią wersję), żeby kierowcy widzieli plan w aplikacji">⇪ Wyślij grafik do FlotoMax</button><details id="floto-det" hidden><summary>Szczegóły ostatniego pobrania</summary><ul id="floto-list"></ul></details></div>
@@ -305,6 +307,7 @@ body.no-ai #ai-fab,body.no-ai #ai-panel{display:none!important}body.ro-plan #pla
       <textarea id="hr-out" style="display:none;width:100%;height:100px;font:11px monospace;margin-top:8px"></textarea>
     </div>
 
+    <div class="screen" id="place"><h2 style="font-size:18px;margin:0 0 8px">Płace (dane wrażliwe)</h2><div id="place-body"></div></div>
     <div class="screen" id="konta"><h2 style="font-size:18px;margin:0 0 8px">Konta użytkowników</h2><div id="konta-body"></div></div>
 
     <div class="screen" id="kalendarz">
@@ -693,7 +696,7 @@ function repair(sched,fromDate,extraLocked=new Set(),ban=new Set()){
 // ---------- db ----------
 const docE=()=>S.db.doc("app/employees"), docS=()=>S.db.doc("app/shifts"), docA=()=>S.db.doc("app/absences"), docP=()=>S.db.doc("app/plan");
 const savePlan=()=>docP().set(S.plan);
-const saveE=()=>docE().set({items:S.emps}), saveS=()=>docS().set({items:S.shifts}), saveA=()=>docA().set({items:S.abs});
+const saveE=()=>docE().set({items:S.emps.map(({rate,rateUnit,...e})=>e)}), saveS=()=>docS().set({items:S.shifts}), saveA=()=>docA().set({items:S.abs});
 S.seen={};S.seenAbs={};S.absLoaded=false;S.undo={};const absSig=()=>JSON.stringify(S.abs.map(a=>a.empId+"|"+a.date+"|"+a.reason).sort());
 const saveSched=s=>{const js=JSON.stringify(s);if(!S.noUndo&&S.seen[s.id]&&S.seen[s.id]!==js){(S.undo[s.id]??=[]).push({js:S.seen[s.id],abs:S.seenAbs[s.id]??null});if(S.undo[s.id].length>40)S.undo[s.id].shift()}S.seen[s.id]=js;S.seenAbs[s.id]=absSig();updUndo();return S.db.doc("schedules/"+s.id).set(s)};
 function updUndo(){const b=$("btn-undo");if(b){const n=(S.undo[S.current]||[]).length;b.disabled=!n;b.textContent=n?`↩ Cofnij (${n})`:"↩ Cofnij"}}
@@ -722,7 +725,7 @@ async function boot(){
   if(!db){setStatus("Baza niedostępna w tym widoku — działa tylko podgląd."); render(); return}
   S.db=db; setStatus("Połączono. Dane zapisują się automatycznie.");
   if(location.protocol!=="file:")setTimeout(()=>rollingTick(),1200);setTimeout(()=>flotoSync(false),2800);
-  docE().onSnapshot(s=>{S.emps=s.exists?structuredClone(s.data().items||[]):[];render()});
+  docE().onSnapshot(s=>{S.emps=s.exists?structuredClone(s.data().items||[]):[];if(window.applyPayRates)applyPayRates();render()});
   docS().onSnapshot(s=>{S.shifts=s.exists?structuredClone(s.data().items||[]):[];render()});
   docA().onSnapshot(s=>{S.abs=s.exists?structuredClone(s.data().items||[]):[];if(!S.absLoaded){S.absLoaded=true;for(const id of Object.keys(S.seenAbs))if(S.seenAbs[id]===null)S.seenAbs[id]=absSig()}render()});
   docP().onSnapshot(s=>{S.plan=s.exists?structuredClone(s.data()):null;render()});
@@ -1377,7 +1380,7 @@ function renderRegister(){
   let html=`<div style="border:2px solid var(--line2);background:var(--cream);border-radius:14px;padding:12px 16px;margin:8px 0"><div style="font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase">Porównanie systemów rozliczania: ${esc(scopeTxt)}</div>`;
   html+=`<div style="font-size:14px;margin:6px 0"><b>${fh(T.dn)} dniówek</b> (1 dniówka = ${fh(DAY_H)} h, czyli ${fh(eq)} h) i <b>${fh(T.h)} przepracowanych godzin</b>. `+(Math.abs(dH)<0.05?"Oba systemy dają ten sam wynik w godzinach.":dH>0?`Godzin jest o <b>${fh(dH)} h więcej</b> niż wynika z dniówek, więc system godzinowy liczy kierowcom więcej pracy.`:`Godzin jest o <b>${fh(-dH)} h mniej</b> niż wynika z dniówek, więc system dniówek płaci za więcej pracy, niż faktycznie wykonano.`)+`</div>`;
   if(T.rated){const d=T.payH-T.payD;html+=`<div style="font-size:14px;margin:6px 0">Dla kierowców ze stawką (${T.rated} z ${rows.length}): wg dniówek <b>${zl(T.payD)}</b>, wg godzin <b>${zl(T.payH)}</b> (z dodatkiem ${cfg.prem}% za godziny ponad normę). `+(Math.abs(d)<0.005?"Koszt jest taki sam.":d>0?`System godzinowy kosztuje firmę o <b>${zl(d)}</b> więcej (${Math.round(d/(T.payD||1)*100)}%), a kierowcom jest korzystniejszy.`:`System dniówek kosztuje firmę o <b>${zl(-d)}</b> więcej (${Math.round(-d/(T.payH||1)*100)}%), a kierowcom jest korzystniejszy.`)+`</div>`}
-  else html+=`<div style="font-size:13px;margin:6px 0;color:var(--muted)">Żeby zobaczyć porównanie w złotówkach, wpisz stawki kierowców w zakładce Pracownicy (zł/godz., zł/dniówkę albo zł/miesiąc).</div>`;
+  else if(typeof hasPay!=="function"||hasPay())html+=`<div style="font-size:13px;margin:6px 0;color:var(--muted)">Żeby zobaczyć porównanie w złotówkach, odblokuj zakładkę Płace 🔒 i wpisz stawki kierowców (zł/godz., zł/dniówkę albo zł/miesiąc).</div>`;
   html+=`<div class="muted" style="font-size:11.5px">Godziny: rzeczywiste, gdy znamy odjazd i powrót (${fh(T.hAct)} h), w pozostałych przypadkach z Założeń (${fh(T.hPlan)} h). Dyżur liczy się tylko zrealizowany. System godzinowy to stawka za godzinę plus dodatek za godziny ponad normę tygodnia (dni pracujące × ${fh(DAY_H)} h).</div></div>`;
   $("reg-verdict").innerHTML=html;
   const bestTxt=r=>!r.hasRate?"—":Math.abs(r.payH-r.payD)<0.005?"równo":r.payH>r.payD?"godziny":"dniówki";
@@ -1530,7 +1533,7 @@ let hrTimer=null;
 document.addEventListener("change",ev=>{const t=ev.target;if(!(t.dataset?.hrFree||t.dataset?.hrOver))return;const id=t.dataset.hrFree||t.dataset.hrOver;(S.hr[id]??={});if(t.dataset.hrFree)S.hr[id].freeDays=t.value===""?null:+t.value;else S.hr[id].overtime=t.value===""?null:+t.value;clearTimeout(hrTimer);hrTimer=setTimeout(()=>guard(async()=>{await docHR().set({items:S.hr});setStatus("Zapisano dane kadrowe.")}),500)});
 
 // ---------- API pluginu (FlotoMax) ----------
-function pluginGetData(){return {version:1,employees:S.emps,shifts:S.shifts,absences:S.abs,plan:S.plan,schedules:S.scheds,labels:S.labels}}
+function pluginGetData(){return {version:1,employees:S.emps.map(({rate,rateUnit,...e})=>e),shifts:S.shifts,absences:S.abs,plan:S.plan,schedules:S.scheds,labels:S.labels}}
 async function pluginSetData(d){if(!S.db)throw new Error("brak bazy");if(d.employees){S.emps=d.employees;await saveE()}if(d.shifts){S.shifts=d.shifts;await saveS()}if(d.absences){S.abs=d.absences;await saveA()}if(d.plan){S.plan=d.plan;await savePlan()}if(d.schedules){for(const s of Object.values(d.schedules))await saveSched(s)}if(d.labels){S.labels=d.labels;await saveLabels()}}
 async function reportDutyImpl(employeeId,date,{went,hours,departure,return:ret}={}){
   let e;try{e=empRef(employeeId)}catch(er){return{ok:false,message:er.message}}
@@ -1980,7 +1983,7 @@ document.addEventListener("click",ev=>{
 ["pointerdown","click","dblclick","dragstart","keydown"].forEach(tp=>document.addEventListener(tp,ev=>{if(canEdit())return;const el=ev.target.closest?.("#plan [data-pick],#plan [data-tl],#plan [data-tl-new],#plan .bar,#plan .chip,#plan .rs,#plan [data-split],#plan #undo,#plan .gen,#plan [data-gen]");if(el){ev.stopPropagation();ev.preventDefault();if(tp==="click")notice("Tylko podgląd: Twoje konto nie może zmieniać grafiku.")}},true));
 // --- zarządzanie kontami (Administrator) ---
 function renderKonta(){const box=$("konta-body");if(!box)return;if(!AUTH.users){box.innerHTML=`<p class="lead">Logowanie jest wyłączone (brak kont w bazie).</p>`;return}
-  box.innerHTML=`<p class="lead">Konta i grupy jak we FlotoMax. PIN-y są zapisane wyłącznie jako skrót (hash). Reset nadaje tymczasowy PIN, który osoba musi zmienić przy pierwszym logowaniu.</p><table class="bil-real"><tr><th>Osoba</th><th>Grupa</th><th>Stan PIN</th><th></th></tr>${AUTH.users.map(u=>`<tr><td>${esc(u.name)}</td><td><select data-kgrp="${u.id}">${Object.entries(GROUPS).map(([k,g])=>`<option value="${k}"${u.group===k?" selected":""}>${g.name}</option>`).join("")}</select></td><td>${u.mustChange?"tymczasowy":"ustawiony"}</td><td><button class="btn ghost sm" data-kpin="${u.id}">Resetuj PIN</button> <button class="btn ghost sm" data-kdel="${u.id}"${AUTH.me&&AUTH.me.id===u.id?" disabled":""}>Usuń</button></td></tr>`).join("")}</table>
+  box.innerHTML=`<p class="lead">Konta i grupy jak we FlotoMax. PIN-y są zapisane wyłącznie jako skrót (hash). Reset nadaje tymczasowy PIN, który osoba musi zmienić przy pierwszym logowaniu.</p><table class="bil-real"><tr><th>Osoba</th><th>Grupa</th><th data-tip="Dostęp do danych płacowych (stawki, wypłaty brutto)">Płace</th><th>Stan PIN</th><th></th></tr>${AUTH.users.map(u=>`<tr><td>${esc(u.name)}</td><td><select data-kgrp="${u.id}">${Object.entries(GROUPS).map(([k,g])=>`<option value="${k}"${u.group===k?" selected":""}>${g.name}</option>`).join("")}</select></td><td>${u.group==="admin"?"✓ (admin)":`<label><input type="checkbox" data-kpay="${u.id}"${u.pay?" checked":""}> płace</label>`}</td><td>${u.mustChange?"tymczasowy":"ustawiony"}</td><td><button class="btn ghost sm" data-kpin="${u.id}">Resetuj PIN</button> <button class="btn ghost sm" data-kdel="${u.id}"${AUTH.me&&AUTH.me.id===u.id?" disabled":""}>Usuń</button></td></tr>`).join("")}</table>
   <div class="row" style="margin-top:10px"><input id="k-name" placeholder="Imię i nazwisko"><select id="k-grp">${Object.entries(GROUPS).map(([k,g])=>`<option value="${k}">${g.name}</option>`).join("")}</select><button class="btn" id="k-add">Dodaj konto</button></div><div id="k-msg" class="lead"></div>`}
 const tmpPin=()=>String(1000+crypto.getRandomValues(new Uint16Array(1))[0]%9000);
 document.addEventListener("click",ev=>{const t=ev.target;if(!isAdmin()||!AUTH.users)return;
@@ -1989,7 +1992,7 @@ document.addEventListener("click",ev=>{const t=ev.target;if(!isAdmin()||!AUTH.us
   if(t.dataset?.kdel)guard(async()=>{if(AUTH.users.filter(u=>u.group==="admin").length<2&&AUTH.users.find(x=>x.id===t.dataset.kdel)?.group==="admin"){show("Nie można usunąć ostatniego Administratora.");return}AUTH.users=AUTH.users.filter(x=>x.id!==t.dataset.kdel);await saveUsers();renderKonta()});
   if(t.id==="k-add")guard(async()=>{const n=$("k-name").value.trim();if(!n)return;const p=tmpPin(),u={id:uid(),name:n,group:$("k-grp").value,salt:newSalt(),mustChange:true};u.hash=await pinHash(u.salt,p);AUTH.users.push(u);await saveUsers();renderKonta();show(`Dodano <b>${esc(n)}</b>. Tymczasowy PIN: <b style="font-size:18px">${p}</b> — przekaż osobiście.`)});
 });
-document.addEventListener("change",ev=>{const t=ev.target;if(!t.dataset?.kgrp||!isAdmin())return;guard(async()=>{const u=AUTH.users.find(x=>x.id===t.dataset.kgrp);if(u.group==="admin"&&AUTH.users.filter(x=>x.group==="admin").length<2){renderKonta();return}u.group=t.value;await saveUsers();if(AUTH.me?.id===u.id){AUTH.me=u;applyRole()}renderKonta()})});
+document.addEventListener("change",ev=>{const t=ev.target;if(t.dataset?.kpay&&isAdmin()&&AUTH.users){guard(async()=>{const u=AUTH.users.find(x=>x.id===t.dataset.kpay);if(t.checked)u.pay=true;else delete u.pay;await saveUsers();renderKonta()});return}if(!t.dataset?.kgrp||!isAdmin())return;guard(async()=>{const u=AUTH.users.find(x=>x.id===t.dataset.kgrp);if(u.group==="admin"&&AUTH.users.filter(x=>x.group==="admin").length<2){renderKonta();return}u.group=t.value;await saveUsers();if(AUTH.me?.id===u.id){AUTH.me=u;applyRole()}renderKonta()})});
 // --- historia kierowcy (Kadry) ---
 function renderHist(){const box=$("hist-body");if(!box)return;const sel=$("hist-emp"),f=$("hist-from"),t=$("hist-to");
   if(!sel.options.length){sel.innerHTML=S.emps.filter(e=>!/wirtualn/i.test(e.name)).map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join("");const td=warsawDay();t.value=td;f.value=addDays(td,-30)}
@@ -2009,5 +2012,52 @@ document.addEventListener("click",ev=>{const t=ev.target.closest("[data-rename]"
 {const _r=render;render=function(){_r();try{renderHist();renderKonta()}catch(e){}}}
 document.querySelector('nav .tab[data-tab="kadry"]')?.addEventListener("click",()=>renderHist());
 authInit();
+
+// ---------- dane płacowe (wrażliwe): tylko Administrator i osoby z uprawnieniem „płace” ----------
+// Stawki i wypłaty brutto są zaszyfrowane (AES-GCM, klucz z „hasła płacowego” przez PBKDF2) w app/payroll.
+// Bez hasła nikt – także ktoś czytający bazę – nie odczyta kwot.
+const PAY={key:null,data:null,doc:null,ver:null};
+const hasPay=()=>!AUTH.users||AUTH.me?.group==="admin"||!!AUTH.me?.pay;
+const b64=u=>btoa(String.fromCharCode(...new Uint8Array(u))),unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function payKey(pass,salt){const k=await crypto.subtle.importKey("raw",new TextEncoder().encode(pass),"PBKDF2",false,["deriveKey"]);return crypto.subtle.deriveKey({name:"PBKDF2",salt:unb64(salt),iterations:250000,hash:"SHA-256"},k,{name:"AES-GCM",length:256},false,["encrypt","decrypt"])}
+async function payEnc(obj){const iv=crypto.getRandomValues(new Uint8Array(12));const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},PAY.key,new TextEncoder().encode(JSON.stringify(obj)));return{iv:b64(iv),ct:b64(ct)}}
+async function payDec(d){const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(d.iv)},PAY.key,unb64(d.ct));return JSON.parse(new TextDecoder().decode(pt))}
+async function savePay(){const e=await payEnc(PAY.data);PAY.doc={...PAY.doc,...e,by:AUTH.me?.name||"",at:new Date().toISOString()};await S.db.doc("app/payroll").set(PAY.doc)}
+function applyPayRates(){const r=PAY.key&&hasPay()?PAY.data?.rates||{}:null;for(const e of S.emps){if(r&&r[e.id]){e.rate=r[e.id].rate;e.rateUnit=r[e.id].unit}else{delete e.rate;delete e.rateUnit}}}
+function payLock(){PAY.key=null;PAY.data=null;applyPayRates();document.body.classList.remove("pay-ok")}
+async function payLoad(){try{const s=await S.db.doc("app/payroll").get();PAY.doc=s.exists?structuredClone(s.data()):null}catch(e){PAY.doc=null}}
+async function payUnlock(pass,setNew){
+  if(setNew){if(pass.length<8)throw new Error("Hasło płacowe musi mieć co najmniej 8 znaków.");const salt=b64(crypto.getRandomValues(new Uint8Array(16)));PAY.key=await payKey(pass,salt);PAY.doc={salt};
+    // przeniesienie stawek wpisanych dawniej jawnie w kartotece kierowców
+    const rates={};let snap;try{snap=await S.db.doc("app/employees").get()}catch(e){}for(const e of (snap?.exists?snap.data().items:[])||[])if(e.rate!=null)rates[e.id]={rate:e.rate,unit:e.rateUnit||"h"};
+    PAY.data={rates,months:{}};await savePay();if(Object.keys(rates).length)await saveE()}
+  else{if(!PAY.doc?.salt)throw new Error("Hasło płacowe nie jest jeszcze ustawione.");PAY.key=await payKey(pass,PAY.doc.salt);try{PAY.data=await payDec(PAY.doc)}catch(e){PAY.key=null;throw new Error("Błędne hasło płacowe.")}}
+  document.body.classList.add("pay-ok");applyPayRates();render()}
+function renderPlace(){const box=$("place-body");if(!box)return;
+  if(!hasPay()){box.innerHTML='<p class="lead">Brak dostępu do danych płacowych.</p>';return}
+  if(!PAY.key){const first=!PAY.doc?.salt;box.innerHTML=`<p class="lead">Dane płacowe (stawki, wypłaty brutto) są zaszyfrowane. ${first?"Ustaw hasło płacowe (min. 8 znaków). Przekaż je tylko osobom z dostępem do płac. Bez niego danych nie da się odzyskać.":"Wpisz hasło płacowe, aby je odczytać."}</p><div class="row"><input type="password" id="pay-pass" placeholder="hasło płacowe" autocomplete="off"><button class="btn" id="pay-unlock">${first?"Ustaw hasło":"Odblokuj"}</button></div><div class="lg-msg" id="pay-msg"></div>`;return}
+  const mon=$("pay-month")?.value||warsawDay().slice(0,7);const M=PAY.data.months[mon]||{rows:{},status:"szkic"};const rep=hrReport(mon);const appr=M.status==="zatwierdzony";
+  const sug=(e,r)=>{const x=PAY.data.rates[e.employeeId];if(!x)return"";if(x.unit==="d")return Math.round(x.rate*r.earned*100)/100;if(x.unit==="m")return x.rate;return""};
+  box.innerHTML=`<div class="row" style="flex-wrap:wrap"><label class="muted">Miesiąc <input type="month" id="pay-month" value="${mon}"></label><span class="tag">${appr?`zatwierdzony: ${esc(M.approvedBy)} · ${String(M.approvedAt).slice(0,10)}`:"szkic – do uzupełnienia i zatwierdzenia"}</span><button class="btn ghost sm" id="pay-lock">🔒 Zablokuj</button></div>
+  <div style="overflow-x:auto;max-width:100%"><table class="bil-real"><tr><th>Kierowca</th><th>Stawka</th><th>Dniówki</th><th data-tip="Propozycja: stawka × dniówki (dla stawki dziennej) albo stawka miesięczna. Kwotę wpisuje i zatwierdza Kadry.">Propozycja</th><th>Wypłata brutto (zł)</th><th>Uwagi</th></tr>
+  ${rep.filter(r=>!/wirtualn/i.test(r.name)).map(r=>{const x=PAY.data.rates[r.employeeId]||{};const row=M.rows[r.employeeId]||{};const sg=sug(r,r);return `<tr><td>${esc(r.name)}</td><td><input data-prate="${r.employeeId}" value="${x.rate??""}" inputmode="decimal" style="width:80px"${appr?" disabled":""}> <select data-punit="${r.employeeId}"${appr?" disabled":""}>${[["h","zł/godz."],["d","zł/dniówkę"],["m","zł/mies."]].map(([k,l])=>`<option value="${k}"${(x.unit||"h")===k?" selected":""}>${l}</option>`).join("")}</select></td><td>${fdn(r.earned)}</td><td>${sg===""?"—":zl(sg)}</td><td><input data-pbr="${r.employeeId}" value="${row.brutto??""}" inputmode="decimal" style="width:110px"${appr?" disabled":""}></td><td><input data-pnote="${r.employeeId}" value="${esc(row.note||"")}" style="width:160px"${appr?" disabled":""}></td></tr>`}).join("")}</table></div>
+  <div class="row" style="margin-top:8px">${appr?(AUTH.me?.group==="admin"||!AUTH.users?'<button class="btn ghost" id="pay-reopen">Otwórz ponownie do zmian</button>':""):'<button class="btn" id="pay-save">Zapisz szkic</button><button class="btn" id="pay-approve" style="background:#166534">Zatwierdź listę</button>'}</div><div class="lg-msg" id="pay-msg"></div>`}
+const payMsg=m=>{const x=$("pay-msg");if(x)x.textContent=m};
+function payCollect(mon){const M=PAY.data.months[mon]||(PAY.data.months[mon]={rows:{},status:"szkic"});
+  document.querySelectorAll("[data-prate]").forEach(i=>{const id=i.dataset.prate,v=parseFloat(String(i.value).replace(",","."));const u=document.querySelector(`[data-punit="${id}"]`).value;if(Number.isFinite(v)&&v>=0)PAY.data.rates[id]={rate:Math.round(v*100)/100,unit:u};else delete PAY.data.rates[id]});
+  document.querySelectorAll("[data-pbr]").forEach(i=>{const id=i.dataset.pbr,v=parseFloat(String(i.value).replace(/\s/g,"").replace(",","."));const note=document.querySelector(`[data-pnote="${id}"]`).value.trim().slice(0,200);if(Number.isFinite(v)||note)M.rows[id]={...(Number.isFinite(v)?{brutto:Math.round(v*100)/100}:{}),...(note?{note}:{})};else delete M.rows[id]});return M}
+document.addEventListener("click",ev=>{const id=ev.target.id;if(!["pay-unlock","pay-lock","pay-save","pay-approve","pay-reopen"].includes(id)||!hasPay())return;
+  guard(async()=>{const mon=$("pay-month")?.value;
+    if(id==="pay-unlock"){const first=!PAY.doc?.salt;if(first&&AUTH.users&&AUTH.me?.group!=="admin"){payMsg("Hasło płacowe ustawia Administrator.");return}try{await payUnlock($("pay-pass").value,first)}catch(e){payMsg(e.message);return}renderPlace();return}
+    if(id==="pay-lock"){payLock();render();return}
+    if(id==="pay-save"){payCollect(mon);await savePay();applyPayRates();renderPlace();payMsg("Zapisano szkic.");return}
+    if(id==="pay-approve"){const M=payCollect(mon);M.status="zatwierdzony";M.approvedBy=AUTH.me?.name||"—";M.approvedAt=new Date().toISOString();await savePay();applyPayRates();renderPlace();return}
+    if(id==="pay-reopen"){const M=PAY.data.months[mon];M.status="szkic";delete M.approvedBy;delete M.approvedAt;await savePay();renderPlace()}})});
+document.addEventListener("change",ev=>{if(ev.target.id==="pay-month")renderPlace();
+  if(ev.target.matches?.("[data-rate],[data-rateunit]")&&PAY.key&&hasPay()){guard(async()=>{const id=ev.target.dataset.rate||ev.target.dataset.rateunit;const e=S.emps.find(x=>x.id===id);if(!e)return;if(e.rate!=null)PAY.data.rates[id]={rate:e.rate,unit:e.rateUnit||"h"};else delete PAY.data.rates[id];await savePay()})}});
+{const _ar=applyRole;applyRole=function(){_ar();const t=document.querySelector('nav .tab[data-tab="place"]');if(t)t.hidden=!hasPay();if(!hasPay()&&PAY.key)payLock();document.body.classList.toggle("pay-ok",!!PAY.key&&hasPay());if(t&&t.hidden&&t.classList.contains("active"))document.querySelector("nav .tab:not([hidden])")?.click()}}
+{const _r2=render;render=function(){_r2();try{renderPlace()}catch(e){}}}
+document.querySelector('nav .tab[data-tab="place"]')?.addEventListener("click",()=>guard(async()=>{if(!PAY.doc)await payLoad();renderPlace()}));
+document.addEventListener("click",ev=>{if(ev.target.id==="logout")payLock()},true);
 
 </script>

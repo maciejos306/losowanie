@@ -6,7 +6,7 @@ await p.evaluate(async()=>{const mk=async(id,name,group,pin,mc)=>{const salt=new
  __docs['app/users']={items:[await mk('a','Administrator','admin','1234'),await mk('m','Mariola Basiaga','spedycja','1111',true),await mk('j','Jolanta','kadry','2222')]};try{sessionStorage.clear()}catch(e){}await authInit()});
 await p.waitForTimeout(300);
 ok('ekran logowania',await p.isVisible('#login'));ok('grupy',(await p.textContent('#login')).includes('Spedycja'));
-await p.click('[data-lgu=m]');await p.fill('#lg-pin','9999');await p.click('#lg-ok');await p.waitForTimeout(200);ok('błędny PIN',(await p.textContent('.lg-msg')).includes('Błędny'));
+await p.click('[data-lgu=m]');await p.fill('#lg-pin','9999');await p.click('#lg-ok');await p.waitForTimeout(800);ok('błędny PIN',(await p.textContent('#login .lg-msg')).includes('Błędny'));
 await p.fill('#lg-pin','1111');await p.click('#lg-ok');await p.waitForTimeout(200);ok('wymuszona zmiana',(await p.textContent('#login')).includes('Ustaw nowy'));
 await p.fill('#lg-pin','4321');await p.click('#lg-ok');await p.waitForTimeout(150);await p.fill('#lg-pin','4321');await p.click('#lg-ok');await p.waitForTimeout(400);
 ok('zalogowano',!(await p.isVisible('#login')));
@@ -25,6 +25,6 @@ ok('kadry: plan tylko podgląd',await p.evaluate(()=>document.body.classList.con
 await p.click('nav .tab[data-tab=kadry]');await p.waitForTimeout(300);ok('historia kierowcy',await p.evaluate(()=>document.getElementById('hist-emp').options.length>0));
 // admin
 await p.click('#logout');await p.click('[data-lgu=a]');await p.fill('#lg-pin','1234');await p.click('#lg-ok');await p.waitForTimeout(400);
-const t3=await p.$$eval('nav .tab',x=>x.filter(y=>!y.hidden).length);ok('admin: wszystkie zakładki + Konta',t3===11,t3);
+const t3=await p.$$eval('nav .tab',x=>x.filter(y=>!y.hidden).length);ok('admin: wszystkie zakładki + Konta + Płace',t3===12,t3);
 await p.click('nav .tab[data-tab=konta]');await p.click('[data-kpin=j]');await p.waitForTimeout(300);ok('reset PIN pokazuje tymczasowy',/\d{4}/.test(await p.textContent('#k-msg')));
 console.log('ERRS',er);await b.close()})();

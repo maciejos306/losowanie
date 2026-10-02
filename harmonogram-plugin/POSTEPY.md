@@ -152,3 +152,8 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 - Kadry: Kadry, Rejestr, Pracownicy (zmiana nazwiska ✎, kat., aktywny), Historia kierowcy (dzień po dniu, wyjazd/powrót z FlotoMax lub plan, dniówki, filtr dat); plan tylko do podglądu.
 - Administrator: wszystko + zakładka Konta (dodaj, usuń, zmień grupę, resetuj PIN). Asystent AI tylko dla Administratora.
 - Ograniczenie: logowanie działa w przeglądarce — porządkuje menu, nie jest twardym zabezpieczeniem danych.
+
+## v76 — dane płacowe tylko dla Jolanty i Administratora
+- Nowa zakładka „Płace 🔒”: stawki i wypłata brutto na miesiąc, propozycja (stawka × dniówki), Zapisz szkic / Zatwierdź listę (kto i kiedy), ponowne otwarcie tylko przez Administratora.
+- Dane zaszyfrowane w app/payroll (AES-GCM, klucz z hasła płacowego, PBKDF2 250 tys.). Hasło ustawia Administrator; bez niego kwot nie odczyta nikt, także ktoś czytający bazę.
+- Uprawnienie „płace” nadawane w Kontach (Jolanta: tak). Stawki usunięte z kartoteki kierowców i z eksportu; pola stawek i kwoty ukryte dla pozostałych.
