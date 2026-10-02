@@ -142,3 +142,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 ## v73 — dymki z opisem
 - Po najechaniu myszą (ok. 0,6 s) pojawia się okienko z opisem: nagłówki tabel, pola ustawień, liczniki KPI oraz wszystkie elementy, które miały podpowiedź (kafelki, sumy, wolne miejsca).
 - Słownik ok. 80 opisów pojęć (Bilans, Kadry, Rejestr, Kalendarz, Typy zmian).
+
+## v74 — Bilans z danych rzeczywistych
+- Druga karta Bilansu: średnia z tygodni grafiku (obsadzone trasy, rzeczywiste urlopy/L4), godziny planowane i wykonane (FlotoMax), wiarygodność danych wg liczby tygodni historii.
