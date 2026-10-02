@@ -72,3 +72,7 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v56
 - Nowa szata wg projektu planera (https://claude.ai/artifact/RVYkkMqBy6e591oLbX4aiu): IBM Plex Sans/Mono, tło #F3F4F1, ciemne menu z bursztynowym aktywnym, niebieski przycisk główny, zakładki jako segmenty, białe karty; kafelki w kolorach kategorii (dzienne zielone, dalekie pomarańczowe, dyżur szary, zwroty oliwkowe, z FlotoMax fioletowe) z ciemnym tekstem; jasny i ciemny motyw.
+
+## v57
+- Zakładka Kalendarz: kartka miesiąca (pon–ndz), święta ustawowe i dni wolne firmy, urlopy/L4/wnioski/odpoczynek pracowników, dziś zaznaczone, nawigacja miesiącami. Test: testy/kal.js.
+- Plan: ciągły grafik (jedna oś czasu, 20 dni do przodu automatycznie) — do zrobienia.

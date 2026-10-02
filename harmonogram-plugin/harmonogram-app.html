@@ -212,6 +212,18 @@
   .floto{background:var(--paper);border:1px solid var(--line2);border-radius:10px}
   .kpi{background:var(--paper);border:1px solid var(--line2);border-radius:10px}
   #notice:not(:empty){border-radius:8px}
+
+  .kal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+  .kal .kh{font-size:12px;font-weight:600;color:var(--muted);text-align:center;padding:4px 0;text-transform:uppercase;letter-spacing:.04em}
+  .kal .kd{background:var(--paper);border:1px solid var(--line2);border-radius:10px;min-height:118px;padding:8px;display:flex;flex-direction:column;gap:4px;min-width:0}
+  .kal .kd.out{opacity:.45}.kal .kd.we{background:var(--weekend)}.kal .kd.today{box-shadow:inset 0 0 0 2px var(--accent)}
+  .kal .kd.hol{background:#FCEBDD}.kal .kd.off{background:#EFE9F7}
+  .kal .num{font-weight:700;font-size:15px;display:flex;justify-content:space-between;align-items:baseline}.kal .num small{font-size:11px;font-weight:500;color:var(--muted)}
+  .kal .ev{font-size:11.5px;line-height:1.25;border-radius:6px;padding:2px 6px;overflow-wrap:anywhere}
+  .k-hol{background:#F6DCC9;color:#7A2E0B;font-weight:600}.k-off{background:#E9E1F3;color:#4A2E7A;font-weight:600}.k-urlop{background:#DCE8F3;color:#143F5D}.k-l4{background:#F8DAD7;color:#8C1D18}.k-wn{background:#FDF3D1;color:#6B5212;border:1px dashed #C9A227}.k-rest{background:#F7EFD9;color:#6B5212}
+  .kal-leg{display:flex;flex-wrap:wrap;gap:6px}.kal-leg span{font-size:11.5px;border-radius:6px;padding:2px 8px}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .kal .kd.hol{background:#3A2A1E}:root:not([data-theme="light"]) .kal .kd.off{background:#2C2438}}
+  @media (max-width:700px){.kal{gap:3px}.kal .kd{min-height:84px;padding:4px}.kal .ev{font-size:10px;padding:1px 3px}.kal .kh{font-size:10px}}
   table.plan td.cell,table.plan td.who{background:var(--paper)!important;background-image:none!important}
   table.plan td.cell.weekend{background:var(--weekend)!important}
   table.plan .alt,table.tl th.alt{background-image:none}
@@ -245,6 +257,7 @@
       <button class="tab" data-tab="kadry" data-label="tab-kadry">Kadry</button>
       <button class="tab" data-tab="bilans" data-label="tab-bilans">Bilans</button>
       <button class="tab" data-tab="rejestr" data-label="tab-rejestr">Rejestr</button>
+      <button class="tab" data-tab="kalendarz" data-label="tab-kalendarz">Kalendarz</button>
     </nav>
     <div class="floto" id="floto" role="status" aria-live="polite"><span class="fl-dot" aria-hidden="true"></span><span id="floto-txt">FlotoMax: łączenie…</span><button class="btn ghost sm" id="floto-btn">⟳ Pobierz z FlotoMax</button><button class="btn ghost sm" id="floto-send" title="Wysyła do FlotoMax grafik od bieżącego tygodnia (każdy tydzień nadpisuje poprzednią wersję), żeby kierowcy widzieli plan w aplikacji">⇪ Wyślij grafik do FlotoMax</button><details id="floto-det" hidden><summary>Szczegóły ostatniego pobrania</summary><ul id="floto-list"></ul></details></div>
 
@@ -259,6 +272,11 @@
       <textarea id="hr-out" style="display:none;width:100%;height:100px;font:11px monospace;margin-top:8px"></textarea>
     </div>
 
+    <div class="screen" id="kalendarz">
+      <div class="row" style="justify-content:space-between"><div class="row" style="margin:0"><button class="btn ghost sm" id="kal-prev" aria-label="Poprzedni miesiąc">‹</button><h2 id="kal-title" style="font-size:20px;min-width:220px;text-align:center"></h2><button class="btn ghost sm" id="kal-next" aria-label="Następny miesiąc">›</button><button class="btn ghost sm" id="kal-today">Dziś</button></div>
+      <div class="kal-leg"><span class="k-hol">święto</span><span class="k-off">dzień wolny</span><span class="k-urlop">urlop</span><span class="k-l4">L4</span><span class="k-wn">wniosek</span><span class="k-rest">odpoczynek</span></div></div>
+      <div class="kal" id="kal-grid"></div>
+    </div>
     <div class="screen" id="rejestr">
       <p class="lead" data-label="txt-rejestr">Rejestr tygodni: ile dniówek (monet) i ile roboczogodzin zrobił w tygodniu każdy kierowca. Godziny są rzeczywiste, gdy znamy odjazd od bazy i powrót, a w pozostałych przypadkach pochodzą z Założeń. Odpoczynek w trasie kierowcy kat. C nie jest czasem pracy: odliczamy faktyczny odpoczynek zgłoszony we FlotoMax, a gdy go brak (plan), 9 h na długiej trasie (od 2 dniówek, wyjazd co najmniej 12 h). Na tej podstawie widać, który system rozliczania, dniówkami czy godzinami, jest dla kierowcy i dla firmy korzystniejszy.</p>
       <div class="row"><label class="muted">Tydzień <select id="reg-week"></select></label><label class="muted">Zakres porównania <select id="reg-scope"><option value="week">wybrany tydzień</option><option value="month">miesiąc wybranego tygodnia</option><option value="all">wszystkie tygodnie</option></select></label><label class="muted">Dodatek za godziny ponad normę (system godzinowy) <input type="number" id="reg-prem" min="0" max="300" step="5" style="width:80px"> %</label><button class="btn ghost sm" id="reg-csv">Kopiuj CSV</button></div>
@@ -633,7 +651,7 @@ async function boot(){
 }
 
 // ---------- render ----------
-function render(){renderEmps();renderShifts();renderList();renderPlan();renderTemplate();renderDysp();renderHR();try{renderBilans()}catch(e){console.error(e)}try{renderRegister()}catch(e){console.error(e)}applyLabels()}
+function render(){renderEmps();renderShifts();renderList();renderPlan();renderTemplate();renderDysp();renderHR();try{renderBilans()}catch(e){console.error(e)}try{renderRegister()}catch(e){console.error(e)}try{renderKalendarz()}catch(e){console.error(e)}applyLabels()}
 function renderTemplate(){
   const T=$("plan-template");
   if(!S.shifts.length){T.innerHTML="";return}
@@ -836,6 +854,24 @@ async function assignShift(empId,date,shiftId,opts={}){
   document.addEventListener("pointerup",finish); document.addEventListener("pointercancel",finish);
 })();
 let suppressClick=false;
+
+// ---------- Kalendarz: kartka miesiąca ze świętami, dniami wolnymi i nieobecnościami ----------
+let kalMonth=null;
+const MONTHS=["styczeń","luty","marzec","kwiecień","maj","czerwiec","lipiec","sierpień","wrzesień","październik","listopad","grudzień"];
+function renderKalendarz(){const G=$("kal-grid");if(!G)return;const today=typeof warsawDay==="function"?warsawDay():fmt(new Date());if(!kalMonth)kalMonth=today.slice(0,7);
+  const y=+kalMonth.slice(0,4),m=+kalMonth.slice(5,7);$("kal-title").textContent=MONTHS[m-1]+" "+y;
+  const first=kalMonth+"-01",start=addDays(first,-((wdOf(first)+6)%7)),RC={urlop:"k-urlop",l4:"k-l4",wniosek:"k-wn",odpoczynek:"k-rest"};
+  const byDay={};for(const a of S.abs){(byDay[a.date]??=[]).push(a)}
+  let h=["Pon","Wt","Śr","Czw","Pt","Sob","Nd"].map(x=>`<div class="kh">${x}</div>`).join("");
+  for(let i=0;i<42;i++){const d=addDays(start,i);if(i===35&&d.slice(0,7)!==kalMonth)break;const e=calDay(d),wd=wdOf(d);
+    const cls=["kd",d.slice(0,7)!==kalMonth?"out":"",wd===0||wd===6?"we":"",d===today?"today":"",e?(e.kind==="firmowy"?"off":"hol"):""].filter(Boolean).join(" ");
+    const evs=[];if(e)evs.push(`<div class="ev ${e.kind==="firmowy"?"k-off":"k-hol"}" title="${esc(e.name)}">${e.kind==="firmowy"?"":"★ "}${esc(e.name)}</div>`);
+    for(const a of (byDay[d]||[]).sort((x,y)=>String(x.reason).localeCompare(String(y.reason)))){const emp=S.emps.find(x=>x.id===a.empId);if(!emp)continue;evs.push(`<div class="ev ${RC[a.reason]||"k-urlop"}" title="${esc(emp.name)}: ${esc(REASONS[a.reason]||a.reason)}${a.note?" · "+esc(a.note):""}">${esc(emp.name)} · ${esc(REASONS[a.reason]||a.reason)}</div>`)}
+    h+=`<div class="${cls}"><div class="num">${+d.slice(8)}<small>${d===today?"dziś":""}</small></div>${evs.join("")}</div>`}
+  G.innerHTML=h}
+$("kal-prev").onclick=()=>{const [y,m]=kalMonth.split("-").map(Number);const t=new Date(Date.UTC(y,m-2,1));kalMonth=t.toISOString().slice(0,7);renderKalendarz()};
+$("kal-next").onclick=()=>{const [y,m]=kalMonth.split("-").map(Number);const t=new Date(Date.UTC(y,m,1));kalMonth=t.toISOString().slice(0,7);renderKalendarz()};
+$("kal-today").onclick=()=>{kalMonth=null;renderKalendarz()};
 
 // przewijanie tabeli i strony przy krawędzi podczas przeciągania
 const tlAuto={x:0,y:0,t:null,cb:null};
