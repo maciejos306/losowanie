@@ -138,3 +138,7 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v72 — opis nadgodzin w Bilansie
 - „Dopuszczalne nadgodziny” opisane: dniówki na kierowcę na tydzień, tylko do Bilansu.
+
+## v73 — dymki z opisem
+- Po najechaniu myszą (ok. 0,6 s) pojawia się okienko z opisem: nagłówki tabel, pola ustawień, liczniki KPI oraz wszystkie elementy, które miały podpowiedź (kafelki, sumy, wolne miejsca).
+- Słownik ok. 80 opisów pojęć (Bilans, Kadry, Rejestr, Kalendarz, Typy zmian).
