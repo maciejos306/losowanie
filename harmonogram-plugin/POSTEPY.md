@@ -40,3 +40,11 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v48
 - Naprawa: ręcznie wstawiona (zablokowana) trasa w dniu odpoczynku po wcześniejszej dalekiej trasie (np. T8 → T11 dzień później). Naprawa kolizji (repair) nie przydziela trasy, po której odpoczynek wypada na zablokowany przydział tej osoby; przy ręcznym wstawieniu sprawdzanie zaczyna się kilka dni wcześniej (maks. liczba dni odpoczynku). Test: testy/rest8.js.
+
+## v49 — połączenie z FlotoMax
+- Łącznik MCP „FlotoMax” (claude.ai → Ustawienia → Łączniki), capability `mcp` z narzędziami list_drivers, list_trips.
+- Pasek „FlotoMax” pod zakładkami: pobranie po otwarciu strony, co 10 min i przyciskiem. Szczegóły: co wpisano i co do sprawdzenia.
+- Kierowcy: łączenie po `flotoId` (lub nazwisku), nowi aktywni dopisywani (kat. C wg FlotoMax).
+- Wyjazdy: dzień = dzień dostawy, out/back w czasie polskim, `tripAt` (pełne daty, dokładne godziny także > doby), trasa zamknięta, Nagel/dyżur = zrealizowany z dutyH. Wyjazd < 15 min pomijany, nieznany typ trasy (np. „Trasa niezapowiedziana”) zgłaszany. Faktyczny kierowca zastępuje zaplanowanego.
+- Wpisano do bazy wyjazdy 29.09–02.10 (20) i kierowcę Dariusz Faraś.
+- Test: testy/floto.js (dane: testy/floto_data.json).

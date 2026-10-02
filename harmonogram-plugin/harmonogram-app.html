@@ -163,6 +163,10 @@
   .tl-abs{position:absolute;top:7px;height:36px;left:2%;right:2%;border-radius:7px;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
   .tl-abs.urlop{background:var(--urlop);color:var(--urlop-ink)}.tl-abs.l4{background:var(--l4);color:var(--l4-ink)}.tl-abs.wniosek{background:#fff3c4;color:#7a5a00}.tl-abs.odpoczynek{background:var(--rest);color:var(--rest-ink)}
   .edot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:-1px;box-shadow:0 0 0 2px rgba(255,255,255,.7)}
+  .floto{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12.5px;padding:6px 10px;margin:0 0 8px;border:1px solid var(--line);border-radius:8px;background:var(--cream)}
+  .floto .fl-dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+  .floto.ok .fl-dot{background:#2f8a4f}.floto.err .fl-dot{background:#c0392b}.floto.busy .fl-dot{background:#d79b00}
+  .floto details{flex-basis:100%;font-size:12px}.floto details li{margin:2px 0}
   .status{font-size:11.5px;color:var(--muted);padding:6px 16px;border-top:1px solid var(--line);background:var(--cream)}
 </style>
 
@@ -193,6 +197,7 @@
       <button class="tab" data-tab="bilans" data-label="tab-bilans">Bilans</button>
       <button class="tab" data-tab="rejestr" data-label="tab-rejestr">Rejestr</button>
     </nav>
+    <div class="floto" id="floto" role="status" aria-live="polite"><span class="fl-dot" aria-hidden="true"></span><span id="floto-txt">FlotoMax: łączenie…</span><button class="btn ghost sm" id="floto-btn">⟳ Pobierz z FlotoMax</button><details id="floto-det" hidden><summary>Szczegóły ostatniego pobrania</summary><ul id="floto-list"></ul></details></div>
 
     <div class="screen" id="kadry">
       <p class="lead" data-label="txt-kadry">Ewidencja dla działu kadr. Rozliczamy się dniówkami, jak monetami: trasa daje tyle dniówek, ile ma wagi (zrealizowany dyżur 0,5, Trasy 1–7 po 1, Trasy 8–11 po 2,5, Trasa 12 po 2). Do przeliczeń na godziny: 1 dniówka = 8,5 h (0,5 → 5 h, 1,5 → 13,5 h, 2 → 18 h, 2,5 → 22,5 h; do zmiany przy typie zmiany). Norma to 5 dniówek na tydzień (pon.–ndz.), pomniejszona o dni L4. Każdy dzień wolny przydzielony przez system albo urlop bez wyjazdu kosztuje 1 dniówkę z salda, a dalekie trasy i dodatkowe dni je podnoszą. Dyżur liczy się tylko zrealizowany: 0,5 dniówki, a gdy wyjazd z powrotem do bazy trwa ponad 5 h, 1 dniówka. Zaplanowany lub niewykorzystany przez FlotoMax daje 0. Jego godziny widać osobno. Kolumny „stan dni wolnych” i „stan dniówek” wpisuje ręcznie kadrowa.</p>
@@ -356,12 +361,15 @@ function empRef(x){
   const hits=S.emps.filter(e=>{const n=nz(e.name);return n===q||n.includes(q)||q.split(/\s+/).every(w=>w.length>2&&n.split(/\s+/).some(p=>p.startsWith(w.slice(0,Math.max(4,w.length-2)))))});
   if(hits.length===1)return hits[0];throw new Error(hits.length?"Kilku kierowców pasuje: "+hits.map(h=>h.name).join(", "):"Nie znaleziono kierowcy: "+x)}
 const parseOrders=x=>(Array.isArray(x)?x:String(x||"").split(/\s*(?:\+|,|;|\/| i )\s*/)).map(s=>String(s).trim()).filter(Boolean);
+const flotoLocal=iso=>{try{const d=new Date(iso);if(Number.isNaN(+d))return null;return new Intl.DateTimeFormat("pl-PL",{timeZone:"Europe/Warsaw",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(d)}catch(e){return null}};
+// rzeczywisty czas wyjazdu: z pełnych dat FlotoMax (gdy godziny w komórce się zgadzają), inaczej z HH:MM
+const cellTripH=c=>{if(!(c.out&&c.back))return null;if(Array.isArray(c.tripAt)&&flotoLocal(c.tripAt[0])===c.out&&flotoLocal(c.tripAt[1])===c.back){const v=tripHours(c.tripAt[0],c.tripAt[1]);if(v!=null)return v}return tripHours(c.out,c.back)};
 const isDutyCell=(c,sh)=>!c.part&&(sh?.part||"full")==="pm";
 // dyżur liczy się tylko zrealizowany: zaplanowany lub anulowany = 0 dn.; wyjechał do 5 h = 0,5; wyjazd + powrót do bazy dłuższy niż 5 h = 1 dniówka
 const cellDn=(c,sh)=>{const w=sh?.weight??1;if(!isDutyCell(c,sh))return w;if(c.duty!=="done")return 0;const dh=Number.isFinite(c.dutyH)?c.dutyH:tripHours(c.out,c.back);if(dh!=null&&dh>DUTY_LIMIT_H)return 1;return w};
 const startsPrevDay=sh=>!!sh&&(typeof sh.startPrev==="boolean"?sh.startPrev:(startOf(sh)>=18&&(sh.weight??1)>=2.5));
 const isClosed=(c,sh)=>!!c.closed||(isDutyCell(c,sh)&&(c.duty==="done"||c.duty==="cancelled"));
-function cellBounds(c,sh,d){const actual=(c.out&&c.back)?tripHours(c.out,c.back):null;const planH=(c.duty==="done"&&isDutyCell(c,sh)&&Number.isFinite(c.dutyH))?c.dutyH:hoursOf(sh);const o=c.out&&tmin(c.out)!=null?tmin(c.out)/60:null;return{st:o!=null?o:startOf(sh,d),hh:actual!=null?actual:planH}}
+function cellBounds(c,sh,d){const actual=cellTripH(c);const planH=(c.duty==="done"&&isDutyCell(c,sh)&&Number.isFinite(c.dutyH))?c.dutyH:hoursOf(sh);const o=c.out&&tmin(c.out)!=null?tmin(c.out)/60:null;return{st:o!=null?o:startOf(sh,d),hh:actual!=null?actual:planH}}
 function closedTag(s,d){const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);const cs=s.cells.filter(c=>c.date===d&&c.empId!=null);if(!cs.length)return"";const n=cs.filter(c=>isClosed(c,shMap[c.shiftId])).length;if(!n)return"";return n===cs.length?`<span class="daydone" title="Wszystkie trasy tego dnia są zakończone (dane z FlotoMax).">✔ dzień zakończony</span>`:`<span class="daypart" title="Zakończone trasy (dane z FlotoMax).">zakończone ${n}/${cs.length}</span>`}
 const fd=v=>(v>0?"+":"")+String(Math.round(v*100)/100).replace(".",",");
 // księga dniówek: dniówka to „moneta”. Trasa daje tyle dniówek, ile ma wagi (dyżur 0,5; Trasa 8–11 po 2,5).
@@ -535,6 +543,7 @@ async function boot(){
   const db=await claude.use("db");
   if(!db){setStatus("Baza niedostępna w tym widoku — działa tylko podgląd."); render(); return}
   S.db=db; setStatus("Połączono. Dane zapisują się automatycznie.");
+  setTimeout(()=>flotoSync(false),2500);
   docE().onSnapshot(s=>{S.emps=s.exists?structuredClone(s.data().items||[]):[];render()});
   docS().onSnapshot(s=>{S.shifts=s.exists?structuredClone(s.data().items||[]):[];render()});
   docA().onSnapshot(s=>{S.abs=s.exists?structuredClone(s.data().items||[]):[];if(!S.absLoaded){S.absLoaded=true;for(const id of Object.keys(S.seenAbs))if(S.seenAbs[id]===null)S.seenAbs[id]=absSig()}render()});
@@ -953,7 +962,7 @@ function weekRegister(monday,cfg=regCfg()){
   const base=weekNormDays(monday),prem=(+cfg.prem||0)/100;
   return S.emps.filter(e=>e.active||byE[e.id]).map(e=>{
     let dn=0,hAct=0,hPlan=0,routes=0,duties=0,dutyOpen=0,closed=0;
-    for(const c of byE[e.id]||[]){const sh=shMap[c.shiftId],isD=isDutyCell(c,sh);dn+=cellDn(c,sh);const act=(c.out&&c.back)?tripHours(c.out,c.back):null;
+    for(const c of byE[e.id]||[]){const sh=shMap[c.shiftId],isD=isDutyCell(c,sh);dn+=cellDn(c,sh);const act=cellTripH(c);
       if(isD){duties++;if(c.duty==="cancelled")continue;if(c.duty!=="done"){dutyOpen++;continue}closed++;if(act!=null)hAct+=act;else if(Number.isFinite(c.dutyH))hAct+=c.dutyH;else hPlan+=hoursOf(sh)}
       else{routes++;if(c.closed)closed++;if(act!=null)hAct+=act;else hPlan+=hoursOf(sh)}}
     const l4=new Set(S.abs.filter(a=>a.empId===e.id&&a.reason==="l4"&&a.date>=monday&&a.date<=end&&!reducesNorm(a.date)).map(a=>a.date)).size;
@@ -1132,6 +1141,67 @@ async function reportDutyImpl(employeeId,date,{went,hours,departure,return:ret}=
   if(went===false)return{ok:true,dniowki:0,porownanie:"Kierowca nie wyjechał: dyżur anulowany, 0 dniówek."};
   if(h==null)return{ok:true,dniowki:duty?.weight??0.5,godziny:null,porownanie:"Brak czasu wyjazdu: liczone 0,5 dniówki."};
   const v=dutyVerdict(h,duty?.weight??0.5);return{ok:true,dniowki:v.dn,godziny:h,porownanie:v.text}}
+// ---------- FlotoMax (łącznik MCP) ----------
+const FLOTO="FlotoMax", FL={mcp:undefined,busy:false,last:null,state:"",text:"",items:[]};
+const warsawDay=(off=0)=>{const d=new Date(Date.now()+off*864e5);return new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Warsaw"}).format(d)};
+function flotoShift(label){const l=String(label||"").trim().toLowerCase().replace(/\s+/g," ");if(!l)return null;
+  const byName=S.shifts.find(s=>s.name.trim().toLowerCase().replace(/\s+/g," ")===l);if(byName)return byName;
+  const m=/^trasa (\d+)$/.exec(l);if(m)return S.shifts.find(s=>s.name.trim().toLowerCase().replace(/\s+/g," ")==="trasa "+(+m[1]))||null;
+  if(/nagel|dy[żz]ur/.test(l))return S.shifts.find(s=>s.id==="nagel")||S.shifts.find(s=>(s.part||"full")==="pm")||null;return null}
+function flotoEmp(id,name){let e=S.emps.find(x=>x.flotoId!=null&&String(x.flotoId)===String(id));if(e)return e;
+  try{e=empRef(name)}catch(er){return null}return e.flotoId!=null&&String(e.flotoId)!==String(id)?null:e}
+function applyFlotoDrivers(list){const added=[],linked=[];
+  for(const d of Array.isArray(list)?list:[]){if(!d||d.id==null||!String(d.name||"").trim())continue;const e=flotoEmp(d.id,d.name);
+    if(!e){if(d.active===false)continue;const n=String(d.name).trim().replace(/\s+/g," ");S.emps.push({id:uid(),name:n,active:true,catC:d.catC===true,flotoId:d.id});added.push(n);continue}
+    if(e.flotoId==null||String(e.flotoId)!==String(d.id)){e.flotoId=d.id;linked.push(e.name)}}
+  return{added,linked}}
+const clearCell=c=>{c.empId=null;["locked","part","extra","duty","dutyH","closed","out","back","orders","flotoRoute","tripAt"].forEach(k=>delete c[k])};
+// wyjazdy z FlotoMax: dzień = dzień dostawy (etykieta trasy), godziny = odjazd z bazy i powrót do bazy
+function applyFlotoTrips(trips){const done=[],skipped=[],touched=new Set(),shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
+  for(const t of Array.isArray(trips)?trips:[]){
+    const who=t?.driverName||("kierowca "+t?.driverId),what=`${t?.label||"?"} ${t?.deliveryDate||""}`.trim();
+    const skip=r=>skipped.push(`${who}, ${what}: ${r}`);
+    if(!t||!t.departedAt||!t.returnedToBaseAt){if(t&&t.departedAt)skip("w trasie, brak powrotu do bazy");continue}
+    const e=flotoEmp(t.driverId,t.driverName);if(!e){skip("brak takiego kierowcy w Harmonogramie");continue}
+    const date=String(t.deliveryDate||"");if(!isoDate(date)){skip("brak daty dostawy");continue}
+    const sh=flotoShift(t.label);if(!sh){skip("nie ma takiego typu zmiany w Harmonogramie (dodaj go w „Typy zmian”)");continue}
+    const hrs=tripHours(t.departedAt,t.returnedToBaseAt);if(hrs==null){skip("błędne godziny");continue}
+    if(hrs<0.25){skip(`wyjazd trwał tylko ${Math.round(hrs*60)} min, pewnie błędne kliknięcie, nie wpisuję`);continue}
+    const ss=Object.values(S.scheds).filter(x=>x.start<=date&&date<=x.end);if(!ss.length){skip("brak harmonogramu na ten dzień");continue}
+    let s=ss.find(x=>x.cells.some(c=>c.flotoRoute===t.routeId))||ss.find(x=>x.cells.some(c=>c.date===date&&c.empId===e.id))||ss[0];
+    const isD=(sh.part||"full")==="pm",out=flotoLocal(t.departedAt),back=flotoLocal(t.returnedToBaseAt);
+    let c=s.cells.find(x=>x.flotoRoute===t.routeId);
+    if(c&&(c.date!==date||c.shiftId!==sh.id)){clearCell(c);c=null}
+    const slots=s.cells.filter(x=>x.date===date&&x.shiftId===sh.id);
+    c=c||slots.find(x=>x.empId===e.id)||slots.find(x=>x.empId==null)||slots.find(x=>x.flotoRoute==null);
+    if(!c){c={date,shiftId:sh.id,slot:slots.length?Math.max(...slots.map(x=>x.slot))+1:0,empId:null};s.cells.push(c)}
+    const before=JSON.stringify(c);
+    if(c.empId!==e.id){const prev=c.empId;clearCell(c);c.empId=e.id;
+      // kierowca pojechał inną trasą niż w planie: zdejmij go z zaplanowanej, niepotwierdzonej trasy tego dnia
+      if(!isD)s.cells.filter(x=>x!==c&&x.date===date&&x.empId===e.id&&x.flotoRoute==null&&!isDutyCell(x,shMap[x.shiftId])&&!x.part).forEach(clearCell);
+      if(prev)skipped.push(`${who}, ${what}: w planie był ${S.emps.find(x=>x.id===prev)?.name||prev}, wpisano faktycznego kierowcę`)}
+    c.locked=true;c.flotoRoute=t.routeId;c.tripAt=[t.departedAt,t.returnedToBaseAt];c.out=out;c.back=back;
+    if(isD){c.duty="done";c.dutyH=hrs;delete c.closed}else c.closed=true;
+    if(JSON.stringify(c)!==before){touched.add(s);done.push(`${e.name}, ${sh.name} ${date.slice(8)}.${date.slice(5,7)}: ${out}–${back} (${String(hrs).replace(".",",")} h)${isD?", "+(hrs>DUTY_LIMIT_H?"1 dniówka":"0,5 dniówki"):""}`)}}
+  return{done,skipped,scheds:[...touched]}}
+function renderFloto(){const box=$("floto");if(!box)return;box.className="floto"+(FL.state?" "+FL.state:"");$("floto-txt").textContent=FL.text;$("floto-btn").disabled=FL.busy||FL.mcp===null;
+  const det=$("floto-det");det.hidden=!FL.items.length;$("floto-list").innerHTML=FL.items.map(x=>`<li>${esc(x)}</li>`).join("")}
+const flotoErr=e=>{const c=e?.code;return c==="server_not_connected"?"łącznik FlotoMax nie jest podłączony na Twoim koncie claude.ai (Ustawienia → Łączniki)":c==="not_granted"||c==="denied"||c==="consent_denied"?"brak zgody na użycie łącznika FlotoMax":c==="rate_limited"?"za dużo zapytań, spróbuj za chwilę":"błąd: "+(e?.message||c||e)};
+async function flotoSync(manual){if(FL.busy||!S.db)return;
+  if(FL.mcp===undefined){FL.mcp=await claude.use("mcp")}
+  if(!FL.mcp){FL.state="err";FL.text="FlotoMax: łącznik niedostępny w tym widoku. Dane można wpisać ręcznie.";renderFloto();return}
+  FL.busy=true;FL.state="busy";FL.text="FlotoMax: pobieranie…";renderFloto();
+  try{const dr=(await FL.mcp.callTool(FLOTO,"list_drivers",{},{cache:false})).payload;const r1=applyFlotoDrivers(dr);if(r1.added.length||r1.linked.length)await saveE();
+    const starts=Object.values(S.scheds).map(s=>s.start).sort();const lo=warsawDay(-14);const from=starts.length&&starts[0]>lo?starts[0]:lo,to=warsawDay(1);
+    const tr=(await FL.mcp.callTool(FLOTO,"list_trips",{from,to},{cache:false})).payload;const r2=applyFlotoTrips(tr);for(const s of r2.scheds)await saveSched(s);
+    FL.last=new Date();const hm=new Intl.DateTimeFormat("pl-PL",{timeZone:"Europe/Warsaw",hour:"2-digit",minute:"2-digit"}).format(FL.last);
+    FL.items=[...r1.added.map(n=>"Nowy kierowca z FlotoMax: "+n),...r2.done.map(x=>"Wpisano: "+x),...r2.skipped.map(x=>"Do sprawdzenia: "+x)];
+    FL.state=r2.skipped.length?"ok":"ok";FL.text=`FlotoMax: połączono, ostatnie pobranie ${hm}. `+(r1.added.length||r2.done.length?`Nowe: ${r1.added.length} kierowców, ${r2.done.length} wyjazdów.`:"Bez zmian.")+(r2.skipped.length?` Do sprawdzenia: ${r2.skipped.length}.`:"");
+    if(r1.added.length||r2.done.length)render()}
+  catch(e){FL.state="err";FL.text="FlotoMax: "+flotoErr(e)}
+  finally{FL.busy=false;renderFloto()}}
+$("floto-btn").onclick=()=>flotoSync(true);
+setInterval(()=>{if(document.visibilityState==="visible")flotoSync(false)},10*60*1000);
 async function completeRouteImpl({employeeId,name,date,shiftId,departure,return:ret,completed}={}){
   let e;try{e=empRef(employeeId||name)}catch(er){return{ok:false,message:er.message}}
   if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||"")))return{ok:false,message:"date musi mieć format RRRR-MM-DD"};
