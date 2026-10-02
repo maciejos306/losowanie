@@ -117,3 +117,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v66
 - Sobota i niedziela wyraźniej: tło kolumn #E7E9F2 (ciemny: #232A33), nagłówek z niebieską kreską u góry.
+
+## v67
+- Godziny z planu FlotoMax co do minuty (bez zaokrąglania do 15 min); podziałka osi co 3 h; na części kafelka przed wyjazdem najpierw „wyj. HH:MM”.
