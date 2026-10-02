@@ -76,3 +76,7 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 ## v57
 - Zakładka Kalendarz: kartka miesiąca (pon–ndz), święta ustawowe i dni wolne firmy, urlopy/L4/wnioski/odpoczynek pracowników, dziś zaznaczone, nawigacja miesiącami. Test: testy/kal.js.
 - Plan: ciągły grafik (jedna oś czasu, 20 dni do przodu automatycznie) — do zrobienia.
+
+## v58
+- Każda etykieta ma własny kolor (LABEL_COLORS, jasne odcienie, ciemny napis; nadpisywalny polem shift.color).
+- DO ZROBIENIA: od 12.10 nowe etykiety (do opisania przez właściciela). Trasa 5 znika, numeracja i zasady przesuwają się o -1 od 5: nowa 5 = dawna 6, 6 = dawna 7, 7 = dawna 8 itd.

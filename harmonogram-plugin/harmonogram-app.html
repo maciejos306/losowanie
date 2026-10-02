@@ -487,7 +487,9 @@ const restOf=sh=>sh==null?0:(Number.isFinite(sh.rest)?sh.rest:restDays(sh.weight
 const fmt=d=>d.toISOString().slice(0,10);
 const addDays=(s,n)=>{const d=new Date(s+"T00:00:00Z");d.setUTCDate(d.getUTCDate()+n);return fmt(d)};
 function* range(a,b){for(let d=a;d<=b;d=addDays(d,1))yield d}
-const colorOf=id=>{const s=S.shifts.find(x=>x.id===id);if(!s)return"#E3E7EE";if((s.part||"full")==="pm")return"#E3E7EE";if((s.weight??1)>=2)return"#F6DCC9";if(/zwrot/i.test(s.name))return"#E6EED0";if(s.fromFloto)return"#E9E1F3";return"#DCEBDD"};
+// każda etykieta ma własny, łatwy do zapamiętania kolor (jasne odcienie, ciemny napis)
+const LABEL_COLORS=["#B9E4B0","#AFCBF2","#F7C98B","#9FE0DA","#D3B9F2","#F2E08A","#C3CAD3","#F4A9A0","#F9B98E","#E8A3C4","#E6B8A2","#A9D7F0","#CFD8B4","#C9E79A","#BDB7F2","#F0C2E2"];
+const colorOf=id=>{const s=S.shifts.find(x=>x.id===id);if(s&&s.color)return s.color;const i=S.shifts.findIndex(x=>x.id===id);return LABEL_COLORS[(i<0?0:i)%LABEL_COLORS.length]};
 const absMap=()=>{const m={};S.abs.forEach(a=>{if(BLOCKING_REASONS.has(a.reason))(m[a.empId]??={})[a.date]=a.reason});return m};
 const pendingMap=()=>{const m={};S.abs.forEach(a=>{if(a.reason==="wniosek")(m[a.empId]??={})[a.date]=true});return m};
 
