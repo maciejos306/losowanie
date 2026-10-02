@@ -62,3 +62,7 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 - Oś godzin: kafelki dalekich tras mają kursor przeciągania, działa też kafelek z sąsiedniego grafiku, automatyczne przewijanie przy krawędzi, komunikaty przy nieudanym upuszczeniu.
 - W bazie przeliczono dalekie trasy w grafiku 05.10–01.11 (od dziś, bez zablokowanych).
 - Test: testy/far.js.
+
+## v54
+- Przycisk „⇪ Wyślij grafik do FlotoMax” (set_schedule): tygodnie od bieżącego, replaceFrom/To = pon–ndz, jeden wpis na kierowcę i dzień (zmiany łączone „ + ”), plannedStart = start pierwszej zmiany (dalekie: godzina wyjazdu dzień wcześniej), dni bez przydziału „wolne”, nieobecności jako Urlop/L4/Odpoczynek; bez kierowców wirtualnych. Test: testy/send.js.
+- Plan z arkusza (07.09) wpisany na tydzień 05.10–11.10.

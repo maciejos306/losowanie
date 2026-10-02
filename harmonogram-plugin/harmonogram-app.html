@@ -207,7 +207,7 @@
       <button class="tab" data-tab="bilans" data-label="tab-bilans">Bilans</button>
       <button class="tab" data-tab="rejestr" data-label="tab-rejestr">Rejestr</button>
     </nav>
-    <div class="floto" id="floto" role="status" aria-live="polite"><span class="fl-dot" aria-hidden="true"></span><span id="floto-txt">FlotoMax: łączenie…</span><button class="btn ghost sm" id="floto-btn">⟳ Pobierz z FlotoMax</button><details id="floto-det" hidden><summary>Szczegóły ostatniego pobrania</summary><ul id="floto-list"></ul></details></div>
+    <div class="floto" id="floto" role="status" aria-live="polite"><span class="fl-dot" aria-hidden="true"></span><span id="floto-txt">FlotoMax: łączenie…</span><button class="btn ghost sm" id="floto-btn">⟳ Pobierz z FlotoMax</button><button class="btn ghost sm" id="floto-send" title="Wysyła do FlotoMax grafik od bieżącego tygodnia (każdy tydzień nadpisuje poprzednią wersję), żeby kierowcy widzieli plan w aplikacji">⇪ Wyślij grafik do FlotoMax</button><details id="floto-det" hidden><summary>Szczegóły ostatniego pobrania</summary><ul id="floto-list"></ul></details></div>
 
     <div class="screen" id="kadry">
       <p class="lead" data-label="txt-kadry">Ewidencja dla działu kadr. Rozliczamy się dniówkami, jak monetami: trasa daje tyle dniówek, ile ma wagi (zrealizowany dyżur 0,5, Trasy 1–7 po 1, Trasy 8–11 po 2,5, Trasa 12 po 2). Do przeliczeń na godziny: 1 dniówka = 8,5 h (0,5 → 5 h, 1,5 → 13,5 h, 2 → 18 h, 2,5 → 22,5 h; do zmiany przy typie zmiany). Norma to 5 dniówek na tydzień (pon.–ndz.), pomniejszona o dni L4. Każdy dzień wolny przydzielony przez system albo urlop bez wyjazdu kosztuje 1 dniówkę z salda, a dalekie trasy i dodatkowe dni je podnoszą. Dyżur liczy się tylko zrealizowany: 0,5 dniówki, a gdy wyjazd z powrotem do bazy trwa ponad 5 h, 1 dniówka. Zaplanowany lub niewykorzystany przez FlotoMax daje 0. Jego godziny widać osobno. Kolumny „stan dni wolnych” i „stan dniówek” wpisuje ręcznie kadrowa.</p>
@@ -1421,6 +1421,24 @@ async function flotoSync0(manual){
   catch(e){FL.state="err";FL.text="FlotoMax: "+flotoErr(e)}
   finally{FL.busy=false;renderFloto()}}
 $("floto-btn").onclick=()=>flotoSync(true);
+// wpisy tygodnia dla FlotoMax: jeden na kierowcę i dzień (kilka zmian łączonych „ + ”), bez kierowców wirtualnych
+function flotoWeekEntries(monday){const end=addDays(monday,6),m={};S.shifts.forEach(x=>m[x.id]=x);const am=absMap(),out=[],skipped=[];
+  for(const e of S.emps){if(e.virtual||isVirtualDriver(e.name))continue;if(e.flotoId==null){if(e.active)skipped.push(e.name);continue}
+    for(const d of range(monday,end)){const cs=Object.values(S.scheds).flatMap(s=>s.cells||[]).filter(c=>c.empId===e.id&&c.date===d).sort((a,b)=>cellBounds(a,m[a.shiftId],d).st-cellBounds(b,m[b.shiftId],d).st);
+      if(cs.length){const b=cellBounds(cs[0],m[cs[0].shiftId],d);const st=((b.st%24)+24)%24;out.push({driverId:e.flotoId,date:d,label:cs.map(c=>m[c.shiftId]?.name||c.shiftId).join(" + "),plannedStart:fmtH(st)});continue}
+      if(!e.active)continue;const a=am[e.id]?.[d];out.push({driverId:e.flotoId,date:d,label:a?(REASONS[a]||a):"wolne"})}}
+  return{entries:out,skipped}}
+async function flotoSendSchedule(){const s=S.scheds[S.current];if(!s){notice("Otwórz grafik, który chcesz wysłać.");return}
+  if(FL.mcp===undefined)FL.mcp=await claude.use("mcp");if(!FL.mcp){notice("Łącznik FlotoMax niedostępny w tym widoku.");return}
+  let mon=weekKey(s.start);const cur=weekKey(warsawDay());if(mon<cur)mon=cur;const res=[];let saved=0,removed=0,unk=[],skipped=new Set();
+  $("floto-send").disabled=true;
+  try{for(;mon<=s.end;mon=addDays(mon,7)){const w=flotoWeekEntries(mon);w.skipped.forEach(x=>skipped.add(x));
+      const r=(await FL.mcp.callTool(FLOTO,"set_schedule",{entries:w.entries,replaceFrom:mon,replaceTo:addDays(mon,6)},{cache:false})).payload||{};
+      saved+=r.saved||0;removed+=r.removed||0;(r.skippedUnknownIds||[]).forEach(x=>unk.push(x));res.push(`${mon.slice(8)}.${mon.slice(5,7)}`)}
+    notice(`Wysłano do FlotoMax tygodnie od: ${res.join(", ")||"–"}. Zapisano wpisów: ${saved}, usunięto starych: ${removed}.`+(skipped.size?` Pominięci (brak powiązania z FlotoMax): ${[...skipped].join(", ")}.`:"")+(unk.length?` FlotoMax nie zna id: ${[...new Set(unk)].join(", ")}.`:""))}
+  catch(e){notice("Nie udało się wysłać do FlotoMax: "+flotoErr(e)+(e?.code==="not_in_manifest"?" (odśwież stronę)":""))}
+  finally{$("floto-send").disabled=false}}
+$("floto-send").onclick=()=>guard(flotoSendSchedule);
 setInterval(()=>{if(document.visibilityState==="visible")flotoSync(false)},10*60*1000);
 async function completeRouteImpl({employeeId,name,date,shiftId,departure,return:ret,completed}={}){
   let e;try{e=empRef(employeeId||name)}catch(er){return{ok:false,message:er.message}}

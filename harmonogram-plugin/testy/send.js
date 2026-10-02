@@ -1,0 +1,14 @@
+const fs=require('fs');const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell'});const pg=await b.newPage();const errs=[];pg.on('pageerror',e=>errs.push(e.message));
+await pg.goto('file://'+process.cwd()+'/local.html');await pg.waitForTimeout(2800);
+const ok=(k,v,x='')=>console.log((v?'OK   ':'FAIL ')+k+(x?'  '+x:''));const L=p=>JSON.parse(fs.readFileSync(p,'utf8'));
+const r=await pg.evaluate(async([s,shifts,emps,abs])=>{Object.keys(S.scheds).forEach(id=>delete S.scheds[id]);S.abs=abs;S.shifts=shifts;S.emps=emps;S.scheds[s.id]=s;S.current=s.id;
+ const calls=[];FL.mcp={callTool:async(sv,t,i)=>{calls.push([t,i]);return{payload:{ok:true,saved:i.entries.length,removed:0,skippedUnknownIds:[]}}}};
+ await flotoSendSchedule();return{calls,note:$("notice").innerText}},[L('live10/new.json'),L('live10/app/shifts.json').items,L('live10/app/employees.json').items,L('live10/app/absences.json').items]);
+const w1=r.calls[0][1];console.log(r.note);console.log(w1.replaceFrom,w1.replaceTo,w1.entries.filter(e=>e.date==='2026-10-07').map(e=>e.driverId+':'+e.label+'@'+(e.plannedStart||'')).join(' | '));
+ok('tygodnie 05.10–01.11 wysłane osobno z zakresem pon–ndz',r.calls.length===4&&w1.replaceFrom==='2026-10-05'&&w1.replaceTo==='2026-10-11');
+ok('jeden wpis na kierowcę i dzień',w1.entries.length===new Set(w1.entries.map(e=>e.driverId+e.date)).size);
+ok('bez wirtualnego kierowcy (119)',r.calls.every(c=>c[1].entries.every(e=>e.driverId!==119)));
+ok('urlop Schmidta 11.10 wysłany jako Urlop',w1.entries.some(e=>e.driverId===103&&e.date==='2026-10-11'&&e.label==='Urlop'));
+ok('dzień bez przydziału = wolne',w1.entries.some(e=>e.label==='wolne'));
+console.log('ERRS',errs);await b.close()})();
