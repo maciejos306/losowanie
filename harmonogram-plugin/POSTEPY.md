@@ -80,3 +80,16 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 ## v58
 - Każda etykieta ma własny kolor (LABEL_COLORS, jasne odcienie, ciemny napis; nadpisywalny polem shift.color).
 - DO ZROBIENIA: od 12.10 nowe etykiety (do opisania przez właściciela). Trasa 5 znika, numeracja i zasady przesuwają się o -1 od 5: nowa 5 = dawna 6, 6 = dawna 7, 7 = dawna 8 itd.
+
+## v59 — grafik ciągły (02.10)
+- Jeden dokument `schedules/rolling` (rolling:true) zamiast tygodni; stare dokumenty scalane automatycznie (migrateRolling).
+- Program sam dobudowuje grafik do dziś + 20 dni (ensureHorizon, co godzinę i przy otwarciu). Bieżący i przyszły tydzień zamrożone (freezeTo = niedziela przyszłego tygodnia): obsadzone zostają, puste można uzupełnić, zmiany ręczne dozwolone.
+- Widok: od dziś − 7 dni do końca, przycisk „Pokaż 2 tygodnie wcześniej”, „Dziś”; po otwarciu dzisiejszy dzień na 1/3 szerokości.
+- Losuj ponownie (grafik ciągły): tylko dni po zamrożeniu, zablokowane/FlotoMax zostają.
+- Trasa spoza planu dnia dodana ręcznie: pytanie, czy przestawić resztę grafiku kierowcy.
+- Nowi kierowcy (Pracownicy → Początek pracy): 28 dni bez dalekich tras, pierwszeństwo dla tras, których nie znają. „Tydzień nauki”: 2 dni z opiekunem, dyżur, potem różne trasy z różnymi kierowcami (training:true, druga osoba na trasie).
+- Sprawiedliwe 2 wolne z rzędu: planOffPairs (weekendy rotują) + fixOffPairs (bez gwarancji przy małej liczbie kierowców).
+- Przed daleką trasą min. 9 h wypoczynku od końca poprzedniej (REST_BEFORE_FAR).
+- Dziennik wyjazdów `triplog/<routeId>`: plan (planned*) i rzeczywistość (departed/returned, hours, restHours) do przewidywania.
+- Żywsze kolory etykiet, wiersze kierowców z poświatą ich koloru.
+- DO ZROBIENIA: nowe etykiety od 12.10 (Trasa 5 znika, numeracja −1 od 5) — czekam na listę od właściciela.

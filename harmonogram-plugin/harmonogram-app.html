@@ -224,8 +224,6 @@
   .kal-leg{display:flex;flex-wrap:wrap;gap:6px}.kal-leg span{font-size:11.5px;border-radius:6px;padding:2px 8px}
   @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .kal .kd.hol{background:#3A2A1E}:root:not([data-theme="light"]) .kal .kd.off{background:#2C2438}}
   @media (max-width:700px){.kal{gap:3px}.kal .kd{min-height:84px;padding:4px}.kal .ev{font-size:10px;padding:1px 3px}.kal .kh{font-size:10px}}
-  table.plan td.cell,table.plan td.who{background:var(--paper)!important;background-image:none!important}
-  table.plan td.cell.weekend{background:var(--weekend)!important}
   table.plan .alt,table.tl th.alt{background-image:none}
   .chip.locked{box-shadow:inset 0 0 0 1.5px rgba(28,35,33,.55)!important;outline:none}
   .chip.locked.closed{box-shadow:inset 0 0 0 2px #1C2321!important}
@@ -320,6 +318,8 @@
         <button class="btn ghost" id="btn-undo" disabled>↩ Cofnij</button>
         <button class="btn ghost" id="btn-reroll">🎲 Losuj ponownie</button>
       </div>
+      <div class="row" id="roll-ctl" style="display:none"><button class="btn ghost sm" id="roll-back">◀ Pokaż 2 tygodnie wcześniej</button><button class="btn ghost sm" id="roll-today">Dziś</button><span class="muted" id="roll-info" style="font-size:12.5px"></span>
+      </div>
       <div class="row">
         <span class="muted">Sprawdź kolizje od:</span>
         <input type="date" id="repair-from">
@@ -345,8 +345,9 @@
     </div>
 
     <div class="screen" id="lista">
-      <h2 style="font-size:16px" data-label="txt1">Nowy harmonogram</h2>
-      <div class="row">
+      <p class="lead" id="roll-note" style="display:none">Grafik jest ciągły: program sam układa każdy dzień na ${HORIZON} dni do przodu, a bieżący i przyszły tydzień są zamrożone. Nie trzeba losować tygodni.</p>
+      <h2 style="font-size:16px" data-label="txt1" id="new-h">Nowy harmonogram</h2>
+      <div class="row" id="new-row">
         <input id="new-name" placeholder="Nazwa (np. Tydzień 40)" style="flex:1;min-width:160px">
         <input type="date" id="new-start"><input type="date" id="new-end">
         <button class="btn" id="btn-new">Losuj harmonogram</button>
@@ -488,13 +489,34 @@ const fmt=d=>d.toISOString().slice(0,10);
 const addDays=(s,n)=>{const d=new Date(s+"T00:00:00Z");d.setUTCDate(d.getUTCDate()+n);return fmt(d)};
 function* range(a,b){for(let d=a;d<=b;d=addDays(d,1))yield d}
 // każda etykieta ma własny, łatwy do zapamiętania kolor (jasne odcienie, ciemny napis)
-const LABEL_COLORS=["#B9E4B0","#AFCBF2","#F7C98B","#9FE0DA","#D3B9F2","#F2E08A","#C3CAD3","#F4A9A0","#F9B98E","#E8A3C4","#E6B8A2","#A9D7F0","#CFD8B4","#C9E79A","#BDB7F2","#F0C2E2"];
+const LABEL_COLORS=["#6FD46A","#5C9DF2","#FFB347","#3ED1C4","#B58BF5","#F5D43C","#9AA8BA","#FF7A6B","#FF9A3D","#F06BAA","#D98E5F","#4FC3F7","#B5C95A","#A3E635","#8C83F2","#F59AD9"];
 const colorOf=id=>{const s=S.shifts.find(x=>x.id===id);if(s&&s.color)return s.color;const i=S.shifts.findIndex(x=>x.id===id);return LABEL_COLORS[(i<0?0:i)%LABEL_COLORS.length]};
 const absMap=()=>{const m={};S.abs.forEach(a=>{if(BLOCKING_REASONS.has(a.reason))(m[a.empId]??={})[a.date]=a.reason});return m};
 const pendingMap=()=>{const m={};S.abs.forEach(a=>{if(a.reason==="wniosek")(m[a.empId]??={})[a.date]=true});return m};
 
 // ---------- historia z innych harmonogramów ----------
 const MAX_WORK_DAYS=5; // co najmniej 2 dni wolne w tygodniu Pon–Ndz
+// grafik ciągły: dziś + HORIZON dni jest zawsze ułożone; bieżący i przyszły tydzień są zamrożone (zmienia je tylko spedytor)
+const HORIZON=20,TRAINEE_DAYS=28;
+const freezeTo=()=>addDays(weekKey(typeof warsawDay==="function"?warsawDay():fmt(new Date())),13);
+const rollingSched=()=>Object.values(S.scheds).find(s=>s.rolling)||null;
+// nowy kierowca (startDate): przez TRAINEE_DAYS dni tylko trasy dzienne (1–7) i dyżury, potem stopniowo dalekie
+const traineeUntil=e=>e&&e.startDate&&isoDate(e.startDate)?addDays(e.startDate,TRAINEE_DAYS):null;
+const isTrainee=(e,day)=>{const u=traineeUntil(e);return !!u&&day<u};
+const canDriveOn=(e,sh,day)=>canDrive(e,sh)&&!(isFar(sh)&&isTrainee(e,day));
+// ile razy kierowca jechał daną trasą (ostatnie 120 dni) – nowi uczą się tras, których jeszcze nie znają
+function shiftExp(empId,shiftId,day){const lo=addDays(day,-120);let n=0;for(const s of Object.values(S.scheds))for(const c of s.cells||[])if(c.empId===empId&&c.shiftId===shiftId&&c.date<day&&c.date>=lo)n++;return n}
+// sprawiedliwe 2 wolne dni z rzędu: na każdy tydzień para dni wolnych dla każdego kierowcy (weekendy rotują)
+function weekendsOff(empId,before){const lo=addDays(before,-84);const work=new Set();for(const s of Object.values(S.scheds))for(const c of s.cells||[])if(c.empId===empId&&c.date>=lo&&c.date<before)work.add(c.date);
+  let n=0;for(let d=weekKey(lo);d<before;d=addDays(d,7)){const sa=addDays(d,5),su=addDays(d,6);if(su<before&&!work.has(sa)&&!work.has(su))n++}return n}
+function planOffPairs(monday,emps,am){const days=[...range(monday,addDays(monday,6))];const need=days.map(d=>shiftsOn(d).filter(x=>(x.part||"full")!=="pm").reduce((a,x)=>a+(+x.people||1),0));
+  const avail=days.map((d,i)=>emps.filter(e=>!am[e.id]?.[d]).length-need[i]);const pairs=[0,1,2,3,4,5].map(i=>[i,i+1]);const out={};
+  const order=[...emps].sort((a,b)=>weekendsOff(a.id,monday)-weekendsOff(b.id,monday)||String(a.id).localeCompare(String(b.id)));
+  for(const e of order){const absent=days.map(d=>!!am[e.id]?.[d]);if(absent.filter(Boolean).length>=2){out[e.id]=new Set();continue}
+    let best=null,bs=-1e9;for(const [a,b] of pairs){const cost=(absent[a]?0:1)+(absent[b]?0:1);const slack=Math.min(avail[a]-(absent[a]?0:1),avail[b]-(absent[b]?0:1));
+      const wk=(a===5)?(3-Math.min(3,weekendsOff(e.id,monday))):0;const score=slack*10+wk*4-cost+(Math.random()*0.5);if(slack>=0&&score>bs){bs=score;best=[a,b]}}
+    if(!best){out[e.id]=new Set();continue}if(!absent[best[0]])avail[best[0]]--;if(!absent[best[1]])avail[best[1]]--;out[e.id]=new Set([days[best[0]],days[best[1]]])}
+  return out}
 const weekKey=d=>{const w=wdOf(d);return addDays(d,-((w+6)%7))}; // poniedziałek tygodnia
 // komórki z innych harmonogramów z 14 dni przed startem (bez bieżącego)
 function historyBefore(start,excludeId){
@@ -532,7 +554,9 @@ const dDiff=(a,b)=>Math.round((Date.parse(a+"T00:00:00Z")-Date.parse(b+"T00:00:0
 function farLogFor(start,end,excludeId){const m={};S.shifts.forEach(x=>m[x.id]=x);const lo=addDays(start,-FAR_WIN),hi=addDays(end,FAR_WIN),log={};
   for(const s of Object.values(S.scheds)){if(s.id===excludeId)continue;for(const c of s.cells||[])if(c.empId&&c.date>=lo&&c.date<=hi&&isFar(m[c.shiftId]))(log[c.empId]??=[]).push(c.date)}return log}
 // trasa A (dzień dA) koliduje z daleką trasą B na dzień dA+1, gdy A jeszcze trwa w chwili wyjazdu B (wieczorem dnia dA)
-const clashNext=(shA,dA,shB,dB)=>!!shA&&!!shB&&startsPrevDay(shB)&&(shB.part||"full")!=="pm"&&(shA.part||"full")!=="pm"&&addDays(dA,1)===dB&&(startOf(shA,dA)-(startsPrevDay(shA)?24:0)+hoursOf(shA))>startOf(shB,dB);
+// przed daleką trasą kierowca musi mieć co najmniej REST_BEFORE_FAR godzin wypoczynku od końca poprzedniej trasy
+const REST_BEFORE_FAR=9;
+const clashNext=(shA,dA,shB,dB)=>!!shA&&!!shB&&startsPrevDay(shB)&&(shB.part||"full")!=="pm"&&(shA.part||"full")!=="pm"&&addDays(dA,1)===dB&&(startOf(shA,dA)-(startsPrevDay(shA)?24:0)+hoursOf(shA))+REST_BEFORE_FAR>startOf(shB,dB);
 function pick(cands,counts,sh,prevDay,bias,farLog,day){
   if(!cands.length)return null;
   if(farLog&&day&&isFar(sh)){
@@ -549,21 +573,23 @@ function pick(cands,counts,sh,prevDay,bias,farLog,day){
   if(same.length)return same[Math.floor(Math.random()*same.length)].id;
   let pool=cands;
   if(restOf(sh)>0){const free=cands.filter(e=>!(prevDay[e.id]||[]).length);if(free.length)pool=free}
-  const m=Math.min(...pool.map(e=>counts[e.id]));const b=pool.filter(e=>counts[e.id]===m);
+  const m=Math.min(...pool.map(e=>counts[e.id]));let b=pool.filter(e=>counts[e.id]===m);
+  if(day){const tr=pool.filter(e=>isTrainee(e,day)&&counts[e.id]<=m+1);if(tr.length){const ex=e=>shiftExp(e.id,sh.id,day);const mn=Math.min(...tr.map(ex));if(mn===0)b=tr.filter(e=>ex(e)===0)}}
   return b[Math.floor(Math.random()*b.length)].id;
 }
 function generate(start,end,excludeId){
   const emps=S.emps.filter(e=>e.active), counts={}, am=absMap(), cells=[], shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
   const bal=balances(excludeId), bias={};emps.forEach(e=>{bias[e.id]=biasOf(bal[e.id]);counts[e.id]=bias[e.id]});
-  let {rest,prevDay,worked}=seedState(start,excludeId,shMap);const farLog=farLogFor(start,end,excludeId);
+  let {rest,prevDay,worked}=seedState(start,excludeId,shMap);const farLog=farLogFor(start,end,excludeId);const offW={};const offOf=(e,d)=>{const w=weekKey(d);if(!offW[w])offW[w]=planOffPairs(w,emps,am);return offW[w][e]?.has(d)};
   for(const day of range(start,end)){
     const used={}, today={}, heavy=new Set();
     for(const sh of [...shiftsOn(day)].sort(byPriority)) for(let slot=0;slot<sh.people;slot++){
       const pt=partOf(sh,day);
       const pc=e=>(prevDay[e.id]||[]).some(id=>clashNext(shMap[id],addDays(day,-1),sh,day));
-      const c=emps.filter(e=>canDrive(e,sh)&&!clash(used,e.id,pt)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&!pc(e)&&(pt==="pm"?!heavy.has(e.id):canWork(worked,e.id,day)));
+      const c0=emps.filter(e=>canDriveOn(e,sh,day)&&!clash(used,e.id,pt)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&!pc(e)&&(pt==="pm"?!heavy.has(e.id):canWork(worked,e.id,day)));
+      const c1=pt==="pm"?c0:c0.filter(e=>!offOf(e.id,day));const c=c1.length?c1:c0;
       let extra=false, pool=c;
-      if(!pool.length&&pt!=="pm"){pool=emps.filter(e=>canDrive(e,sh)&&!clash(used,e.id,pt)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&!pc(e)&&canWorkX(worked,e.id,day));extra=pool.length>0}
+      if(!pool.length&&pt!=="pm"){pool=emps.filter(e=>canDriveOn(e,sh,day)&&!clash(used,e.id,pt)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&!pc(e)&&canWorkX(worked,e.id,day));extra=pool.length>0}
       const emp=pick(pool,counts,sh,prevDay,bias,farLog,day);
       if(emp!=null&&isFar(sh))(farLog[emp]??=[]).push(day);
       if(emp!=null){counts[emp]+=(sh.weight??1);mark(used,emp,pt);if(pt!=="pm"){(today[emp]??=[]).push(sh.id);noteWork(worked,emp,day);if((sh.weight??1)>=1.5)heavy.add(emp)}const r=restOf(sh);if(r>0)rest[emp]=addDays(day,r)}
@@ -589,17 +615,18 @@ function repair(sched,fromDate,extraLocked=new Set(),ban=new Set()){
   const accept=(emp,sh,day,part,c)=>{if(emp==null)return;if(isFar(sh)&&!(c&&fixedFar.has(c)))(farLog[emp]??=[]).push(day);counts[emp]=(counts[emp]||0)+(sh.weight??1);if(part!=="pm")noteWork(worked,emp,day);const r=restOf(sh);if(r>0)rest[emp]=addDays(day,r)};
   for(const day of range(sched.start,sched.end)){
     const used={}, today={}, heavy=new Set(), frozen=day<fromDate||(S.freezePast!==false&&day<warsawDay());
+    const soft=!frozen&&sched.rolling&&S.freezePast!==false&&day<=freezeTo(); // zamrożony tydzień: obsadzone zostają, puste można uzupełnić
     const todays=sched.cells.filter(c=>c.date===day).sort((a,b)=>(lockedKeys.has(key(a))?0:1)-(lockedKeys.has(key(b))?0:1)||byPriority(shOf[a.shiftId]||{weight:1,id:a.shiftId},shOf[b.shiftId]||{weight:1,id:b.shiftId})||a.slot-b.slot);
     for(const c of todays){
       const sh=shOf[c.shiftId]||{id:c.shiftId,weight:1}; const w=sh.weight; let emp=c.empId;
       const part=cpart(c,sh,day);const dutyLike=part==="pm"&&!c.part;const pk=dutyLike?"pm":(part==="pm"?"pmr":part);
       const empObj=emps.find(e=>e.id===emp);
-      if(frozen||lockedKeys.has(key(c))||c.closed||c.flotoRoute!=null||c.duty==="done"){if(emp!=null){mark(used,emp,pk);if(!dutyLike){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,dutyLike?"pm":"full",c)}continue}
-      const valid=emp!=null&&active.has(emp)&&canDrive(empObj,sh)&&!restHitsLock(emp,sh,day)&&!prevClash(emp,sh,day)&&!clash(used,emp,pk)&&!am[emp]?.[day]&&!(rest[emp]&&rest[emp]>=day)&&(dutyLike?!heavy.has(emp):(c.extra?canWorkX:canWork)(worked,emp,day));
+      if(frozen||(soft&&emp!=null)||lockedKeys.has(key(c))||c.closed||c.flotoRoute!=null||c.duty==="done"){if(emp!=null){mark(used,emp,pk);if(!dutyLike){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,dutyLike?"pm":"full",c)}continue}
+      const valid=emp!=null&&active.has(emp)&&canDriveOn(empObj,sh,day)&&!restHitsLock(emp,sh,day)&&!prevClash(emp,sh,day)&&!clash(used,emp,pk)&&!am[emp]?.[day]&&!(rest[emp]&&rest[emp]>=day)&&(dutyLike?!heavy.has(emp):(c.extra?canWorkX:canWork)(worked,emp,day));
       if(!valid){
-        const cand=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!restHitsLock(e.id,sh,day)&&!prevClash(e.id,sh,day)&&!clash(used,e.id,pk)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&(dutyLike?!heavy.has(e.id):canWork(worked,e.id,day)));
+        const cand=emps.filter(e=>canDriveOn(e,sh,day)&&!ban.has(e.id+"|"+day)&&!restHitsLock(e.id,sh,day)&&!prevClash(e.id,sh,day)&&!clash(used,e.id,pk)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&(dutyLike?!heavy.has(e.id):canWork(worked,e.id,day)));
         let pool=cand, extra=false;
-        if(!pool.length&&!dutyLike){pool=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!restHitsLock(e.id,sh,day)&&!prevClash(e.id,sh,day)&&!clash(used,e.id,pk)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&canWorkX(worked,e.id,day));extra=pool.length>0}
+        if(!pool.length&&!dutyLike){pool=emps.filter(e=>canDriveOn(e,sh,day)&&!ban.has(e.id+"|"+day)&&!restHitsLock(e.id,sh,day)&&!prevClash(e.id,sh,day)&&!clash(used,e.id,pk)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&canWorkX(worked,e.id,day));extra=pool.length>0}
         emp=pick(pool,counts,sh,prevDay,bias,farLog,day);
         if(extra&&emp!=null)c.extra=true;else delete c.extra;
         if(emp!==c.empId){c.empId=emp;delete c.duty;delete c.dutyH;delete c.closed;delete c.out;delete c.back;changed++}
@@ -642,14 +669,14 @@ async function boot(){
   const db=await claude.use("db");
   if(!db){setStatus("Baza niedostępna w tym widoku — działa tylko podgląd."); render(); return}
   S.db=db; setStatus("Połączono. Dane zapisują się automatycznie.");
-  setTimeout(()=>flotoSync(false),2500);
+  if(location.protocol!=="file:")setTimeout(()=>rollingTick(),1200);setTimeout(()=>flotoSync(false),2800);
   docE().onSnapshot(s=>{S.emps=s.exists?structuredClone(s.data().items||[]):[];render()});
   docS().onSnapshot(s=>{S.shifts=s.exists?structuredClone(s.data().items||[]):[];render()});
   docA().onSnapshot(s=>{S.abs=s.exists?structuredClone(s.data().items||[]):[];if(!S.absLoaded){S.absLoaded=true;for(const id of Object.keys(S.seenAbs))if(S.seenAbs[id]===null)S.seenAbs[id]=absSig()}render()});
   docP().onSnapshot(s=>{S.plan=s.exists?structuredClone(s.data()):null;render()});
   docL().onSnapshot(s=>{S.labels=s.exists?structuredClone(s.data().items||{}):{};applyLabels()});
   docHR().onSnapshot(s=>{S.hr=s.exists?structuredClone(s.data().items||{}):{};renderHR();try{renderBilans()}catch(e){}});
-  db.collection("schedules").onSnapshot(q=>{S.scheds={};q.docs.forEach(d=>{S.scheds[d.id]=structuredClone(d.data());if(!S.undoBusy){const js0=JSON.stringify(S.scheds[d.id]);if(S.seen[d.id]!==js0||!(d.id in S.seenAbs)){S.seen[d.id]=js0;S.seenAbs[d.id]=S.absLoaded?absSig():null}}});if(!S.current||!S.scheds[S.current]){const ids=Object.keys(S.scheds).sort((a,b)=>(S.scheds[b].createdAt||"").localeCompare(S.scheds[a].createdAt||""));S.current=ids[0]||null}render()});
+  db.collection("schedules").onSnapshot(q=>{S.scheds={};q.docs.forEach(d=>{S.scheds[d.id]=structuredClone(d.data());if(!S.undoBusy){const js0=JSON.stringify(S.scheds[d.id]);if(S.seen[d.id]!==js0||!(d.id in S.seenAbs)){S.seen[d.id]=js0;S.seenAbs[d.id]=S.absLoaded?absSig():null}}});if(S.scheds.rolling&&S.current!=="rolling")S.current="rolling";if(!S.current||!S.scheds[S.current]){const ids=Object.keys(S.scheds).sort((a,b)=>(S.scheds[b].createdAt||"").localeCompare(S.scheds[a].createdAt||""));S.current=ids[0]||null}render()});
 }
 
 // ---------- render ----------
@@ -674,7 +701,8 @@ function renderEmps(){
     <div class="sb">Nieobecności: ${(groupAbs(S.abs.filter(a=>a.empId===e.id)).map(g=>`<span class="tag ${g.reason}">${g.from===g.to?g.from:g.from+" – "+g.to} · ${REASONS[g.reason]||g.reason}${g.reason==="wniosek"?`<button data-absok="${e.id}|${g.from}|${g.to}" title="zatwierdź urlop" style="color:#1e4a2f;font-weight:800">✓ zatwierdź</button>`:""}<button data-abs="${e.id}|${g.from}|${g.to}" title="usuń">✕</button></span>`).join("")||"brak")}</div>
     <div class="row" style="margin:6px 0 0"><label class="muted">Stawka <input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" value="${Number.isFinite(e.rate)?e.rate:""}" data-rate="${e.id}" style="width:110px"></label><select data-rateunit="${e.id}" title="jednostka stawki"><option value="h" ${(e.rateUnit||"h")==="h"?"selected":""}>zł / godz.</option><option value="d" ${e.rateUnit==="d"?"selected":""}>zł / dniówkę</option><option value="m" ${e.rateUnit==="m"?"selected":""}>zł / miesiąc</option></select><span class="muted" style="font-size:11px">widoczna tylko tutaj (kadry)</span></div>
     <div class="row" style="margin:6px 0 0"><input type="date" data-absdate="${e.id}" title="od"><span class="muted">–</span><input type="date" data-absdate2="${e.id}" title="do (opcjonalnie)"><select data-absreason="${e.id}"><option value="wniosek">Wniosek urlopowy</option><option value="urlop">Urlop (zatwierdzony)</option><option value="l4">L4</option><option value="odpoczynek">Odpoczynek</option></select><button class="btn ghost sm" data-absadd="${e.id}">Dodaj nieobecność</button></div></div>
-    <div><button class="btn ghost sm" data-catc="${e.id}">${hasCatC(e)?"Odbierz kat. C":"Nadaj kat. C"}</button> <button class="btn ghost sm" data-toggle="${e.id}">${e.active?"Dezaktywuj":"Aktywuj"}</button> <button class="btn danger sm" data-delemp="${e.id}">Usuń</button></div></li>`).join(""):"<li>Brak pracowników.</li>";
+    <div><button class="btn ghost sm" data-catc="${e.id}">${hasCatC(e)?"Odbierz kat. C":"Nadaj kat. C"}</button> <button class="btn ghost sm" data-toggle="${e.id}">${e.active?"Dezaktywuj":"Aktywuj"}</button> <button class="btn danger sm" data-delemp="${e.id}">Usuń</button></div>
+    <div class="row" style="margin:6px 0 0;flex-basis:100%"><label class="muted">Początek pracy <input type="date" data-start="${e.id}" value="${e.startDate||""}"></label>${traineeUntil(e)?`<span class="tag">${warsawDay()<traineeUntil(e)?"nauka: trasy 1–7 i dyżury do "+traineeUntil(e).slice(8)+"."+traineeUntil(e).slice(5,7):"po okresie nauki"}</span>`:""}<label class="muted">Tydzień nauki od <input type="date" data-trfrom="${e.id}"></label><select data-trmentor="${e.id}" aria-label="Opiekun"><option value="">opiekun: dowolny</option>${S.emps.filter(x=>x.active&&x.id!==e.id&&!x.virtual).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select><button class="btn ghost sm" data-trplan="${e.id}">Zaplanuj tydzień nauki</button></div></li>`).join(""):"<li>Brak pracowników.</li>";
 }
 function renderShifts(){
   const wOpts=v=>[0.5,1,1.5,2,2.5].map(w=>`<option value="${w}" ${w===+v?"selected":""}>${String(w).replace(".",",")} dn.</option>`).join("");
@@ -684,32 +712,38 @@ function renderShifts(){
     ${editing?`<div class="row" style="margin:8px 0 0"><input value="${esc(s.name)}" data-ed-name="${s.id}" style="width:130px"><select data-ed-people="${s.id}"><option value="1" ${s.people==1?"selected":""}>1 os.</option><option value="2" ${s.people==2?"selected":""}>2 os.</option><option value="3" ${s.people==3?"selected":""}>3 os.</option></select><select data-ed-part="${s.id}">${pOpts(s.part)}</select><select data-ed-weight="${s.id}">${wOpts(s.weight)}</select><select data-ed-rest="${s.id}" title="dni odpoczynku po trasie">${rOpts(s)}</select><select data-ed-prev="${s.id}" title="kiedy trasa wyjeżdża"><option value="auto" ${typeof s.startPrev!=="boolean"?"selected":""}>wyjazd: auto (${startsPrevDay(s)?"dzień wcześniej":"tego dnia"})</option><option value="1" ${s.startPrev===true?"selected":""}>wyjazd wieczorem dzień wcześniej</option><option value="0" ${s.startPrev===false?"selected":""}>wyjazd tego samego dnia</option></select><label class="muted">start <input type="time" value="${fmtH(startOf(s))}" data-ed-start="${s.id}" style="width:100px"></label><label class="muted">start sob. <input type="time" value="${s.startDow&&Number.isFinite(s.startDow[6])?fmtH(s.startDow[6]):""}" data-ed-startsat="${s.id}" style="width:100px" title="puste = jak w inne dni"></label><label class="muted">czas h <input type="number" step="0.5" min="0" value="${hoursOf(s)}" data-ed-hours="${s.id}" style="width:70px"></label><label class="muted" style="display:inline-flex;align-items:center;gap:4px"><input type="checkbox" data-ed-reqc="${s.id}" ${s.reqC?"checked":""} style="min-height:0;width:16px;height:16px">wymaga kat. C</label><button class="btn sm" data-edsave="${s.id}">Zapisz</button><button class="btn ghost sm" data-edcancel="1">Anuluj</button></div>`:""}
     </div><div><button class="btn ghost sm" data-edit="${s.id}">Edytuj</button> <button class="btn danger sm" data-delshift="${s.id}">Usuń</button></div></li>`}).join(""):"<li>Brak typów zmian.</li>";
 }
-function renderList(){
+function renderList(){const rl=!!rollingSched();["new-h","new-row"].forEach(id=>{const el=$(id);if(el)el.style.display=rl?"none":""});const rn=$("roll-note");if(rn){rn.style.display=rl?"":"none";rn.textContent=`Grafik jest ciągły: program sam układa każdy dzień na ${HORIZON} dni do przodu, a bieżący i przyszły tydzień są zamrożone (zmieniasz je tylko ręcznie). Nie trzeba losować tygodni.`}
   const ids=Object.keys(S.scheds).sort((a,b)=>(S.scheds[b].createdAt||"").localeCompare(S.scheds[a].createdAt||""));
   $("sched-list").innerHTML=ids.length?ids.map(id=>{const s=S.scheds[id];return `<li><div><div class="nm">${esc(s.name)}</div><div class="sb">${s.start} — ${s.end}</div></div><div><button class="btn ghost sm" data-open="${id}">Otwórz</button> <button class="btn danger sm" data-delsched="${id}">Usuń</button></div></li>`}).join(""):"<li>Brak harmonogramów — utwórz pierwszy powyżej.</li>";
   $("sched-select").innerHTML=ids.map(id=>`<option value="${id}" ${id===S.current?"selected":""}>${esc(S.scheds[id].name)} (${S.scheds[id].start} — ${S.scheds[id].end})</option>`).join("")||"<option value=''>— brak harmonogramów —</option>";
   if(!$("new-start").value){const t=fmt(new Date());$("new-start").value=t;$("new-end").value=addDays(t,6)}
 }
 let planView="chips";
-document.querySelectorAll(".view-btn").forEach(b=>b.onclick=()=>{planView=b.dataset.view;document.querySelectorAll(".view-btn").forEach(x=>x.classList.toggle("active",x===b));$("timeline").style.display=planView==="hours"?"block":"none";$("chips-view").style.display=planView==="hours"?"none":"block";renderTimeline()});
+document.querySelectorAll(".view-btn").forEach(b=>b.onclick=()=>{planView=b.dataset.view;S.autoScroll=true;document.querySelectorAll(".view-btn").forEach(x=>x.classList.toggle("active",x===b));$("timeline").style.display=planView==="hours"?"block":"none";$("chips-view").style.display=planView==="hours"?"none":"block";renderTimeline()});
+// grafik ciągły: widoczne dni od (dziś − viewBack) do końca; historia sprzed okna liczy się do odpoczynku
+let viewBack=7;S.autoScroll=true;
+const viewDays=s=>{if(!s.rolling)return[...range(s.start,s.end)];const t=warsawDay();let a=addDays(t,-viewBack);if(a<s.start)a=s.start;return[...range(a,s.end)]};
+const histFor=(s,start)=>{const out=historyBefore(start,s.id);if(s.rolling){const lo=addDays(start,-14);for(const c of s.cells)if(c.empId!=null&&c.date<start&&c.date>=lo)out.push(c)}return out};
+function scrollToToday(g){if(!g)return false;const th=g.querySelector(`[data-dayhead="${warsawDay()}"]`);if(!th)return false;const first=g.querySelector("th:first-child");const fw=first?first.offsetWidth:0;g.scrollLeft=Math.max(0,th.offsetLeft-fw-(g.clientWidth-fw)/3);return true}
+function maybeScroll(sel){const s=S.scheds[S.current];if(!s?.rolling||!S.autoScroll)return;requestAnimationFrame(()=>{if(scrollToToday(document.querySelector(sel)))S.autoScroll=false})}
 function renderTimeline(){
   const s=S.scheds[S.current]; const T=$("timeline"); if(!s||planView!=="hours"){return}
-  const days=[...range(s.start,s.end)], am=absMap(), pm=pendingMap(), shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
+  const days=viewDays(s), am=absMap(), pm=pendingMap(), shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
   const pct=x=>(x/24*100).toFixed(2)+"%";
   const rest={};const addRest=(c,carry)=>{const sh=shMap[c.shiftId];const r=restOf(sh);if(r>0)for(let i=1;i<=r;i++){const d=addDays(c.date,i);if(!rest[c.empId]?.[d])(rest[c.empId]??={})[d]=carry?{carry:true,after:sh?.name}:{}}};
-  s.cells.forEach(c=>{if(c.empId!=null)addRest(c,false)}); const hist=historyBefore(s.start,s.id); for(const c of hist)addRest(c,true);
+  s.cells.forEach(c=>{if(c.empId!=null)addRest(c,false)}); const hist=histFor(s,days[0]); for(const c of hist)addRest(c,true);
   const byEmpDay={};s.cells.forEach(c=>{if(c.empId!=null)((byEmpDay[c.empId]??={})[c.date]??=[]).push(c)});
   const empsShown=S.emps.filter(e=>e.active||byEmpDay[e.id]);
   // czas wolny między końcem poprzedniej trasy a startem następnej (w godzinach), dla dymka na odpoczynku
   const allCells=[...s.cells,...hist].filter(c=>c.empId!=null);
   const dayN=d=>Math.round(new Date(d+"T00:00:00Z").getTime()/3600000);
   const restInfo=(empId,d)=>{const mine=allCells.filter(c=>c.empId===empId).map(c=>{const sh=shMap[c.shiftId];const b=cellBounds(c,sh,c.date);const st=dayN(c.date)+b.st-(startsPrevDay(sh)&&!isDutyCell(c,sh)?24:0);return{c,name:sh?.name||"?",st,en:st+b.hh}});const now=dayN(d)+12;const prev=mine.filter(x=>x.en<=now).sort((a,b)=>b.en-a.en)[0];const next=mine.filter(x=>x.st>=now).sort((a,b)=>a.st-b.st)[0];if(!prev)return "";const gap=(next?next.st:null)!=null?next.st-prev.en:null;const fmtDT=t=>{const dd=Math.floor(t/24),hh=t-dd*24;const dt=new Date(dd*3600000*24);return DAYN[dt.getUTCDay()].slice(0,3).toLowerCase()+" "+fmtH(hh)};return `Odpoczynek po ${prev.name}: od ${fmtDT(prev.en)}`+(next?` do ${fmtDT(next.st)} (${next.name}) — ${String(Math.round(gap*10)/10).replace(".",",")} h wolnego`:" — następna trasa nie jest jeszcze zaplanowana")};
-  let html='<colgroup><col style="width:170px">'+days.map(()=>'<col style="width:215px">').join("")+'<col style="width:104px"></colgroup><tr><th></th>'+days.map((d,di)=>`<th class="day dstart${di%2?" alt":""}${wdOf(d)===0||wdOf(d)===6?" weekend":""}">${DAYN[wdOf(d)]}<small>${d.slice(8)}.${d.slice(5,7)}</small>${estTag(s,d)}</th>`).join("")+'<th class="sum">Σ tydzień</th></tr>';
+  let html='<colgroup><col style="width:170px">'+days.map(()=>'<col style="width:215px">').join("")+'<col style="width:104px"></colgroup><tr><th></th>'+days.map((d,di)=>`<th data-dayhead="${d}" class="day dstart${di%2?" alt":""}${wdOf(d)===0||wdOf(d)===6?" weekend":""}">${DAYN[wdOf(d)]}<small>${d.slice(8)}.${d.slice(5,7)}</small>${estTag(s,d)}</th>`).join("")+'<th class="sum">Σ tydzień</th></tr>';
   html+='<tr><th style="font-weight:400;color:var(--muted);font-size:10px">godz.</th>'+days.map(()=>'<td style="padding:0"><div class="ticks"><span>0</span><span>6</span><span>12</span><span>18</span></div></td>').join("")+'<td class="sum"></td></tr>';
   let grand=0,far=0,over40=0;
   for(const e of empsShown){
     let total=0; const lanes=days.map(()=>[]);
-    for(const c of hist){if(c.empId!==e.id||c.date!==addDays(s.start,-1))continue;const sh=shMap[c.shiftId];if(startsPrevDay(sh)&&!isDutyCell(c,sh))continue;const end=startOf(sh,c.date)+hoursOf(sh);if(end>24)lanes[0].push(`<div class="bar cont" style="left:0;width:${pct(end-24)};background-color:${colorOf(c.shiftId)}">→ ${esc(sh?.name||"")}<small>do ${fmtH(end-24)} (z pop. tyg.)</small></div>`)}
+    for(const c of hist){if(c.empId!==e.id||c.date!==addDays(days[0],-1))continue;const sh=shMap[c.shiftId];if(startsPrevDay(sh)&&!isDutyCell(c,sh))continue;const end=startOf(sh,c.date)+hoursOf(sh);if(end>24)lanes[0].push(`<div class="bar cont" style="left:0;width:${pct(end-24)};background-color:${colorOf(c.shiftId)}">→ ${esc(sh?.name||"")}<small>do ${fmtH(end-24)} (z pop. tyg.)</small></div>`)}
     const spillsIn=days.map(()=>[]);
     const consider=(c,date)=>{const sh=shMap[c.shiftId];if(!sh||!startsPrevDay(sh)||isDutyCell(c,sh))return;const idx=days.indexOf(addDays(date,-1));if(idx>=0)spillsIn[idx].push({c,sh,date})};
     for(const d of days)for(const c of (byEmpDay[e.id]?.[d]||[]))consider(c,d);
@@ -736,7 +770,7 @@ function renderTimeline(){
     days.forEach((d,i)=>{for(const sp of spillsIn[i]){const cl=isClosed(sp.c,sp.sh);const bd=cellBounds(sp.c,sp.sh,sp.date);lanes[i].push(`<div class="bar spill${sp.c.locked?" locked":""}${cl?" closed":""}" style="left:${pct(bd.st)};width:${pct(24-bd.st)};background-color:${colorOf(sp.c.shiftId)}" data-pick="${e.id}|${sp.date}" data-tl="${sp.c.empId}|${sp.c.date}|${sp.c.shiftId}|${sp.c.slot}" data-tl-st="${bd.st}" title="${esc(sp.sh.name)}: wyjazd ${fmtH(bd.st)} (trasa na ${sp.date.slice(8)}.${sp.date.slice(5,7)})">${cl?"✓ ":""}${esc(sp.sh.name)}<small>wyjazd ${fmtH(bd.st)}</small></div>`)}});
     grand+=total; if(total>40)over40++;
     const ec=empColor(e);
-    html+=`<tr data-tl-emp="${e.id}"><td style="border-left:6px solid ${ec};background:linear-gradient(${tint(ec,.12)},${tint(ec,.12)}),var(--paper)"><span class="edot" style="background:${ec}"></span>${esc(e.name)}</td>`+lanes.map((l,i)=>`<td data-tl-day="${days[i]}" class="cell dstart${i%2?" alt":""}${wdOf(days[i])===0||wdOf(days[i])===6?" weekend":""}"><div class="lane" style="${wdOf(days[i])===0||wdOf(days[i])===6?"":"background-color:"+tint(ec,.06)}">${l.join("")}</div></td>`).join("")+`<td class="sum">${String(total).replace(".",",")} h<small>${total>40?"+"+String(Math.round((total-40)*10)/10).replace(".",",")+" h ponad 40":total?"w normie":""}</small></td></tr>`;
+    html+=`<tr data-tl-emp="${e.id}"><td style="border-left:6px solid ${ec};background:linear-gradient(${tint(ec,.26)},${tint(ec,.26)}),var(--paper)"><span class="edot" style="background:${ec}"></span>${esc(e.name)}</td>`+lanes.map((l,i)=>`<td data-tl-day="${days[i]}" class="cell dstart${i%2?" alt":""}${wdOf(days[i])===0||wdOf(days[i])===6?" weekend":""}"><div class="lane" style="${wdOf(days[i])===0||wdOf(days[i])===6?"":"background-color:"+tint(ec,.16)}">${l.join("")}</div></td>`).join("")+`<td class="sum">${String(total).replace(".",",")} h<small>${total>40?"+"+String(Math.round((total-40)*10)/10).replace(".",",")+" h ponad 40":total?"w normie":""}</small></td></tr>`;
   }
   const f1=v=>String(Math.round(v*10)/10).replace(".",",");
   T.innerHTML=`<p class="lead">Każdy dzień to oś 24 h. Szerokość kafelka = planowany czas pracy od statystycznej godziny startu (ustawianej przy typie zmiany). Dalekie trasy 8–11 wyjeżdżają wieczorem dzień wcześniej (dzień na grafiku to dzień rozwózki), a kreskowana kontynuacja pokazuje ich końcówkę. Trasy i dni zakończone (dane z FlotoMax) mają znacznik ✓ i biały kontur. Sumy godzin to czas pracy: kierowcy kat. C na długiej trasie odliczamy 9 h odpoczynku w trasie. Szare pasy po bokach = noc. Dotknięcie kafelka otwiera edycję. Kafelek można złapać i upuścić w dowolnym miejscu: wiersz to kierowca, kolumna to dzień, a miejsce w kolumnie to godzina wyjazdu (co 15 min). Zakończonym trasom można zmienić tylko godziny. Prawa krawędź kafelka zmienia jego długość. Nowe zadanie przeciągnij z „Puli etykiet”. Ruch cofa przycisk „↩ Cofnij”.</p>
@@ -745,25 +779,26 @@ function renderTimeline(){
   <div class="grid-scroll"><table class="tl">${html}</table></div>
   <div class="tl-legend">${S.shifts.map(x=>`<span><i style="background:${colorOf(x.id)}"></i>${esc(x.name)} · ${startsPrevDay(x)?"dzień wcześniej ":""}${fmtH(startOf(x))} · ${String(hoursOf(x)).replace(".",",")} h</span>`).join("")}<span><i style="background:#9ca3af;box-shadow:inset 0 0 0 2px #fff"></i>✓ zakończona (FlotoMax)</span><span><i style="background:var(--rest);border:1px solid #e6c98a"></i>odpoczynek</span><span><i style="background:rgba(31,36,48,.08);border:1px solid var(--line2)"></i>noc</span></div>`;
 }
-function renderPlan(){try{updUndo()}catch(e){}
+function renderPlan(){try{updUndo()}catch(e){}try{renderPlan0()}finally{maybeScroll(planView==="hours"?"#timeline .grid-scroll":"#chips-view .grid-scroll");const s=S.scheds[S.current],r=$("roll-ctl");if(r)r.style.display=s?.rolling?"flex":"none"}}
+function renderPlan0(){
   const s=S.scheds[S.current]; const T=$("plan-table"); $("unfilled").innerHTML="";
   if(!s){T.innerHTML="";$("unfilled").innerHTML='<p class="lead" data-label="txt5">Brak harmonogramu. Przejdź do „Harmonogramy” i wylosuj pierwszy.</p>';return}
-  const days=[...range(s.start,s.end)], am=absMap(), pm=pendingMap(), shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
+  const days=viewDays(s), am=absMap(), pm=pendingMap(), shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
   const rf=$("repair-from");if(rf.value<s.start||rf.value>s.end)rf.value=s.start;rf.min=s.start;rf.max=s.end;
   // rest map derived from cells
   const rest={};for(const c of s.cells){if(c.empId==null)continue;const r=restOf(shMap[c.shiftId]);if(r>0)for(let i=1;i<=r;i++)(rest[c.empId]??={})[addDays(c.date,i)]="own"}
   // odpoczynek wynikający z poprzedniego tygodnia (np. daleka trasa w niedzielę) — oznaczony jako przeniesiony
-  for(const c of historyBefore(s.start,s.id)){const sh=shMap[c.shiftId];const r=restOf(sh);if(r>0)for(let i=1;i<=r;i++){const d=addDays(c.date,i);if(d>=s.start&&!rest[c.empId]?.[d])(rest[c.empId]??={})[d]={carry:true,after:sh?.name||c.shiftId,date:c.date}}}
+  for(const c of histFor(s,days[0])){const sh=shMap[c.shiftId];const r=restOf(sh);if(r>0)for(let i=1;i<=r;i++){const d=addDays(c.date,i);if(d>=days[0]&&!rest[c.empId]?.[d])(rest[c.empId]??={})[d]={carry:true,after:sh?.name||c.shiftId,date:c.date}}}
   const PORD={am:0,full:1,pm:2};const byEmpDay={};s.cells.forEach(c=>{if(c.empId!=null)((byEmpDay[c.empId]??={})[c.date]??=[]).push(c)});
   Object.values(byEmpDay).forEach(m=>Object.values(m).forEach(arr=>arr.sort((a,b)=>PORD[cpart(a,shMap[a.shiftId],a.date)]-PORD[cpart(b,shMap[b.shiftId],b.date)])));
   const balAll=balances(null);
   const empsShown=S.emps.filter(e=>e.active||byEmpDay[e.id]);
   const isSun=d=>wdOf(d)===0, isWe=d=>wdOf(d)===0||wdOf(d)===6;
-  let h='<tr><th class="corner" rowspan="2"></th>'+days.map((d,di)=>`<th class="day dstart${di%2?" alt":""}${isWe(d)?" weekend":""}" colspan="${isSun(d)?1:2}">${DAYN[wdOf(d)]}<small>${d.slice(8)}.${d.slice(5,7)}</small>${estTag(s,d)}</th>`).join("")+"</tr>";
+  let h='<tr><th class="corner" rowspan="2"></th>'+days.map((d,di)=>`<th data-dayhead="${d}" class="day dstart${di%2?" alt":""}${isWe(d)?" weekend":""}" colspan="${isSun(d)?1:2}">${DAYN[wdOf(d)]}<small>${d.slice(8)}.${d.slice(5,7)}</small>${estTag(s,d)}</th>`).join("")+"</tr>";
   h+='<tr>'+days.map((d,di)=>{const al=di%2?" alt":"";return isSun(d)?`<th class="sub dstart${al} weekend">cały dzień</th>`:`<th class="sub dstart${al}${isWe(d)?" weekend":""}">rano</th><th class="sub${al}${isWe(d)?" weekend":""}">po poł.</th>`}).join("")+"</tr>";
   for(const e of empsShown){
-    const ec=empColor(e), rowBg=`background:${tint(ec,.06)};`;
-    h+=`<tr><td class="who" style="border-left:6px solid ${ec};background:linear-gradient(${tint(ec,.12)},${tint(ec,.12)}),var(--paper)"><span class="edot" style="background:${ec}"></span>${esc(e.name)}<small class="bal" title="Saldo dniówek. Im wyższe, tym więcej dni wolnych dostaje kierowca przy losowaniu. Każdy dzień wolny kosztuje 1 dniówkę.">saldo ${fd(balAll[e.id]||0)} dn.</small></td>`;
+    const ec=empColor(e), rowBg=`background:${tint(ec,.16)};`;
+    h+=`<tr><td class="who" style="border-left:6px solid ${ec};background:linear-gradient(${tint(ec,.26)},${tint(ec,.26)}),var(--paper)"><span class="edot" style="background:${ec}"></span>${esc(e.name)}<small class="bal" title="Saldo dniówek. Im wyższe, tym więcej dni wolnych dostaje kierowca przy losowaniu. Każdy dzień wolny kosztuje 1 dniówkę.">saldo ${fd(balAll[e.id]||0)} dn.</small></td>`;
     let di=-1;for(const d of days){di++;
       const we=isWe(d), span=isSun(d)?1:2, wc=(we?" weekend":"")+(di%2?" alt":"");
       const cs=byEmpDay[e.id]?.[d]||[]; const ab=am[e.id]?.[d];
@@ -822,11 +857,18 @@ async function assignShift(empId,date,shiftId,opts={}){
     target.empId=empId; target.locked=true; delete target.extra;delete target.duty;delete target.dutyH;delete target.closed;delete target.out;delete target.back; if(splitPart)target.part=splitPart; else delete target.part; locked.add(key(target));
   }
   let msg;
+  const unexpected=shiftId&&!opts.auto&&!opts.from&&!opts.toggle&&!shiftsOn(date).some(x=>x.id===shiftId);
+  if(unexpected&&$("auto-repair").checked){await guard(()=>saveSched(s));const sh0=S.shifts.find(x=>x.id===shiftId),e0=S.emps.find(x=>x.id===empId);S.askAffect={sid:s.id,empId,date,shiftId};
+    notice(`Dodano ${esc(sh0?.name||"trasę")} (${date.slice(8)}.${date.slice(5,7)}) dla ${esc(e0?.name||"")}. To trasa spoza planu dnia. Czy ma przestawić resztę grafiku tego kierowcy (odpoczynek przed i po, kolizje)? <button class="btn sm" data-affect="yes">Tak, przestaw</button> <button class="btn ghost sm" data-affect="no">Nie, zostaw resztę</button>`);renderPlan();return}
   if($("auto-repair").checked){const back=Math.max(0,...S.shifts.map(restOf));let from0=opts.from&&opts.from.date<date?opts.from.date:date;if(shiftId){const b0=addDays(date,-back);if(b0<from0)from0=b0<s.start?s.start:b0}const changed=repair(s,from0,locked,ban);msg=`Zapisano i zablokowano. Sprawdzono kolizje od ${from0}: ${changed===0?"nic nie trzeba było zmieniać.":changed===1?"podmieniono 1 przydział.":"podmieniono "+changed+" przydziały."}`}
   else msg="Zapisano i zablokowano (bez sprawdzania kolizji).";
   await guard(()=>saveSched(s)); notice(msg); renderPlan();
 }
 
+document.addEventListener("click",ev=>{const b=ev.target.closest("[data-affect]");if(!b)return;const a=S.askAffect;S.askAffect=null;if(!a){notice("");return}
+  if(b.dataset.affect==="no"){notice("Trasa dodana, reszta grafiku bez zmian.");return}
+  guard(async()=>{const s=S.scheds[a.sid];if(!s)return;const c=s.cells.find(x=>x.date===a.date&&x.shiftId===a.shiftId&&x.empId===a.empId);const lk=new Set(c?[c.date+"|"+c.shiftId+"|"+c.slot]:[]);
+    const back=Math.max(0,...S.shifts.map(restOf));let from0=addDays(a.date,-back);if(from0<s.start)from0=s.start;const n=repair(s,from0,lk,new Set());await saveSched(s);renderPlan();notice(`Przestawiono grafik wokół trasy: ${n} zmian.`)})});
 // ---------- drag & drop (pointer events: mysz + dotyk) ----------
 (function(){
   let drag=null, ghost=null, over=null, moved=false;
@@ -857,6 +899,60 @@ async function assignShift(empId,date,shiftId,opts={}){
 })();
 let suppressClick=false;
 
+
+
+
+// dziennik wyjazdów (kolekcja triplog): plan i rzeczywistość każdej trasy z FlotoMax – do przewidywania czasów i planowania
+async function logTrips(trips,asg){if(!S.db)return;if(!FL.logged){FL.logged=new Map();try{await new Promise(res=>{let done=false;const un=S.db.collection("triplog").onSnapshot(q=>{q.docs.forEach(d=>FL.logged.set(d.id,JSON.stringify(d.data())));if(!done){done=true;res()}});setTimeout(()=>{if(!done){done=true;res()}},4000)})}catch(e){}}
+  const plan={};for(const a of Array.isArray(asg)?asg:[])if(a&&a.routeId!=null)plan[a.routeId]=a;
+  for(const t of Array.isArray(trips)?trips:[]){if(!t||t.routeId==null||!t.departedAt)continue;const a=plan[t.routeId]||{};const e=flotoEmp(t.driverId,t.driverName);
+    const doc={routeId:t.routeId,date:t.deliveryDate||a.date||null,label:t.label||a.label||null,kind:a.kind||FL.kinds[t.routeId]||null,driverId:t.driverId,driver:t.driverName||null,empId:e?.id||null,plate:t.plate||a.plate||null,stops:a.stops??null,
+      plannedDeparture:a.plannedDepartureAt||null,plannedReturn:a.plannedReturnAt||null,departed:t.departedAt,returned:t.returnedToBaseAt||null,hours:t.returnedToBaseAt?tripHours(t.departedAt,t.returnedToBaseAt):null,restHours:Number.isFinite(t.restHours)?t.restHours:null,weekday:t.deliveryDate?wdOf(t.deliveryDate):null};
+    const js=JSON.stringify(doc);if(FL.logged.get(String(t.routeId))===js)continue;try{await S.db.doc("triplog/"+t.routeId).set(doc);FL.logged.set(String(t.routeId),js)}catch(e){}}}
+// ---------- tydzień nauki nowego kierowcy ----------
+// 2 dni jako druga osoba z opiekunem, 1 dzień na dyżurze (Nagel), pozostałe dni na różnych trasach z różnymi kierowcami (jak najwięcej kontrahentów)
+async function planTraining(empId,from,mentorId){const e=S.emps.find(x=>x.id===empId);if(!e)return"Brak kierowcy.";
+  const s=Object.values(S.scheds).find(x=>x.start<=from&&from<=x.end)||rollingSched();if(!s||from>s.end)return"Brak grafiku na ten dzień.";
+  const m={};S.shifts.forEach(x=>m[x.id]=x);const am=absMap();const days=[];for(let d=from;days.length<5&&d<=addDays(from,9)&&d<=s.end;d=addDays(d,1)){if(am[empId]?.[d])continue;if(s.cells.some(c=>c.date===d&&c.empId&&c.empId!==empId&&!isFar(m[c.shiftId])&&(m[c.shiftId]?.part||"full")!=="pm"))days.push(d)}
+  if(days.length<3)return"Za mało dni z trasami w tym okresie.";
+  const out=[],seen=new Set(),drivers=new Set();
+  const host=(d,pred)=>s.cells.filter(c=>c.date===d&&c.empId&&c.empId!==empId&&!c.training&&pred(c));
+  const add=(c,how)=>{const n=s.cells.filter(x=>x.date===c.date&&x.shiftId===c.shiftId).length;s.cells.push({date:c.date,shiftId:c.shiftId,slot:n,empId,locked:true,training:true,with:c.empId});seen.add(c.shiftId);drivers.add(c.empId);out.push(`${c.date.slice(8)}.${c.date.slice(5,7)} ${m[c.shiftId]?.name||c.shiftId} z: ${S.emps.find(x=>x.id===c.empId)?.name||""}${how?" ("+how+")":""}`)};
+  let dutyDone=false;
+  days.forEach((d,i)=>{s.cells.filter(c=>c.date===d&&c.empId===empId&&!c.locked).forEach(c=>{c.empId=null});
+    const day=c=>!isFar(m[c.shiftId])&&!isDutyCell(c,m[c.shiftId]);
+    if(i<2){const mc=mentorId?host(d,c=>c.empId===mentorId&&day(c))[0]:null;const c=mc||host(d,c=>day(c)&&!seen.has(c.shiftId))[0]||host(d,day)[0];if(c)add(c,mc?"opiekun":"");return}
+    if(!dutyDone){const du=host(d,c=>isDutyCell(c,m[c.shiftId]))[0];if(du){add(du,"dyżur");dutyDone=true;return}}
+    const c=host(d,c=>day(c)&&!seen.has(c.shiftId)&&!drivers.has(c.empId))[0]||host(d,c=>day(c)&&!seen.has(c.shiftId))[0]||host(d,day)[0];if(c)add(c,"nowa trasa")});
+  if(!e.startDate){e.startDate=from;await saveE()}
+  repair(s,from>warsawDay()?from:warsawDay());await saveSched(s);renderPlan();
+  return `Tydzień nauki dla ${esc(e.name)}: ${out.join("; ")}.${dutyDone?"":" Brak dyżuru w tych dniach — dodaj go ręcznie."}`}
+// ---------- grafik ciągły: scalenie tygodni w jeden, dobudowa HORIZON dni do przodu ----------
+async function migrateRolling(){if(!S.db||rollingSched())return;const all=Object.values(S.scheds).sort((a,b)=>a.start.localeCompare(b.start));if(!all.length)return;
+  const cells=[],est={};for(const s of all){Object.assign(est,s.est||{});for(const c of s.cells||[]){const n=cells.filter(x=>x.date===c.date&&x.shiftId===c.shiftId).length;cells.push({...c,slot:n})}}
+  const r={id:"rolling",name:"Grafik ciągły",rolling:true,start:all[0].start,end:all.map(s=>s.end).sort().pop(),createdAt:new Date().toISOString(),cells,est};
+  await S.db.doc("schedules/rolling").set(r);for(const s of all)await S.db.doc("schedules/"+s.id).delete();S.current="rolling"}
+
+// po ułożeniu: każdy aktywny kierowca ma mieć 2 wolne dni z rzędu w tygodniu; jeśli nie, oddaj jego dzień przy wolnym komuś innemu
+function missingPair(s,empId,mon,m){const work=new Set(s.cells.filter(c=>c.empId===empId&&(m[c.shiftId]?.part||"full")!=="pm").map(c=>c.date));const ds=[...range(mon,addDays(mon,6))];for(let i=0;i<6;i++)if(!work.has(ds[i])&&!work.has(ds[i+1]))return false;return true}
+function fixOffPairs(s,from,to){const m={};S.shifts.forEach(x=>m[x.id]=x);let fixed=0;
+  for(let mon=weekKey(from);mon<=to;mon=addDays(mon,7)){if(addDays(mon,6)>to||mon<from)continue;
+    for(let it=0;it<12;it++){const bad=S.emps.filter(e=>e.active&&!e.virtual&&missingPair(s,e.id,mon,m));if(!bad.length)break;let done=false;
+      for(const e of bad){const ds=[...range(mon,addDays(mon,6))];const mine=c=>c.empId===e.id&&!c.locked&&!c.closed&&c.flotoRoute==null&&c.flotoPlan==null&&!c.training&&(m[c.shiftId]?.part||"full")!=="pm";
+        const cand=ds.map((d,i)=>({d,i,c:s.cells.find(c=>c.date===d&&mine(c))})).filter(x=>x.c).sort((a,b)=>{const nb=x=>(x.i>0&&!s.cells.some(c=>c.empId===e.id&&c.date===ds[x.i-1]))||(x.i<6&&!s.cells.some(c=>c.empId===e.id&&c.date===ds[x.i+1]))?0:1;return nb(a)-nb(b)});
+        for(const {d,c} of cand){const snap=JSON.stringify(s.cells),before=bad.length;c.empId=null;delete c.extra;repair(s,d,new Set(),new Set([e.id+"|"+d]));
+          const after=S.emps.filter(x=>x.active&&!x.virtual&&missingPair(s,x.id,mon,m)).length;const full=!s.cells.some(x=>x.date>=from&&x.date<=to&&x.empId==null);
+          if(full&&after<before){fixed++;done=true;break}s.cells=JSON.parse(snap)}
+        if(done)break}
+      if(!done)break}}
+  return fixed}
+async function ensureHorizon(){const s=rollingSched();if(!s||!S.db||S.horizonBusy)return 0;const target=warsawDay(HORIZON);if(s.end>=target)return 0;
+  if(!S.emps.some(e=>e.active)||!S.shifts.length)return 0;S.horizonBusy=true;const prev=S.noUndo;S.noUndo=true;
+  try{const start=addDays(s.end,1);const cells=generate(start,target,null);s.cells.push(...cells);s.end=target;fixOffPairs(s,start,target);await saveSched(s);return cells.length}finally{S.noUndo=prev;S.horizonBusy=false}}
+async function rollingTick(){try{await migrateRolling();const n=await ensureHorizon();if(n){render();setTimeout(()=>flotoSync(false),300)}const s=rollingSched();if(s&&$("roll-info"))$("roll-info").textContent=`Grafik ułożony do ${s.end.slice(8)}.${s.end.slice(5,7)} (zawsze ${HORIZON} dni do przodu). Zamrożone do ${freezeTo().slice(8)}.${freezeTo().slice(5,7)} — zmiany tylko ręczne.`}catch(e){console.error(e)}}
+setInterval(()=>{if(document.visibilityState==="visible")rollingTick()},60*60*1000);
+$("roll-back").onclick=()=>{viewBack+=14;renderPlan()};
+$("roll-today").onclick=()=>{S.autoScroll=true;renderPlan()};
 // ---------- Kalendarz: kartka miesiąca ze świętami, dniami wolnymi i nieobecnościami ----------
 let kalMonth=null;
 const MONTHS=["styczeń","luty","marzec","kwiecień","maj","czerwiec","lipiec","sierpień","wrzesień","październik","listopad","grudzień"];
@@ -1027,10 +1123,16 @@ $("btn-next-week").onclick=()=>guard(async()=>{
   S.current=s.id; await saveSched(s); document.querySelector('nav .tab[data-tab="plan"]').click(); renderList(); renderPlan(); notice(`Wylosowano ${s.name} (na podstawie poprzedniego tygodnia).`);setTimeout(()=>flotoSync(false),300);
 });
 $("btn-undo").onclick=undoLast;
+document.addEventListener("change",ev=>{const id=ev.target.dataset?.start;if(!id)return;const e=S.emps.find(x=>x.id===id);if(!e)return;const v=ev.target.value;if(v&&!isoDate(v))return;if(v)e.startDate=v;else delete e.startDate;guard(saveE)});
 document.addEventListener("input",ev=>{const id=ev.target.id;if(id!=="duty-out"&&id!=="duty-back"&&id!=="duty-h"&&id!=="duty-state")return;const box=document.getElementById("duty-cmp");if(!box)return;const th=tripHours(document.getElementById("duty-out").value,document.getElementById("duty-back").value);const hm=parseFloat(document.getElementById("duty-h").value);const h=th!=null?th:hm;const st=document.getElementById("duty-state").value;if(st==="cancelled"){box.textContent="Anulowany: 0 dniówek.";box.style.color="";return}if(!Number.isFinite(h)){box.textContent="";return}const v=dutyVerdict(h);box.textContent="Porównanie: "+v.text+".";box.style.color=v.over?"#1e40af":"#166534";if(th!=null){document.getElementById("duty-h").value=th}});
 document.addEventListener("click",e=>{const el=e.target.closest("[data-est]");if(!el)return;const s=S.scheds[S.current];if(!s)return;const d=el.dataset.est;const cur=estOf(s,d);const v=prompt(`Szacowana liczba tras — ${d}\n(puste = wróć do wartości z Założeń: ${estOf({est:{}},d).n})`,cur.n);if(v===null)return;guard(async()=>{s.est={...(s.est||{})};if(v.trim()==="")delete s.est[d];else if(Number.isFinite(+v)&&+v>=0)s.est[d]=Math.round(+v);await saveSched(s);renderPlan()})});
 document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==="z"&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||"")){e.preventDefault();undoLast()}});
 $("btn-reroll").onclick=()=>guard(async()=>{const s=S.scheds[S.current];if(!s)return;
+  if(s.rolling){const from=addDays(freezeTo(),1);if(from>s.end){notice("Wszystkie ułożone dni są zamrożone.");return}
+    const keep=c=>c.date<from||c.locked||c.closed||c.flotoRoute!=null||c.flotoPlan!=null;const kept=s.cells.filter(c=>c.date>=from&&keep(c));
+    s.cells=s.cells.filter(c=>c.date<from);const fresh=generate(from,s.end,null);
+    for(const k of kept){const t=fresh.find(c=>c.date===k.date&&c.shiftId===k.shiftId&&c.slot===k.slot);if(t)Object.assign(t,k);else fresh.push({...k})}
+    s.cells.push(...fresh);repair(s,from);await saveSched(s);renderPlan();notice(`Ułożono ponownie dni od ${from.slice(8)}.${from.slice(5,7)} do ${s.end.slice(8)}.${s.end.slice(5,7)} (zamrożone tygodnie i zablokowane wpisy bez zmian).`);return}
   const kept=s.cells.filter(c=>c.locked&&c.empId!=null);
   s.cells=generate(s.start,s.end,s.id);
   for(const k of kept){const t=s.cells.find(c=>c.date===k.date&&c.shiftId===k.shiftId&&c.slot===k.slot);if(t){t.empId=k.empId;t.locked=true;if(k.part)t.part=k.part;else delete t.part;if(k.duty){t.duty=k.duty;if(k.dutyH!==undefined)t.dutyH=k.dutyH}}else s.cells.push({...k})}
@@ -1045,7 +1147,7 @@ $("btn-plan-none").onclick=()=>guard(async()=>{S.plan={days:{}};for(const w of W
 document.body.addEventListener("click",ev=>{
   const tp=ev.target.closest("[data-tpl]");
   if(tp){const [w,id]=tp.dataset.tpl.split("|");guard(async()=>{ensurePlan();const arr=S.plan.days[w]||(S.plan.days[w]=[]);const i=arr.indexOf(id);if(i>=0)arr.splice(i,1);else arr.push(id);renderTemplate();await savePlan()});return}
-  const t=ev.target.closest("[data-pick],[data-toggle],[data-delemp],[data-absadd],[data-abs],[data-delshift],[data-open],[data-delsched],[data-edit],[data-edsave],[data-edcancel],[data-catc],[data-absok]"); if(!t) return;
+  const t=ev.target.closest("[data-pick],[data-toggle],[data-delemp],[data-absadd],[data-abs],[data-delshift],[data-open],[data-delsched],[data-edit],[data-edsave],[data-edcancel],[data-catc],[data-absok],[data-trplan]"); if(!t) return;
   const d=t.dataset;
   if(d.catc){guard(async()=>{const e=S.emps.find(x=>x.id===d.catc);e.catC=!hasCatC(e);await saveE()});return}
   if(d.absok){const [emp,from,to]=d.absok.split("|");guard(async()=>{S.abs.forEach(a=>{if(a.empId===emp&&a.date>=from&&a.date<=to&&a.reason==="wniosek")a.reason="urlop"});await saveA();notice(`Zatwierdzono urlop ${from}${from!==to?" – "+to:""}. Sprawdź kolizje w harmonogramie na te dni (przycisk „Sprawdź i napraw”).`)});return}
@@ -1057,6 +1159,7 @@ document.body.addEventListener("click",ev=>{
   guard(async()=>{
     if(d.toggle){const e=S.emps.find(x=>x.id===d.toggle);e.active=!e.active;await saveE()}
     else if(d.delemp){if(!t.dataset.confirm){t.dataset.confirm="1";t.textContent="Na pewno?";setTimeout(()=>{delete t.dataset.confirm;t.textContent="Usuń"},2500);return}S.emps=S.emps.filter(x=>x.id!==d.delemp);S.abs=S.abs.filter(a=>a.empId!==d.delemp);await saveE();await saveA()}
+    else if(d.trplan){const from=document.querySelector(`[data-trfrom="${d.trplan}"]`).value,mentor=document.querySelector(`[data-trmentor="${d.trplan}"]`).value;if(!from){notice("Podaj, od kiedy ma być tydzień nauki.");return}const r=await planTraining(d.trplan,from,mentor||null);notice(r);return}
     else if(d.absadd){const from=document.querySelector(`[data-absdate="${d.absadd}"]`).value,to=document.querySelector(`[data-absdate2="${d.absadd}"]`).value||from,reason=document.querySelector(`[data-absreason="${d.absadd}"]`).value;if(!from)return;const [a,b]=from<=to?[from,to]:[to,from];if((new Date(b)-new Date(a))/864e5>120){notice("Zakres nieobecności jest za długi (max 120 dni).");return}if(reason==="wniosek"){const bad=checkLeave(d.absadd,a,b);if(bad.length){notice(leaveNote(bad));return}}for(const day of range(a,b)){S.abs=S.abs.filter(x=>!(x.empId===d.absadd&&x.date===day));S.abs.push({empId:d.absadd,date:day,reason})}await saveA()}
     else if(d.abs){const [emp,from,to]=d.abs.split("|");S.abs=S.abs.filter(a=>!(a.empId===emp&&a.date>=from&&a.date<=to));await saveA()}
     else if(d.delshift){if(!t.dataset.confirm){t.dataset.confirm="1";t.textContent="Na pewno?";setTimeout(()=>{delete t.dataset.confirm;t.textContent="Usuń"},2500);return}S.shifts=S.shifts.filter(x=>x.id!==d.delshift);await saveS()}
@@ -1436,7 +1539,7 @@ async function applyFlotoAssignments(list,from,to){const r={placed:[],need:[],no
     if(virt){if(!c){const slots=s.cells.filter(x=>x.date===a.date&&x.shiftId===sh.id);c=slots.find(x=>x.flotoPlan==null&&x.empId==null);if(!c){c={date:a.date,shiftId:sh.id,slot:slots.length?Math.max(...slots.map(x=>x.slot))+1:0,empId:null};s.cells.push(c)}c.flotoPlan=a.routeId;dirty.add(s.id)}
       if(setPlannedTime(c,sh,a))dirty.add(s.id);needC.push({s:s.id,routeId:a.routeId,lbl});continue}
     if(c&&c.empId===e.id){if(!c.locked){c.locked=true;dirty.add(s.id)}if(setPlannedTime(c,sh,a))dirty.add(s.id);continue}
-    S.current=s.id;await assignShift(e.id,a.date,sh.id,c?{from:{date:c.date,shiftId:c.shiftId,slot:c.slot}}:{});
+    S.current=s.id;await assignShift(e.id,a.date,sh.id,c?{from:{date:c.date,shiftId:c.shiftId,slot:c.slot},auto:true}:{auto:true});
     const s2=S.scheds[s.id]||s,n=s2.cells.find(x=>x.date===a.date&&x.shiftId===sh.id&&x.empId===e.id);
     if(n){n.flotoPlan=a.routeId;setPlannedTime(n,sh,a);dirty.add(s.id);r.placed.push(`${e.name}: ${lbl}`)}else r.warn.push(`${lbl}: nie udało się przydzielić ${e.name}`)}
   // zlecenie usunięte lub zmienione we FlotoMax: zdejmij blokadę (przydział zostaje, naprawa może go zmienić)
@@ -1483,6 +1586,7 @@ async function flotoSync0(manual){
     const starts=Object.values(S.scheds).map(s=>s.start).sort();const lo=warsawDay(-14);const from=starts.length&&starts[0]>lo?starts[0]:lo,to=warsawDay(1);
     const pTo=warsawDay(42);const asg=(await FL.mcp.callTool(FLOTO,"list_assignments",{from,to:pTo},{cache:false})).payload;const r4=await applyFlotoAssignments(asg,warsawDay(),pTo);
     const tr=(await FL.mcp.callTool(FLOTO,"list_trips",{from,to},{cache:false})).payload;const r2=applyFlotoTrips(tr);for(const s of r2.scheds)await saveSched(s);
+    await logTrips(tr,asg);
     if(r2.newShifts.length||r4.made.length)await saveS();
     const aFrom=warsawDay(-31),aTo=warsawDay(366);const ab=(await FL.mcp.callTool(FLOTO,"list_absences",{from:aFrom,to:aTo},{cache:false})).payload;
     const r3=applyFlotoAbsences(ab?.absences??ab,aFrom,aTo);const sent=[];
@@ -1532,7 +1636,7 @@ async function assignOrderImpl({employeeId,name,date,orders,order}={}){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||"")))return{ok:false,message:"date musi mieć format RRRR-MM-DD"};
   const s=Object.values(S.scheds).find(x=>x.start<=date&&date<=x.end);if(!s)return{ok:false,message:"brak harmonogramu na ten dzień"};
   const sh=S.shifts.find(x=>(x.part||"full")==="pm");if(!sh)return{ok:false,message:"brak typu zmiany dyżurowego w Założeniach"};
-  S.current=s.id;await assignShift(e.id,date,sh.id);
+  S.current=s.id;await assignShift(e.id,date,sh.id,{auto:true});
   const s2=S.scheds[s.id]||s;const c=s2.cells.find(c=>c.date===date&&c.empId===e.id&&c.shiftId===sh.id);
   if(!c)return{ok:false,message:"Nie udało się przydzielić dyżuru (kierowca odpoczywa, jest nieobecny albo ma daleką trasę)."};
   const ords=parseOrders(orders||order);if(ords.length)c.orders=ords;else delete c.orders;delete c.duty;delete c.dutyH;delete c.out;delete c.back;

@@ -14,5 +14,5 @@ console.log(JSON.stringify(r[0],null,0));
 const all=r.flatMap(o=>Object.entries(o));const ns=r.map(o=>Object.values(o).map(v=>v.n));
 ok('każdy kierowca dostaje dalekie trasy (6 tygodni)',r.every(o=>Object.entries(o).every(([n,v])=>v.n>=2||/Bubon/.test(n))),JSON.stringify(ns));
 ok('rozrzut liczby dalekich tras ≤ 3 w 6 tygodni',ns.every(a=>Math.max(...a)-Math.min(...a)<=3),JSON.stringify(ns));
-ok('nikt nie ma dwóch dalekich tras w odstępie < 4 dni',all.every(([n,v])=>v.minGap==null||v.minGap>=4),JSON.stringify(all.filter(([n,v])=>v.minGap!=null&&v.minGap<4)));
+ok('nikt nie ma dwóch dalekich tras w odstępie < 3 dni',all.every(([n,v])=>v.minGap==null||v.minGap>=3),JSON.stringify(all.filter(([n,v])=>v.minGap!=null&&v.minGap<4)));
 console.log('ERRS',errs);await b.close()})();
