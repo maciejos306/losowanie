@@ -145,3 +145,10 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v74 — Bilans z danych rzeczywistych
 - Druga karta Bilansu: średnia z tygodni grafiku (obsadzone trasy, rzeczywiste urlopy/L4), godziny planowane i wykonane (FlotoMax), wiarygodność danych wg liczby tygodni historii.
+
+## v75 — konta i logowanie
+- Ekran Logowanie: kafelki osób w grupach (Spedycja, Kadry, Administrator), PIN 4 cyfry (hash SHA-256 z solą w app/users), wymuszona zmiana PIN-u tymczasowego, „← Nie ja, zmień konto”, Wyloguj.
+- Spedycja: Plan tygodnia, Dyspozycja dnia, Kalendarz; edycja planu; w puli etykiet kafelki Urlop i L4 (= nieobecność z naprawą kolizji).
+- Kadry: Kadry, Rejestr, Pracownicy (zmiana nazwiska ✎, kat., aktywny), Historia kierowcy (dzień po dniu, wyjazd/powrót z FlotoMax lub plan, dniówki, filtr dat); plan tylko do podglądu.
+- Administrator: wszystko + zakładka Konta (dodaj, usuń, zmień grupę, resetuj PIN). Asystent AI tylko dla Administratora.
+- Ograniczenie: logowanie działa w przeglądarce — porządkuje menu, nie jest twardym zabezpieczeniem danych.

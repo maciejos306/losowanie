@@ -250,6 +250,13 @@
   .chip.locked.closed{box-shadow:inset 0 0 0 2px #1C2321!important}
 .hv-tip{position:fixed;z-index:90;max-width:320px;background:#1f2430;color:#fff;font:500 12.5px/1.45 'IBM Plex Sans',system-ui,sans-serif;padding:8px 10px;border-radius:8px;box-shadow:0 6px 22px rgba(0,0,0,.3);pointer-events:none;white-space:pre-line}.hv-tip b{display:block;margin-bottom:3px;font-weight:700;color:#ffd77a}.hv-tip[hidden]{display:none}
 .bil-real{border-collapse:collapse;background:var(--paper);border-radius:8px;overflow:hidden;font-size:12.5px;color:var(--ink)}.bil-real th,.bil-real td{padding:5px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}.bil-real th:first-child,.bil-real td:first-child{text-align:left}.bil-real th{font-weight:600;color:var(--muted);font-size:11.5px}
+#login{position:fixed;inset:0;z-index:200;background:var(--bg,#f3f2ef);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:40px 16px}#login[hidden]{display:none}
+.lg-box{background:var(--paper,#fff);border:1px solid var(--line);border-radius:16px;padding:22px 26px;max-width:760px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.12)}.lg-box.sm{max-width:360px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center}
+.lg-box h2{margin:0 0 4px;font-size:24px}.lg-grp h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:16px 0 8px}.lg-tiles{display:flex;flex-wrap:wrap;gap:10px}
+.lg-tile{display:flex;flex-direction:column;align-items:center;gap:6px;width:130px;padding:14px 8px;border:1px solid var(--line);border-radius:12px;background:var(--paper,#fff);cursor:pointer;font:600 13px inherit;color:inherit}.lg-tile:hover{border-color:#2f7fd0;box-shadow:0 0 0 3px rgba(47,127,208,.2)}
+.lg-tile span{width:44px;height:44px;border-radius:50%;background:#2f7fd0;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
+#lg-pin{font-size:28px;letter-spacing:.5em;text-align:center;width:170px;padding:8px}.lg-msg{color:#b3261e;font-size:13px;min-height:18px}
+body.no-ai #ai-fab,body.no-ai #ai-panel{display:none!important}body.ro-plan #plan .tl-pool{display:none}
 </style>
 
 <div class="wrap">
@@ -268,6 +275,7 @@
   <div class="main">
   <div class="board">
     <div class="head" style="align-items:flex-start;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h1 data-label="title">Plan dyżurów</h1><div class="sub" data-label="subtitle">Losowy przydział tras z automatycznym odpoczynkiem po dalekich trasach</div></div><button class="btn ghost sm" id="btn-labels">✎ Edytuj napisy</button></div>
+    <div id="who" hidden style="font-size:13px;margin:0 0 6px"></div>
     <nav>
       <button class="tab active" data-tab="plan" data-label="tab-plan">Plan tygodnia</button>
       <button class="tab" data-tab="lista" data-label="tab-lista">Harmonogramy</button>
@@ -279,6 +287,7 @@
       <button class="tab" data-tab="bilans" data-label="tab-bilans">Bilans</button>
       <button class="tab" data-tab="rejestr" data-label="tab-rejestr">Rejestr</button>
       <button class="tab" data-tab="kalendarz" data-label="tab-kalendarz">Kalendarz</button>
+      <button class="tab" data-tab="konta" hidden>Konta</button>
     </nav>
     <div class="floto" id="floto" role="status" aria-live="polite"><span class="fl-dot" aria-hidden="true"></span><span id="floto-txt">FlotoMax: łączenie…</span><button class="btn ghost sm" id="floto-btn">⟳ Pobierz z FlotoMax</button><button class="btn ghost sm" id="floto-send" title="Wysyła do FlotoMax grafik od bieżącego tygodnia (każdy tydzień nadpisuje poprzednią wersję), żeby kierowcy widzieli plan w aplikacji">⇪ Wyślij grafik do FlotoMax</button><details id="floto-det" hidden><summary>Szczegóły ostatniego pobrania</summary><ul id="floto-list"></ul></details></div>
 
@@ -290,8 +299,13 @@
       <p class="lead">Saldo dniówek = ręczny bilans otwarcia (kolumna „stan dniówek” wyżej) + suma tygodni od wybranej daty: zarobione dniówki (dyżur tylko zrealizowany) minus norma 5. Dzień wolny lub urlop kosztuje 1 dniówkę, więc saldo może zejść poniżej zera. Liczą się tylko tygodnie w pełni objęte harmonogramami. Losowanie układa plan tak, żeby wyrównywać salda: kto ma więcej dniówek, dostaje więcej dni wolnych.</p>
       <div class="row"><span class="muted">Rachunek liczony od:</span><input type="date" id="hr-since"></div>
       <div class="grid-scroll"><table class="plan hr" id="hr-bal"></table></div>
+      <h3 style="margin:22px 0 6px;font-size:15px">Historia kierowcy</h3>
+      <div class="row" style="flex-wrap:wrap"><select id="hist-emp" aria-label="Kierowca"></select><label class="muted">od <input type="date" id="hist-from"></label><label class="muted">do <input type="date" id="hist-to"></label></div>
+      <div id="hist-body"></div>
       <textarea id="hr-out" style="display:none;width:100%;height:100px;font:11px monospace;margin-top:8px"></textarea>
     </div>
+
+    <div class="screen" id="konta"><h2 style="font-size:18px;margin:0 0 8px">Konta użytkowników</h2><div id="konta-body"></div></div>
 
     <div class="screen" id="kalendarz">
       <div class="row" style="justify-content:space-between"><div class="row" style="margin:0"><button class="btn ghost sm" id="kal-prev" aria-label="Poprzedni miesiąc">‹</button><h2 id="kal-title" style="font-size:20px;min-width:220px;text-align:center"></h2><button class="btn ghost sm" id="kal-next" aria-label="Następny miesiąc">›</button><button class="btn ghost sm" id="kal-today">Dziś</button></div>
@@ -818,7 +832,7 @@ function renderTimeline(){
   const f1=v=>String(Math.round(v*10)/10).replace(".",",");
   T.innerHTML=`<p class="lead">Każdy dzień to oś 24 h. Szerokość kafelka = planowany czas pracy od statystycznej godziny startu (ustawianej przy typie zmiany). Dalekie trasy 8–11 wyjeżdżają wieczorem dzień wcześniej (dzień na grafiku to dzień rozwózki), a kreskowana kontynuacja pokazuje ich końcówkę. Trasy i dni zakończone (dane z FlotoMax) mają znacznik ✓ i biały kontur. Sumy godzin to czas pracy: kierowcy kat. C na długiej trasie odliczamy 9 h odpoczynku w trasie. Szare pasy po bokach = noc. Dotknięcie kafelka otwiera edycję. Kafelek można złapać i upuścić w dowolnym miejscu: wiersz to kierowca, kolumna to dzień, a miejsce w kolumnie to godzina wyjazdu (co 15 min). Zakończonym trasom można zmienić tylko godziny. Prawa krawędź kafelka zmienia jego długość. Nowe zadanie przeciągnij z „Puli etykiet”. Ruch cofa przycisk „↩ Cofnij”.</p>
   <div class="kpis"><div class="kpi">Suma godzin pracy<b>${f1(grand)} h</b></div><div class="kpi">W tym trasy dalekie (bez odpoczynku)<b>${f1(far)} h</b></div><div class="kpi">Średnio na kierowcę<b>${f1(grand/Math.max(1,empsShown.length))} h</b></div><div class="kpi">Kierowców ponad 40 h<b>${over40}</b></div></div>
-  <div class="tl-wrap"><div class="tl-pool" aria-label="Pula etykiet"><b>Pula etykiet</b><span class="muted">przeciągnij na kierowcę, dzień i godzinę</span>${S.shifts.map(sh=>`<div class="chip" style="background:${colorOf(sh.id)}" data-tl-new="${sh.id}" title="${esc(sh.name)}: złap i upuść na wiersz kierowcy w wybranym dniu i godzinie">${esc(sh.name)}<small>${startsPrevDay(sh)?"wyjazd dzień wcześniej · ":""}${fmtH(startOf(sh))} · ${String(hoursOf(sh)).replace(".",",")} h</small></div>`).join("")}</div>
+  <div class="tl-wrap"><div class="tl-pool" aria-label="Pula etykiet"><b>Pula etykiet</b><span class="muted">przeciągnij na kierowcę, dzień i godzinę</span><div class="chip urlop" data-tl-new="abs:urlop" title="Urlop: upuść na wiersz kierowcy w wybranym dniu. Działa jak nieobecność z listy (zwalnia trasy i naprawia kolizje).">Urlop<small>nieobecność</small></div><div class="chip l4" data-tl-new="abs:l4" title="L4: upuść na wiersz kierowcy w wybranym dniu. Działa jak nieobecność z listy.">L4<small>nieobecność</small></div>${S.shifts.map(sh=>`<div class="chip" style="background:${colorOf(sh.id)}" data-tl-new="${sh.id}" title="${esc(sh.name)}: złap i upuść na wiersz kierowcy w wybranym dniu i godzinie">${esc(sh.name)}<small>${startsPrevDay(sh)?"wyjazd dzień wcześniej · ":""}${fmtH(startOf(sh))} · ${String(hoursOf(sh)).replace(".",",")} h</small></div>`).join("")}</div>
   <div class="grid-scroll"><table class="tl">${html}</table></div></div>
   <div class="tl-legend">${S.shifts.map(x=>`<span><i style="background:${colorOf(x.id)}"></i>${esc(x.name)} · ${startsPrevDay(x)?"dzień wcześniej ":""}${fmtH(startOf(x))} · ${String(hoursOf(x)).replace(".",",")} h</span>`).join("")}<span><i style="background:#9ca3af;box-shadow:inset 0 0 0 2px #fff"></i>✓ zakończona (FlotoMax)</span><span><i style="background:var(--rest);border:1px solid #e6c98a"></i>odpoczynek</span><span><i style="background:rgba(31,36,48,.08);border:1px solid var(--line2)"></i>noc</span></div>`;
 }
@@ -1027,7 +1041,12 @@ function tlEdgeScroll(ev,cb){tlAuto.cb=cb||null;const g=document.querySelector("
   tlAuto.x=ev.clientX<r.left+E?-1:ev.clientX>r.right-E?1:0;tlAuto.y=ev.clientY<E?-1:ev.clientY>innerHeight-E?1:0;
   if((tlAuto.x||tlAuto.y)&&!tlAuto.t)tlAuto.t=setInterval(()=>{if(!tlAuto.x&&!tlAuto.y){clearInterval(tlAuto.t);tlAuto.t=null;return}if(tlAuto.x)g.scrollLeft+=tlAuto.x*18;if(tlAuto.y)scrollBy(0,tlAuto.y*18);tlAuto.cb&&tlAuto.cb()},30)}
 function tlEdgeStop(){tlAuto.x=tlAuto.y=0;if(tlAuto.t){clearInterval(tlAuto.t);tlAuto.t=null}}
-async function tlNew(shiftId,empId,date,hour){const sh=S.shifts.find(x=>x.id===shiftId),e=S.emps.find(x=>x.id===empId);if(!sh||!e)return;
+async function tlAbs(reason,empId,date){const e=S.emps.find(x=>x.id===empId);if(!e)return;
+  if(date<warsawDay()){notice("Nieobecność można wpisać tylko od dziś w przód.");renderPlan();return}
+  S.abs=S.abs.filter(x=>!(x.empId===empId&&x.date===date));S.abs.push({empId,date,reason});await saveA();
+  const moved=repairForAbsences();for(const s of Object.values(S.scheds))if(s._dirty){delete s._dirty;await saveSched(s)}
+  renderPlan();notice(`${e.name}: ${REASONS[reason]} ${date.slice(8)}.${date.slice(5,7)}.${moved?" Zwolnione trasy przydzielono ponownie.":""}`)}
+async function tlNew(shiftId,empId,date,hour){if(String(shiftId).startsWith("abs:"))return tlAbs(shiftId.slice(4),empId,date);const sh=S.shifts.find(x=>x.id===shiftId),e=S.emps.find(x=>x.id===empId);if(!sh||!e)return;
   let day=date,st=hour;if(startsPrevDay(sh)&&!isDutyCell({},sh)&&hour>=12)day=addDays(date,1); // daleka trasa: upuszczona wieczorem = wyjazd dzień przed dniem rozwózki
   const s=S.scheds[S.current];if(!s||day<s.start||day>s.end){notice("Ten dzień jest poza otwartym harmonogramem.");renderPlan();return}
   if(!canDrive(e,sh)){notice(`${e.name} nie ma kat. C, a ${sh.name} jej wymaga.`);return}
@@ -1436,7 +1455,7 @@ function renderBilans(){
       $("bil-main").innerHTML+=`<div style="border:2px solid ${cc[1]};background:${cc[0]};color:${cc[1]};border-radius:14px;padding:14px 16px;margin:10px 0"><div style="font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase">Z grafiku i FlotoMax (dane rzeczywiste) · średnio ${pl.length} ${pl.length===1?"tydzień":pl.length<5?"tygodnie":"tygodni"}</div><div style="font-size:20px;font-weight:800;margin:2px 0 4px">${esc(vv.label)}</div><div style="font-size:13.5px">${esc(vv.advice)}</div>
 <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"><span class="kpi" data-tip="Średnie tygodniowe zapotrzebowanie z obsadzonych tras w grafiku (nie z Założeń).">Zapotrzebowanie <b>${fdn(aD)} dn.</b></span><span class="kpi" data-tip="Średnia pojemność w normie po odjęciu rzeczywistych urlopów i L4.">Pojemność w normie <b>${fdn(aN)} dn.</b></span><span class="kpi" data-tip="Zapotrzebowanie ÷ pojemność w normie, średnio z tygodni grafiku.">Obciążenie normy <b>${Math.round(aD/(aN||1)*100)}%</b></span><span class="kpi" data-tip="Tygodnie, które już minęły (historia). Do wiarygodnej oceny potrzeba ok. 8 tygodni.">Tygodni historii <b>${hist}</b></span><span class="kpi" data-tip="Trasy zakończone, z rzeczywistymi godzinami z FlotoMax.">Tras z FlotoMax <b>${fact}</b></span></div>
 <div style="font-size:12.5px;margin-top:8px">Wiarygodność danych: <b style="color:${lvl[1]}">${lvl[0]}</b> (grafik od ${st.slice(8)}.${st.slice(5,7)}, ${hist} ${hist===1?"tydzień":"tyg."} historii, ${rows.length-hist} w planie).</div>
-<div class="tbl-wrap" style="margin-top:8px"><table class="bil-real"><tr><th>Tydzień</th><th data-tip="Liczba dni urlopu, L4 i wniosków w tym tygodniu.">nieobecności</th><th>zapotrzebowanie (dn.)</th><th>pojemność w normie</th><th>obciążenie</th><th data-tip="Suma planowanego czasu pracy wszystkich kierowców w tym tygodniu.">godziny plan</th><th data-tip="Godziny tras już zakończonych (rzeczywiste czasy z FlotoMax).">godziny wykonane</th><th>status</th></tr>${rows.map(r=>`<tr${r.cur?' style="font-weight:700"':""}><td>${r.monday.slice(8)}.${r.monday.slice(5,7)}${r.cur?" (bieżący)":r.past?" ✓":""}${r.full?"":" *"}</td><td>${r.absDays}</td><td>${fdn(r.demand)}</td><td>${fdn(r.capNorm)}</td><td>${Math.round(r.load*100)}%</td><td>${fH(r.hP)}</td><td>${r.nF?fH(r.hF):"—"}</td><td style="color:${(BIL_COL[r.status]||BIL_COL.ok)[1]};font-weight:700">${esc(r.label)}</td></tr>`).join("")}</table></div>${rows.some(r=>!r.full)?'<div class="muted" style="font-size:11.5px">* tydzień niepełny w grafiku – nie wchodzi do średniej</div>':""}</div>`}}
+<div style="margin-top:8px;overflow-x:auto;max-width:100%"><table class="bil-real"><tr><th>Tydzień</th><th data-tip="Liczba dni urlopu, L4 i wniosków w tym tygodniu.">nieobecności</th><th>zapotrzebowanie (dn.)</th><th>pojemność w normie</th><th>obciążenie</th><th data-tip="Suma planowanego czasu pracy wszystkich kierowców w tym tygodniu.">godziny plan</th><th data-tip="Godziny tras już zakończonych (rzeczywiste czasy z FlotoMax).">godziny wykonane</th><th>status</th></tr>${rows.map(r=>`<tr${r.cur?' style="font-weight:700"':""}><td>${r.monday.slice(8)}.${r.monday.slice(5,7)}${r.cur?" (bieżący)":r.past?" ✓":""}${r.full?"":" *"}</td><td>${r.absDays}</td><td>${fdn(r.demand)}</td><td>${fdn(r.capNorm)}</td><td>${Math.round(r.load*100)}%</td><td>${fH(r.hP)}</td><td>${r.nF?fH(r.hF):"—"}</td><td style="color:${(BIL_COL[r.status]||BIL_COL.ok)[1]};font-weight:700">${esc(r.label)}</td></tr>`).join("")}</table></div>${rows.some(r=>!r.full)?'<div class="muted" style="font-size:11.5px">* tydzień niepełny w grafiku – nie wchodzi do średniej</div>':""}</div>`}}
   $("bil-days").innerHTML='<tr><th>Dzień</th><th>tras (kierowców)</th><th>dniówek</th><th>dyżury (po realizacji)</th><th>status dnia</th></tr>'+typ.days.map(d=>{const wd=DAYN[wdOf(d.date)];const enough=d.routes<=typ.drivers;return `<tr><td>${wd}</td><td>${d.routes}</td><td>${fdn(d.dn)}</td><td>${fdn(d.duty)}</td><td style="color:${enough?"#166534":"#991b1b"};font-weight:700">${enough?"kierowców wystarczy":"brakuje "+(d.routes-typ.drivers)}</td></tr>`}).join("");
   try{renderBilCal();renderBilYear()}catch(e){console.error(e)}
   const mons=new Set(Object.values(S.scheds).map(s=>weekKey(s.start)));const last=[...mons].sort().slice(-1)[0]||mon0;for(let i=1;i<=3;i++)mons.add(addDays(last,7*i));
@@ -1913,5 +1932,82 @@ AKTYWNY HARMONOGRAM: ${s?`${s.name}, ${s.start} – ${s.end}`:"brak"}`;
     timer=setTimeout(()=>{if(cur!==el)return;const h=el.matches("th,label,.kpi")?own(el):"";box.innerHTML=(h?`<b>${h.charAt(0).toUpperCase()+h.slice(1)}</b>`:"")+`<span>${t.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"})[c])}</span>`;box.hidden=false;place()},600)});
   document.addEventListener("mousedown",hide,true);document.addEventListener("scroll",hide,true);document.addEventListener("keydown",hide,true);
 })();
+
+// ---------- konta i logowanie (jak we FlotoMax) ----------
+// UWAGA: strona działa w przeglądarce, więc PIN porządkuje dostęp do menu, ale nie jest twardym zabezpieczeniem danych.
+const AUTH={users:null,me:null,ver:null};
+const GROUPS={spedycja:{name:"Spedycja",tabs:["plan","dysp","kalendarz"],edit:true},kadry:{name:"Kadry",tabs:["plan","kadry","rejestr","ludzie"],edit:false},admin:{name:"Administrator",tabs:null,edit:true}};
+const pinHash=async(salt,pin)=>{const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(salt+":"+pin));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")};
+const newSalt=()=>[...crypto.getRandomValues(new Uint8Array(8))].map(x=>x.toString(16).padStart(2,"0")).join("");
+const canEdit=()=>!AUTH.me||GROUPS[AUTH.me.group]?.edit;
+const isAdmin=()=>!AUTH.me||AUTH.me.group==="admin";
+const saveUsers=async()=>{await S.db.doc("app/users").set({items:AUTH.users})};
+function applyRole(){
+  const g=AUTH.me?GROUPS[AUTH.me.group]:null;const allow=g?.tabs;
+  document.querySelectorAll("nav .tab").forEach(b=>{b.hidden=!!allow&&!allow.includes(b.dataset.tab)&&b.dataset.tab!=="konta";if(b.dataset.tab==="konta")b.hidden=!isAdmin()||!AUTH.users});
+  const act=document.querySelector("nav .tab.active");if(act&&act.hidden)document.querySelector("nav .tab:not([hidden])")?.click();
+  document.body.classList.toggle("ro-plan",!canEdit());
+  const fab=$("ai-fab");if(fab&&!isAdmin()){fab.hidden=true;$("ai-panel")&&($("ai-panel").hidden=true)}
+  document.body.classList.toggle("no-ai",!isAdmin());
+  const who=$("who");if(who){who.hidden=!AUTH.me;who.innerHTML=AUTH.me?`👤 <b>${esc(AUTH.me.name)}</b> · ${GROUPS[AUTH.me.group].name} <button class="btn ghost sm" id="logout">Wyloguj</button>`:""}
+}
+function loginScreen(step,user,msg){
+  let ov=$("login");if(!ov){ov=document.createElement("div");ov.id="login";document.body.appendChild(ov)}ov.hidden=false;
+  if(step==="pick"){const gs=Object.entries(GROUPS).map(([k,g])=>{const us=AUTH.users.filter(u=>u.group===k);return us.length?`<div class="lg-grp"><h3>${g.name}</h3><div class="lg-tiles">${us.map(u=>`<button class="lg-tile" data-lgu="${u.id}"><span>${esc(u.name.split(" ").map(w=>w[0]).join("").slice(0,2))}</span>${esc(u.name)}</button>`).join("")}</div></div>`:""}).join("");
+    ov.innerHTML=`<div class="lg-box"><h2>Logowanie</h2><p class="muted">Wybierz swoje konto.</p>${gs}</div>`}
+  else{const ch=step==="new"||step==="new2";
+    ov.innerHTML=`<div class="lg-box sm"><h2>${esc(user.name)}</h2><p class="muted">${ch?(step==="new"?"Ustaw nowy PIN (4 cyfry)":"Powtórz nowy PIN"):"Wpisz PIN (4 cyfry)"}</p><input id="lg-pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="PIN"><div class="lg-msg">${msg?esc(msg):""}</div><button class="btn" id="lg-ok">OK</button><button class="btn ghost sm" id="lg-back">← Nie ja, zmień konto</button></div>`;
+    const inp=$("lg-pin");inp.focus();const go=async()=>{const v=inp.value;if(!/^\d{4}$/.test(v)){loginScreen(step,user,"PIN to 4 cyfry.");return}
+      if(step==="pin"){if(await pinHash(user.salt,v)!==user.hash){loginScreen("pin",user,"Błędny PIN.");return}if(user.mustChange){loginScreen("new",user,"To PIN tymczasowy – ustaw własny.");return}return loginDone(user)}
+      if(step==="new"){if(await pinHash(user.salt,v)===user.hash){loginScreen("new",user,"Nowy PIN musi być inny niż tymczasowy.");return}AUTH._p=v;loginScreen("new2",user);return}
+      if(step==="new2"){if(v!==AUTH._p){AUTH._p=null;loginScreen("new",user,"PIN-y się różnią. Spróbuj jeszcze raz.");return}AUTH._p=null;const u=AUTH.users.find(x=>x.id===user.id);u.salt=newSalt();u.hash=await pinHash(u.salt,v);delete u.mustChange;await saveUsers();loginDone(u)}};
+    $("lg-ok").onclick=()=>guard(go);inp.onkeydown=e=>{if(e.key==="Enter")guard(go)};$("lg-back").onclick=()=>loginScreen("pick")}
+}
+function loginDone(u){AUTH.me=u;try{sessionStorage.setItem("hm-user",u.id)}catch(e){}$("login").hidden=true;applyRole();try{render()}catch(e){}}
+async function authInit(){
+  for(let i=0;i<100&&!S.db;i++)await new Promise(r=>setTimeout(r,100));
+  if(!S.db){applyRole();return}
+  let snap;try{snap=await S.db.doc("app/users").get()}catch(e){snap=null}
+  if(!snap||!snap.exists||!(snap.data().items||[]).length){AUTH.users=null;applyRole();$("login")&&($("login").hidden=true);return} // brak kont = tryb bez logowania
+  AUTH.users=JSON.parse(JSON.stringify(snap.data().items));let id=null;try{id=sessionStorage.getItem("hm-user")}catch(e){}
+  const u=AUTH.users.find(x=>x.id===id&&!x.mustChange);if(u)loginDone(u);else loginScreen("pick");
+}
+document.addEventListener("click",ev=>{
+  const t=ev.target.closest("[data-lgu]");if(t){const u=AUTH.users.find(x=>x.id===t.dataset.lgu);if(u)loginScreen("pin",u);return}
+  if(ev.target.id==="logout"){AUTH.me=null;try{sessionStorage.removeItem("hm-user")}catch(e){}loginScreen("pick");return}
+});
+// tylko podgląd planu (Kadry): blokuj edycję kafelków, pulę etykiet i przyciski zmieniające grafik
+["pointerdown","click","dblclick","dragstart","keydown"].forEach(tp=>document.addEventListener(tp,ev=>{if(canEdit())return;const el=ev.target.closest?.("#plan [data-pick],#plan [data-tl],#plan [data-tl-new],#plan .bar,#plan .chip,#plan .rs,#plan [data-split],#plan #undo,#plan .gen,#plan [data-gen]");if(el){ev.stopPropagation();ev.preventDefault();if(tp==="click")notice("Tylko podgląd: Twoje konto nie może zmieniać grafiku.")}},true));
+// --- zarządzanie kontami (Administrator) ---
+function renderKonta(){const box=$("konta-body");if(!box)return;if(!AUTH.users){box.innerHTML=`<p class="lead">Logowanie jest wyłączone (brak kont w bazie).</p>`;return}
+  box.innerHTML=`<p class="lead">Konta i grupy jak we FlotoMax. PIN-y są zapisane wyłącznie jako skrót (hash). Reset nadaje tymczasowy PIN, który osoba musi zmienić przy pierwszym logowaniu.</p><table class="bil-real"><tr><th>Osoba</th><th>Grupa</th><th>Stan PIN</th><th></th></tr>${AUTH.users.map(u=>`<tr><td>${esc(u.name)}</td><td><select data-kgrp="${u.id}">${Object.entries(GROUPS).map(([k,g])=>`<option value="${k}"${u.group===k?" selected":""}>${g.name}</option>`).join("")}</select></td><td>${u.mustChange?"tymczasowy":"ustawiony"}</td><td><button class="btn ghost sm" data-kpin="${u.id}">Resetuj PIN</button> <button class="btn ghost sm" data-kdel="${u.id}"${AUTH.me&&AUTH.me.id===u.id?" disabled":""}>Usuń</button></td></tr>`).join("")}</table>
+  <div class="row" style="margin-top:10px"><input id="k-name" placeholder="Imię i nazwisko"><select id="k-grp">${Object.entries(GROUPS).map(([k,g])=>`<option value="${k}">${g.name}</option>`).join("")}</select><button class="btn" id="k-add">Dodaj konto</button></div><div id="k-msg" class="lead"></div>`}
+const tmpPin=()=>String(1000+crypto.getRandomValues(new Uint16Array(1))[0]%9000);
+document.addEventListener("click",ev=>{const t=ev.target;if(!isAdmin()||!AUTH.users)return;
+  const show=(m)=>{const k=$("k-msg");if(k)k.innerHTML=m};
+  if(t.dataset?.kpin)guard(async()=>{const u=AUTH.users.find(x=>x.id===t.dataset.kpin);const p=tmpPin();u.salt=newSalt();u.hash=await pinHash(u.salt,p);u.mustChange=true;await saveUsers();renderKonta();show(`Tymczasowy PIN dla <b>${esc(u.name)}</b>: <b style="font-size:18px">${p}</b> — przekaż osobiście. Nie zostanie pokazany ponownie.`)});
+  if(t.dataset?.kdel)guard(async()=>{if(AUTH.users.filter(u=>u.group==="admin").length<2&&AUTH.users.find(x=>x.id===t.dataset.kdel)?.group==="admin"){show("Nie można usunąć ostatniego Administratora.");return}AUTH.users=AUTH.users.filter(x=>x.id!==t.dataset.kdel);await saveUsers();renderKonta()});
+  if(t.id==="k-add")guard(async()=>{const n=$("k-name").value.trim();if(!n)return;const p=tmpPin(),u={id:uid(),name:n,group:$("k-grp").value,salt:newSalt(),mustChange:true};u.hash=await pinHash(u.salt,p);AUTH.users.push(u);await saveUsers();renderKonta();show(`Dodano <b>${esc(n)}</b>. Tymczasowy PIN: <b style="font-size:18px">${p}</b> — przekaż osobiście.`)});
+});
+document.addEventListener("change",ev=>{const t=ev.target;if(!t.dataset?.kgrp||!isAdmin())return;guard(async()=>{const u=AUTH.users.find(x=>x.id===t.dataset.kgrp);if(u.group==="admin"&&AUTH.users.filter(x=>x.group==="admin").length<2){renderKonta();return}u.group=t.value;await saveUsers();if(AUTH.me?.id===u.id){AUTH.me=u;applyRole()}renderKonta()})});
+// --- historia kierowcy (Kadry) ---
+function renderHist(){const box=$("hist-body");if(!box)return;const sel=$("hist-emp"),f=$("hist-from"),t=$("hist-to");
+  if(!sel.options.length){sel.innerHTML=S.emps.filter(e=>!/wirtualn/i.test(e.name)).map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join("");const td=warsawDay();t.value=td;f.value=addDays(td,-30)}
+  const id=sel.value,from=f.value,to=t.value,m={};S.shifts.forEach(x=>m[x.id]=x);const am=absMap();const rows=[];let sum=0;
+  for(const d of range(from,to)){const cs=Object.values(S.scheds).flatMap(s=>s.cells).filter(c=>c.empId===id&&c.date===d);const ab=am[id]?.[d];
+    if(!cs.length&&!ab)continue;if(!cs.length){rows.push(`<tr><td>${d.slice(8)}.${d.slice(5,7)} ${DAYN[wdOf(d)]}</td><td colspan="3"><span class="tag ${ab}">${REASONS[ab]||ab}</span></td><td>—</td></tr>`);continue}
+    for(const c of cs){const sh=m[c.shiftId];const bd=cellBounds(c,sh,d);const real=c.out||c.back;const tm=v=>v?String(v).slice(11,16)||v:"";
+      const out=real?tm(c.out):fmtH(((bd.st%24)+24)%24),back=real?tm(c.back):fmtH((bd.st+bd.hh)%24);const dn=cellDn(c,sh);sum+=dn;
+      rows.push(`<tr><td>${d.slice(8)}.${d.slice(5,7)} ${DAYN[wdOf(d)]}</td><td>${esc(sh?.name||c.shiftId)}</td><td>${out}${real?" <small>FlotoMax</small>":" <small>plan</small>"}</td><td>${back}</td><td>${fdn(dn)}</td></tr>`)}}
+  box.innerHTML=rows.length?`<div style="overflow-x:auto;max-width:100%"><table class="bil-real"><tr><th>Dzień</th><th>Trasa</th><th>Wyjazd</th><th>Powrót</th><th>Dniówki</th></tr>${rows.join("")}<tr><td colspan="4"><b>Razem</b></td><td><b>${fdn(sum)}</b></td></tr></table></div>`:'<p class="muted">Brak wpisów w tym zakresie.</p>'}
+document.addEventListener("change",ev=>{if(["hist-emp","hist-from","hist-to"].includes(ev.target.id))renderHist()});
+// --- zmiana imienia i nazwiska kierowcy (Pracownicy) ---
+document.addEventListener("click",ev=>{const t=ev.target.closest("[data-rename]");if(!t)return;const e=S.emps.find(x=>x.id===t.dataset.rename);if(!e)return;
+  const li=t.closest("li");const nm=li.querySelector(".nm");nm.innerHTML=`<input id="rn-in" value="${esc(e.name)}" style="min-width:220px"> <button class="btn sm" id="rn-ok">Zapisz</button>`;$("rn-in").focus();
+  $("rn-ok").onclick=()=>guard(async()=>{const v=$("rn-in").value.trim();if(v){e.name=v;await saveE()}renderEmps()})});
+{const _re=renderEmps;renderEmps=function(){_re();if(!$("emp-list"))return;S.emps.forEach(e=>{const inp=document.querySelector(`[data-empcolor="${e.id}"]`);const nm=inp?.closest(".nm");if(nm&&!nm.querySelector("[data-rename]"))nm.insertAdjacentHTML("beforeend",` <button class="btn ghost sm" data-rename="${e.id}" title="Zmień imię i nazwisko">✎</button>`)})}}
+{const _r=render;render=function(){_r();try{renderHist();renderKonta()}catch(e){}}}
+document.querySelector('nav .tab[data-tab="kadry"]')?.addEventListener("click",()=>renderHist());
+authInit();
 
 </script>
