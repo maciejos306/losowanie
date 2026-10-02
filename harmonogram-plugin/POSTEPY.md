@@ -124,3 +124,8 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 ## v68
 - cellPrev: c.prevDep (true/false) z planu FlotoMax ma pierwszeństwo przed typem trasy — wyjazd tego samego dnia jest możliwy dla T8–T12.
 - 04.10: T11 Wranik nd 13:30→pn 15:15 i T12 Piórkowski nd 15:40→pn 09:44 poprawione ręcznie i zablokowane (manualT), bo API FlotoMax podaje sobotę.
+
+## v69 — zastępstwa za nieobecność w zamrożonym tygodniu
+- Zastępca nie dostaje drugiej zmiany tego samego dnia (np. trasa 01:30 + dyżur 14:30).
+- Spośród możliwych zastępców wybierany jest ten, kto ma w tym tygodniu najmniej dni pracy.
+- Sprawdzone symulacją urlopu (Knura 06–08.10, tylko lokalnie): Trasa 7 → Schmidt / Misiewicz / Czogała zamiast Misiewicza 2×.

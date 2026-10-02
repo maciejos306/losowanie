@@ -656,6 +656,11 @@ function repair(sched,fromDate,extraLocked=new Set(),ban=new Set()){
         const cand=emps.filter(e=>canDriveOn(e,sh,day)&&!ban.has(e.id+"|"+day)&&!restHitsLock(e.id,sh,day)&&!prevClash(e.id,sh,day)&&!clash(used,e.id,pk)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&(dutyLike?!heavy.has(e.id):canWork(worked,e.id,day)));
         let pool=cand, extra=false;
         if(!pool.length&&!dutyLike){pool=emps.filter(e=>canDriveOn(e,sh,day)&&!ban.has(e.id+"|"+day)&&!restHitsLock(e.id,sh,day)&&!prevClash(e.id,sh,day)&&!clash(used,e.id,pk)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&canWorkX(worked,e.id,day));extra=pool.length>0}
+        if(soft){ // zastępstwo w zamrożonym tygodniu: nikt nie dostaje drugiej zmiany tego dnia (np. trasa + dyżur)
+          const busy=new Set(sched.cells.filter(x=>x!==c&&x.date===day&&x.empId!=null).map(x=>x.empId));const p2=pool.filter(e=>!busy.has(e.id));if(p2.length||pool.length)pool=p2}
+        if(soft&&pool.length>1){ // zamrożony tydzień (zastępstwo za nieobecność): najpierw ci z najmniejszą liczbą dni pracy w tym tygodniu
+          const wk=weekKey(day),wd=id=>new Set(sched.cells.filter(x=>x!==c&&x.empId===id&&weekKey(x.date)===wk&&cpart(x,shOf[x.shiftId]||{},x.date)!=="pm").map(x=>x.date)).size;
+          const mn=Math.min(...pool.map(e=>wd(e.id)));pool=pool.filter(e=>wd(e.id)===mn)}
         emp=pick(pool,counts,sh,prevDay,bias,farLog,day);
         if(extra&&emp!=null)c.extra=true;else delete c.extra;
         if(emp!==c.empId){c.empId=emp;delete c.duty;delete c.dutyH;delete c.closed;delete c.out;delete c.back;changed++}
