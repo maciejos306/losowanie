@@ -45,10 +45,12 @@ c=await cellOf(td.emp,'2026-10-04','t5');
 ok('z puli: Trasa 5 dla Dziadury 04.10, start ok. 10:00, zablokowana',c&&c.locked&&Math.abs(c.startH-10)<=0.25,JSON.stringify(c));
 const note=await pg.innerText('#notice');console.log('notice:',note);
 // 7 zakończonej trasy z przeszłości nie da się „zgubić”: przesunięcie przesuwa też godziny z FlotoMax
+await pg.evaluate(()=>{tlEdgeScroll=()=>{}});
 // 8 przeniesienie na inny dzień: złap kafelek 03.10 i upuść w kolumnie 04.10 tego samego kierowcy ok. 6:00
 await pg.evaluate(()=>{const s=S.scheds[S.current];s.cells=s.cells.filter(c=>!(c.date==='2026-10-04'&&c.empId==='e1'));renderPlan()});
 const t2=await pg.evaluate(()=>{const s=S.scheds[S.current];const m={};S.shifts.forEach(x=>m[x.id]=x);const c=s.cells.find(c=>c.date==='2026-10-03'&&c.empId==='e1'&&!isDutyCell(c,m[c.shiftId]));if(!c){const n={date:'2026-10-03',shiftId:'t2',slot:9,empId:'e1'};s.cells.push(n);renderPlan();return{sid:'t2',slot:9}}return{sid:c.shiftId,slot:c.slot}});
-const sel2=`.bar[data-tl="e1|2026-10-03|${t2.sid}|${t2.slot}"]`;await pg.locator(sel2).first().scrollIntoViewIfNeeded();const b3=await pg.locator(sel2).first().boundingBox();
+await pg.evaluate(()=>{const g=document.querySelector('#timeline .grid-scroll');const th=g.querySelector('[data-dayhead="2026-10-03"]');const fw=g.querySelector('th:first-child').offsetWidth;g.scrollLeft=th.offsetLeft-fw-10});await pg.waitForTimeout(100);
+const sel2=`.bar[data-tl="e1|2026-10-03|${t2.sid}|${t2.slot}"]`;const b3=await pg.locator(sel2).first().boundingBox();
 const tgt2=await pg.evaluate(()=>{const tr=document.querySelector('table.tl tr[data-tl-emp="e1"]');const ln=tr.querySelector('td[data-tl-day="2026-10-04"] .lane').getBoundingClientRect();return{x:ln.left+ln.width*6/24,y:ln.top+ln.height/2}});
 const st3=await pg.evaluate(([sid,slot])=>{const s=S.scheds[S.current];const c=s.cells.find(c=>c.date==='2026-10-03'&&c.empId==='e1'&&c.shiftId===sid&&c.slot===slot);return cellBounds(c,S.shifts.find(x=>x.id===sid),c.date).st},[t2.sid,t2.slot]);
 const lw=await pg.evaluate(()=>document.querySelector('table.tl .lane').getBoundingClientRect().width);

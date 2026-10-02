@@ -214,6 +214,22 @@
   .kpi{background:var(--paper);border:1px solid var(--line2);border-radius:10px}
   #notice:not(:empty){border-radius:8px}
 
+  /* oś godzin: pula po lewej, kompaktowe wiersze (wszyscy kierowcy na ekranie) */
+  .tl-wrap{display:flex;gap:10px;align-items:flex-start}
+  .tl-wrap .grid-scroll{flex:1 1 auto;min-width:0}
+  .tl-wrap .tl-pool{flex:0 0 150px;flex-direction:column;flex-wrap:nowrap;align-items:stretch;position:sticky;top:8px;max-height:calc(100vh - 16px);overflow:auto;margin:0;padding:8px;gap:5px}
+  .tl-wrap .tl-pool b{font-size:13px}.tl-wrap .tl-pool .muted{font-size:11px;line-height:1.2}
+  .tl-wrap .tl-pool .chip{width:100%;padding:4px 8px;font-size:11.5px}.tl-wrap .tl-pool .chip small{font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  #timeline .lane{height:34px}
+  #timeline table.tl td{padding-top:0!important;padding-bottom:0!important}#timeline table.tl td.cell{padding:2px 0!important;height:38px!important}
+  #timeline .bar{top:2px;height:30px;font-size:11.5px;padding:0 6px}
+  #timeline .bar small{font-size:9.5px}
+  #timeline .tl-off,#timeline .tl-rest,#timeline .tl-abs{top:3px;height:28px}
+  #timeline table.tl td:first-child{padding:2px 10px;font-size:12.5px}
+  #timeline table.tl td.sum{padding:2px 8px;font-size:11.5px}#timeline table.tl td.sum small{font-size:9.5px}
+  #timeline .kpis{margin:6px 0}#timeline .lead{margin:2px 0 6px;font-size:11.5px}
+  @media (max-width:900px){.tl-wrap{flex-direction:column}.tl-wrap .tl-pool{position:static;flex-direction:row;flex-wrap:wrap;max-height:none;width:100%}.tl-wrap .tl-pool .chip{width:auto}}
+
   .kal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
   .kal .kh{font-size:12px;font-weight:600;color:var(--muted);text-align:center;padding:4px 0;text-transform:uppercase;letter-spacing:.04em}
   .kal .kd{background:var(--paper);border:1px solid var(--line2);border-radius:10px;min-height:118px;padding:8px;display:flex;flex-direction:column;gap:4px;min-width:0}
@@ -443,6 +459,8 @@ const cellTripH=c=>{if(!(c.out&&c.back))return null;if(Array.isArray(c.tripAt)&&
 const isDutyCell=(c,sh)=>!c.part&&(sh?.part||"full")==="pm";
 // dyżur liczy się tylko zrealizowany: zaplanowany lub anulowany = 0 dn.; wyjechał do 5 h = 0,5; wyjazd + powrót do bazy dłuższy niż 5 h = 1 dniówka
 const cellDn=(c,sh)=>{const w=sh?.weight??1;if(!isDutyCell(c,sh))return w;if(c.duty!=="done")return 0;const dh=Number.isFinite(c.dutyH)?c.dutyH:tripHours(c.out,c.back);if(dh!=null&&dh>DUTY_LIMIT_H)return 1;return w};
+// wyjazd dzień wcześniej: z typu zmiany albo z planu FlotoMax dla konkretnej trasy (c.prevDep)
+const cellPrev=(c,sh)=>!!sh&&(startsPrevDay(sh)||!!c?.prevDep)&&!isDutyCell(c||{},sh);
 const startsPrevDay=sh=>!!sh&&(typeof sh.startPrev==="boolean"?sh.startPrev:(startOf(sh)>=18&&(sh.weight??1)>=2.5));
 const isClosed=(c,sh)=>!!c.closed||(isDutyCell(c,sh)&&(c.duty==="done"||c.duty==="cancelled"));
 // typowy czas trasy w danym dniu tygodnia: mediana faktycznych przejazdów (FlotoMax) z ostatnich 120 dni; min. 2 przejazdy
@@ -751,15 +769,15 @@ function renderTimeline(){
   // czas wolny między końcem poprzedniej trasy a startem następnej (w godzinach), dla dymka na odpoczynku
   const allCells=[...s.cells,...hist].filter(c=>c.empId!=null);
   const dayN=d=>Math.round(new Date(d+"T00:00:00Z").getTime()/3600000);
-  const restInfo=(empId,d)=>{const mine=allCells.filter(c=>c.empId===empId).map(c=>{const sh=shMap[c.shiftId];const b=cellBounds(c,sh,c.date);const st=dayN(c.date)+b.st-(startsPrevDay(sh)&&!isDutyCell(c,sh)?24:0);return{c,name:sh?.name||"?",st,en:st+b.hh}});const now=dayN(d)+12;const prev=mine.filter(x=>x.en<=now).sort((a,b)=>b.en-a.en)[0];const next=mine.filter(x=>x.st>=now).sort((a,b)=>a.st-b.st)[0];if(!prev)return "";const gap=(next?next.st:null)!=null?next.st-prev.en:null;const fmtDT=t=>{const dd=Math.floor(t/24),hh=t-dd*24;const dt=new Date(dd*3600000*24);return DAYN[dt.getUTCDay()].slice(0,3).toLowerCase()+" "+fmtH(hh)};return `Odpoczynek po ${prev.name}: od ${fmtDT(prev.en)}`+(next?` do ${fmtDT(next.st)} (${next.name}) — ${String(Math.round(gap*10)/10).replace(".",",")} h wolnego`:" — następna trasa nie jest jeszcze zaplanowana")};
-  let html='<colgroup><col style="width:170px">'+days.map(()=>'<col style="width:215px">').join("")+'<col style="width:150px"></colgroup><tr><th></th>'+days.map((d,di)=>`<th data-dayhead="${d}" class="day dstart${di%2?" alt":""}${wdOf(d)===0||wdOf(d)===6?" weekend":""}">${DAYN[wdOf(d)]}<small>${d.slice(8)}.${d.slice(5,7)}</small>${estTag(s,d)}</th>`).join("")+'<th class="sum">Σ godzin</th></tr>';
+  const restInfo=(empId,d)=>{const mine=allCells.filter(c=>c.empId===empId).map(c=>{const sh=shMap[c.shiftId];const b=cellBounds(c,sh,c.date);const st=dayN(c.date)+b.st-(cellPrev(c,sh)?24:0);return{c,name:sh?.name||"?",st,en:st+b.hh}});const now=dayN(d)+12;const prev=mine.filter(x=>x.en<=now).sort((a,b)=>b.en-a.en)[0];const next=mine.filter(x=>x.st>=now).sort((a,b)=>a.st-b.st)[0];if(!prev)return "";const gap=(next?next.st:null)!=null?next.st-prev.en:null;const fmtDT=t=>{const dd=Math.floor(t/24),hh=t-dd*24;const dt=new Date(dd*3600000*24);return DAYN[dt.getUTCDay()].slice(0,3).toLowerCase()+" "+fmtH(hh)};return `Odpoczynek po ${prev.name}: od ${fmtDT(prev.en)}`+(next?` do ${fmtDT(next.st)} (${next.name}) — ${String(Math.round(gap*10)/10).replace(".",",")} h wolnego`:" — następna trasa nie jest jeszcze zaplanowana")};
+  let html='<colgroup><col style="width:170px">'+days.map(()=>'<col style="width:215px">').join("")+'<col style="width:150px"></colgroup><tr><th></th>'+days.map((d,di)=>`<th data-dayhead="${d}" class="day dstart${di%2?" alt":""}${wdOf(d)===0||wdOf(d)===6?" weekend":""}">${DAYN[wdOf(d)]}<small>${d.slice(8)}.${d.slice(5,7)}</small>${estTag(s,d)}</th>`).join("")+'<th class="sum" title="Godziny pracy w bieżącym tygodniu · liczba kafelków">Σ tydz.</th></tr>';
   html+='<tr><th style="font-weight:400;color:var(--muted);font-size:10px">godz.</th>'+days.map(()=>'<td style="padding:0"><div class="ticks"><span>0</span><span>6</span><span>12</span><span>18</span></div></td>').join("")+'<td class="sum"></td></tr>';
   let grand=0,far=0,over40=0;
   for(const e of empsShown){
     let total=0,cnt=0,wT=0,wN=0; const curW=weekKey(warsawDay()); const lanes=days.map(()=>[]);
-    for(const c of hist){if(c.empId!==e.id||c.date!==addDays(days[0],-1))continue;const sh=shMap[c.shiftId];if(startsPrevDay(sh)&&!isDutyCell(c,sh))continue;const end=startOf(sh,c.date)+hoursOf(sh);if(end>24)lanes[0].push(`<div class="bar cont" style="left:0;width:${pct(end-24)};background-color:${colorOf(c.shiftId)}">→ ${esc(sh?.name||"")}<small>do ${fmtH(end-24)} (z pop. tyg.)</small></div>`)}
+    for(const c of hist){if(c.empId!==e.id||c.date!==addDays(days[0],-1))continue;const sh=shMap[c.shiftId];if(cellPrev(c,sh)&&!isDutyCell(c,sh))continue;const end=startOf(sh,c.date)+hoursOf(sh);if(end>24)lanes[0].push(`<div class="bar cont" style="left:0;width:${pct(end-24)};background-color:${colorOf(c.shiftId)}">→ ${esc(sh?.name||"")}<small>do ${fmtH(end-24)} (z pop. tyg.)</small></div>`)}
     const spillsIn=days.map(()=>[]);
-    const consider=(c,date)=>{const sh=shMap[c.shiftId];if(!sh||!startsPrevDay(sh)||isDutyCell(c,sh))return;const idx=days.indexOf(addDays(date,-1));if(idx>=0)spillsIn[idx].push({c,sh,date})};
+    const consider=(c,date)=>{const sh=shMap[c.shiftId];if(!sh||!cellPrev(c,sh))return;const idx=days.indexOf(addDays(date,-1));if(idx>=0)spillsIn[idx].push({c,sh,date})};
     for(const d of days)for(const c of (byEmpDay[e.id]?.[d]||[]))consider(c,d);
     for(const [sid,sc] of Object.entries(S.scheds)){if(sid===s.id)continue;for(const c of sc.cells||[])if(c.empId===e.id&&c.date===addDays(s.end,1))consider(c,c.date)}
     days.forEach((d,i)=>{
@@ -775,7 +793,7 @@ function renderTimeline(){
         return;
       }
       for(const c of cs){const sh=shMap[c.shiftId];const cx=c.duty==="cancelled";const cl=isClosed(c,sh)&&!cx;const bd=cellBounds(c,sh,d);const st=bd.st,hh=bd.hh,end=st+hh,col=colorOf(c.shiftId),lk=(c.locked?" locked":"")+(cx?" dutyx":"")+(cl?" closed":"");const tk=cl?"✓ ":"";const rH=tripRestH(e,sh,hh,c);if(!cx){total+=hh-rH;cnt++;if(weekKey(d)===curW){wT+=hh-rH;wN++}}if(hh>=16)far+=hh-rH;
-        if(startsPrevDay(sh)&&!isDutyCell(c,sh)){ // wyjazd wieczorem dzień wcześniej: w tym dniu widać końcówkę
+        if(cellPrev(c,sh)){ // wyjazd wieczorem dzień wcześniej: w tym dniu widać końcówkę
           const e2=Math.max(end-24,0.4);lanes[i].push(`<div class="bar cont${lk}" style="left:0;width:${pct(e2)};background-color:${col}" data-pick="${e.id}|${d}" data-tl="${c.empId}|${c.date}|${c.shiftId}|${c.slot}" data-tl-st="${st-24}" title="${esc(sh?.name||"")}: wyjazd ${fmtH(st%24)} dzień wcześniej, powrót ${fmtH(end%24)} (${hh} h${rH?`, w tym ${rH} h odpoczynku w trasie: czas pracy ${String(Math.round((hh-rH)*100)/100).replace(".",",")} h`:""}${c.katCNote?" · "+esc(c.katCNote):""})">${tk}→ ${esc(sh?.name||"?")}<small><b>${fH(hh)}</b> · wyjazd ${fmtH(st%24)} dzień wcześniej · do ${fmtH(end%24)}</small>${rH?(()=>{const [r0,r1]=restWin(st-24,end-24,rH);return restBand(0,e2,r0,r1,rH)})():""}<i class="rs" title="Przeciągnij, aby zmienić godzinę końca"></i></div>`);continue}
         if(end<=24)lanes[i].push(`<div class="bar${lk}" style="left:${pct(st)};width:${pct(hh)};background-color:${col}" data-pick="${e.id}|${d}" data-tl="${c.empId}|${c.date}|${c.shiftId}|${c.slot}" data-tl-st="${st}" title="${esc(sh?.name||"")} ${fmtH(st)}–${fmtH(end)} (${hh} h)">${tk}${esc(sh?.name||"?")}<small><b>${fH(hh)}</b> · ${fmtH(st)}–${fmtH(end)}</small><i class="rs" title="Przeciągnij, aby zmienić godzinę końca"></i></div>`);
         else{lanes[i].push(`<div class="bar spill${lk}" style="left:${pct(st)};width:${pct(24-st)};background-color:${col}" data-pick="${e.id}|${d}" data-tl="${c.empId}|${c.date}|${c.shiftId}|${c.slot}" data-tl-st="${st}" title="${esc(sh?.name||"")} start ${fmtH(st)}, ${hh} h${rH?`, w tym ${rH} h odpoczynku w trasie: czas pracy ${String(Math.round((hh-rH)*100)/100).replace(".",",")} h`:""}">${tk}${esc(sh?.name||"?")}<small><b>${fH(hh)}</b> · ${fmtH(st)} →</small>${rH?(()=>{const [r0,r1]=restWin(st,end,rH);return restBand(st,24,r0,r1,rH)})():""}</div>`);if(i+1<days.length)lanes[i+1].push(`<div class="bar cont${cl?" closed":""}" style="left:0;width:${pct(end-24)};background-color:${col}">→ ${esc(sh?.name||"")}<small>do ${fmtH(end-24)}</small>${rH?(()=>{const [r0,r1]=restWin(st-24,end-24,rH);return restBand(0,end-24,r0,r1,rH)})():""}</div>`)}
@@ -784,13 +802,13 @@ function renderTimeline(){
     days.forEach((d,i)=>{for(const sp of spillsIn[i]){const cl=isClosed(sp.c,sp.sh);const bd=cellBounds(sp.c,sp.sh,sp.date);lanes[i].push(`<div class="bar spill${sp.c.locked?" locked":""}${cl?" closed":""}" style="left:${pct(bd.st)};width:${pct(24-bd.st)};background-color:${colorOf(sp.c.shiftId)}" data-pick="${e.id}|${sp.date}" data-tl="${sp.c.empId}|${sp.c.date}|${sp.c.shiftId}|${sp.c.slot}" data-tl-st="${bd.st}" title="${esc(sp.sh.name)}: wyjazd ${fmtH(bd.st)} (trasa na ${sp.date.slice(8)}.${sp.date.slice(5,7)})">${cl?"✓ ":""}${esc(sp.sh.name)}<small><b>${fH(bd.hh)}</b> · wyjazd ${fmtH(bd.st)}</small>${(()=>{const rH2=tripRestH(e,sp.sh,bd.hh,sp.c);if(!rH2)return"";const [r0,r1]=restWin(bd.st,bd.st+bd.hh,rH2);return restBand(bd.st,24,r0,r1,rH2)})()}</div>`)}});
     grand+=wT; if(wT>40)over40++;
     const ec=empColor(e);
-    html+=`<tr data-tl-emp="${e.id}"><td style="border-left:6px solid ${ec};background:linear-gradient(${tint(ec,.26)},${tint(ec,.26)}),var(--paper)"><span class="edot" style="background:${ec}"></span>${esc(e.name)}</td>`+lanes.map((l,i)=>`<td data-tl-day="${days[i]}" class="cell dstart${i%2?" alt":""}${wdOf(days[i])===0||wdOf(days[i])===6?" weekend":""}"><div class="lane" style="${wdOf(days[i])===0||wdOf(days[i])===6?"":"background-color:"+tint(ec,.16)}">${l.join("")}</div></td>`).join("")+`<td class="sum">${fH(wT)}<small>${wN} ${wN===1?"kafelek":wN>=2&&wN<=4?"kafelki":"kafelków"} · ten tydzień${wT>40?" · +"+fH(wT-40)+" ponad 40":""}</small><small>widoczne: ${fH(total)} · ${cnt}</small></td></tr>`;
+    html+=`<tr data-tl-emp="${e.id}"><td style="border-left:6px solid ${ec};background:linear-gradient(${tint(ec,.26)},${tint(ec,.26)}),var(--paper)"><span class="edot" style="background:${ec}"></span>${esc(e.name)}</td>`+lanes.map((l,i)=>`<td data-tl-day="${days[i]}" class="cell dstart${i%2?" alt":""}${wdOf(days[i])===0||wdOf(days[i])===6?" weekend":""}"><div class="lane" style="${wdOf(days[i])===0||wdOf(days[i])===6?"":"background-color:"+tint(ec,.16)}">${l.join("")}</div></td>`).join("")+`<td class="sum" title="Ten tydzień: ${fH(wT)}, ${wN} ${wN===1?"kafelek":wN>=2&&wN<=4?"kafelki":"kafelków"}${wT>40?", +"+fH(wT-40)+" ponad 40":""}. Widoczne dni: ${fH(total)}, ${cnt}.">${fH(wT)} <small style="display:inline;${wT>40?"color:#B3261E;font-weight:700":""}">· ${wN}</small></td></tr>`;
   }
   const f1=v=>String(Math.round(v*10)/10).replace(".",",");
   T.innerHTML=`<p class="lead">Każdy dzień to oś 24 h. Szerokość kafelka = planowany czas pracy od statystycznej godziny startu (ustawianej przy typie zmiany). Dalekie trasy 8–11 wyjeżdżają wieczorem dzień wcześniej (dzień na grafiku to dzień rozwózki), a kreskowana kontynuacja pokazuje ich końcówkę. Trasy i dni zakończone (dane z FlotoMax) mają znacznik ✓ i biały kontur. Sumy godzin to czas pracy: kierowcy kat. C na długiej trasie odliczamy 9 h odpoczynku w trasie. Szare pasy po bokach = noc. Dotknięcie kafelka otwiera edycję. Kafelek można złapać i upuścić w dowolnym miejscu: wiersz to kierowca, kolumna to dzień, a miejsce w kolumnie to godzina wyjazdu (co 15 min). Zakończonym trasom można zmienić tylko godziny. Prawa krawędź kafelka zmienia jego długość. Nowe zadanie przeciągnij z „Puli etykiet”. Ruch cofa przycisk „↩ Cofnij”.</p>
   <div class="kpis"><div class="kpi">Suma godzin pracy<b>${f1(grand)} h</b></div><div class="kpi">W tym trasy dalekie (bez odpoczynku)<b>${f1(far)} h</b></div><div class="kpi">Średnio na kierowcę<b>${f1(grand/Math.max(1,empsShown.length))} h</b></div><div class="kpi">Kierowców ponad 40 h<b>${over40}</b></div></div>
-  <div class="tl-pool" aria-label="Pula etykiet"><b>Pula etykiet</b><span class="muted">przeciągnij na kierowcę i godzinę:</span>${S.shifts.map(sh=>`<div class="chip" style="background:${colorOf(sh.id)}" data-tl-new="${sh.id}" title="${esc(sh.name)}: złap i upuść na wiersz kierowcy w wybranym dniu i godzinie">${esc(sh.name)}<small>${startsPrevDay(sh)?"wyjazd dzień wcześniej · ":""}${fmtH(startOf(sh))} · ${String(hoursOf(sh)).replace(".",",")} h</small></div>`).join("")}</div>
-  <div class="grid-scroll"><table class="tl">${html}</table></div>
+  <div class="tl-wrap"><div class="tl-pool" aria-label="Pula etykiet"><b>Pula etykiet</b><span class="muted">przeciągnij na kierowcę, dzień i godzinę</span>${S.shifts.map(sh=>`<div class="chip" style="background:${colorOf(sh.id)}" data-tl-new="${sh.id}" title="${esc(sh.name)}: złap i upuść na wiersz kierowcy w wybranym dniu i godzinie">${esc(sh.name)}<small>${startsPrevDay(sh)?"wyjazd dzień wcześniej · ":""}${fmtH(startOf(sh))} · ${String(hoursOf(sh)).replace(".",",")} h</small></div>`).join("")}</div>
+  <div class="grid-scroll"><table class="tl">${html}</table></div></div>
   <div class="tl-legend">${S.shifts.map(x=>`<span><i style="background:${colorOf(x.id)}"></i>${esc(x.name)} · ${startsPrevDay(x)?"dzień wcześniej ":""}${fmtH(startOf(x))} · ${String(hoursOf(x)).replace(".",",")} h</span>`).join("")}<span><i style="background:#9ca3af;box-shadow:inset 0 0 0 2px #fff"></i>✓ zakończona (FlotoMax)</span><span><i style="background:var(--rest);border:1px solid #e6c98a"></i>odpoczynek</span><span><i style="background:rgba(31,36,48,.08);border:1px solid var(--line2)"></i>noc</span></div>`;
 }
 function renderPlan(){try{updUndo()}catch(e){}try{renderPlan0()}finally{maybeScroll(planView==="hours"?"#timeline .grid-scroll":"#chips-view .grid-scroll");const s=S.scheds[S.current],r=$("roll-ctl");if(r)r.style.display=s?.rolling?"flex":"none"}}
@@ -1536,8 +1554,8 @@ function applyFlotoTrips(trips){const done=[],skipped=[],touched=new Set(),shMap
   return{done,skipped,scheds:[...touched],newShifts}}
 // zaplanowane zlecenia z FlotoMax (spedytor): blokują przydział w grafiku; zmiany grafiku dotyczą tylko przyszłości
 function setPlannedTime(c,sh,a){if(c.out||c.manualT)return false;const d=flHM(a.plannedDepartureAt),hrs=tripHours(a.plannedDepartureAt,a.plannedReturnAt);let ch=false;
-  const far=startsPrevDay(sh)&&!isDutyCell(c,sh);
-  if(d&&((!far&&d.date===a.date)||(far&&d.date===addDays(a.date,-1)))){const st=Math.round(d.h*4)/4;if(c.startH!==st){c.startH=st;ch=true}}
+  if(d&&!isDutyCell(c,sh)&&(d.date===a.date||d.date===addDays(a.date,-1))){const st=Math.round(d.h*4)/4;const pv=d.date!==a.date&&!startsPrevDay(sh);
+    if(c.startH!==st){c.startH=st;ch=true}if(!!c.prevDep!==pv){if(pv)c.prevDep=true;else delete c.prevDep;ch=true}}
   if(hrs!=null&&hrs>0&&hrs<48){const v=Math.round(hrs*4)/4;if(c.durH!==v){c.durH=v;ch=true}}return ch}
 async function applyFlotoAssignments(list,from,to){const r={placed:[],need:[],noSched:{},made:[],warn:[]},today=warsawDay(),dirty=new Set(),cur=S.current,live=new Set(),needC=[];
   const all=Array.isArray(list)?list:[];all.forEach(a=>{if(a&&a.routeId!=null&&a.kind)FL.kinds[a.routeId]=a.kind});
@@ -1549,7 +1567,9 @@ async function applyFlotoAssignments(list,from,to){const r={placed:[],need:[],no
     const virt=isVirtualDriver(a.driverName),e=virt?null:flotoEmp(a.driverId,a.driverName);
     if(!virt&&!e){r.warn.push(`${lbl}: kierowca ${a.driverName||a.driverId} nieznany w Harmonogramie`);continue}
     const s=ss.find(x=>x.cells.some(c=>c.flotoPlan===a.routeId))||ss[0];let c=s.cells.find(x=>x.flotoPlan===a.routeId);
-    if(c&&(c.date!==a.date||c.shiftId!==sh.id)){delete c.flotoPlan;delete c.locked;delete c.startH;delete c.durH;dirty.add(s.id);c=null}
+    if(c&&(c.date!==a.date||c.shiftId!==sh.id)){const dup=s.cells.filter(x=>x!==c&&x.date===c.date&&x.shiftId===c.shiftId).length>0||!shiftsOn(c.date).some(x=>x.id===c.shiftId);const em=c.empId;
+      // FlotoMax zmienił etykietę/dzień trasy: stare miejsce znika (nie zostaje puste do obsadzenia)
+      s.cells=s.cells.filter(x=>x!==c);if(!dup&&shiftsOn(c.date).some(x=>x.id===c.shiftId)&&!s.cells.some(x=>x.date===c.date&&x.shiftId===c.shiftId))void 0;dirty.add(s.id);c=null}
     if(virt){if(!c){const slots=s.cells.filter(x=>x.date===a.date&&x.shiftId===sh.id);c=slots.find(x=>x.flotoPlan==null&&x.empId==null);if(!c){c={date:a.date,shiftId:sh.id,slot:slots.length?Math.max(...slots.map(x=>x.slot))+1:0,empId:null};s.cells.push(c)}c.flotoPlan=a.routeId;dirty.add(s.id)}
       if(setPlannedTime(c,sh,a))dirty.add(s.id);needC.push({s:s.id,routeId:a.routeId,lbl});continue}
     if(c&&c.empId===e.id){if(!c.locked){c.locked=true;dirty.add(s.id)}if(setPlannedTime(c,sh,a))dirty.add(s.id);continue}
