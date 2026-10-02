@@ -106,3 +106,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v63
 - Odpoczynek 9 h w trasie tylko na trasach wymagających kat. C (Typy zmian → wymaga kat. C; obecnie T10). Przejazdy z FlotoMax: restHours z FlotoMax.
+
+## v64
+- Trasy jednorazowe (fromFloto/oneOff, np. „Trasa niezapowiedziana”) nigdy nie są losowane, nawet gdy zaznaczone w Założeniach. Usunięto ją z Założeń (poniedziałek) i wylosowane powtórki 12.10 i 19.10.

@@ -469,7 +469,8 @@ function ledger(excludeId,ignoreSince){
   for(const e of S.emps){const arr=[];for(const wk of weeks){const w=earned[e.id]?.[wk], ab=absW[e.id]?.[wk];if(w===undefined&&!ab)continue;const worked=w||0, base0=weekNormDays(wk), l4e=ab?[...ab.l4].filter(x=>!reducesNorm(x)).length:0, norm=Math.max(0,base0-Math.min(base0,l4e));arr.push({monday:wk,worked,norm,delta:worked-norm,urlop:ab?ab.urlop.size:0})}out[e.id]=arr}
   return out}
 function balances(excludeId){const L=ledger(excludeId),out={};S.emps.forEach(e=>out[e.id]=(+(S.hr?.[e.id]?.overtime)||0)+(L[e.id]||[]).reduce((a,w)=>a+w.delta,0));return out}
-const shiftsOn=day=>{if(typeof calDay==="function"){const he=calDay(day);if(he&&he.routes==="none")return[]}if(!S.plan)return S.shifts;const ids=new Set(S.plan.days?.[wdOf(day)]||[]);return S.shifts.filter(s=>ids.has(s.id))};
+const shiftsOn=day=>{if(typeof calDay==="function"){const he=calDay(day);if(he&&he.routes==="none")return[]}const once=s=>!!s.fromFloto||!!s.oneOff; // trasy jednorazowe (np. niezapowiedziane) nigdy nie powtarzają się w losowaniu
+  if(!S.plan)return S.shifts.filter(s=>!once(s));const ids=new Set(S.plan.days?.[wdOf(day)]||[]);return S.shifts.filter(s=>ids.has(s.id)&&!once(s))};
 const COLORS=["#16a34a","#2563eb","#d97706","#0891b2","#9333ea","#ca8a04","#475569","#dc2626","#ea580c","#be123c","#b91c1c","#0284c7","#6b7280","#65a30d","#7c3aed"];
 const PART={full:"cały dzień",am:"rano",pm:"po południu"};
 const cpart=(c,sh,day)=>(day&&wdOf(day)===0)?"full":(c&&c.part)||(sh?.part||"full");
