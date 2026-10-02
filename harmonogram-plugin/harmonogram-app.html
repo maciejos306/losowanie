@@ -1,5 +1,5 @@
 <title>Plan Dyżurów</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Karla:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
   :root{--bg:#faf9f5;--paper:#fff;--ink:#1f2430;--muted:#6b6f76;--line:#e4e1d8;--line2:#d8d4c8;--green:#1f2430;--green2:#151a24;--accent:#d97757;--cream:#f4f1ea;--weekend:#f4ead2;--rest:#f7ead1;--rest-ink:#8a5a12;--urlop:#dbe9f6;--urlop-ink:#24507a;--l4:#f6dcd9;--l4-ink:#8c2f26;--danger:#a5453a;color-scheme:light}
   @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171a16;--paper:#20241f;--ink:#eae7dd;--muted:#a3a091;--line:#33372f;--line2:#3d4136;--green:#5fa47e;--green2:#2f6d4d;--cream:#1b1f1a;--weekend:#2b2f22;--rest:#3a3018;--rest-ink:#e8b96b;--urlop:#1d3346;--urlop-ink:#9cc4ea;--l4:#43221f;--l4-ink:#f0a49a;color-scheme:dark}}
@@ -178,6 +178,45 @@
   .floto.ok .fl-dot{background:#2f8a4f}.floto.err .fl-dot{background:#c0392b}.floto.busy .fl-dot{background:#d79b00}
   .floto details{flex-basis:100%;font-size:12px}.floto details li{margin:2px 0}
   .status{font-size:11.5px;color:var(--muted);padding:6px 16px;border-top:1px solid var(--line);background:var(--cream)}
+
+  /* ===== szata „Grafik” (projekt planera) ===== */
+  :root{--bg:#F3F4F1;--paper:#fff;--ink:#1C2321;--muted:#56615C;--line:#EEF1EE;--line2:#DDE2DE;--accent:#1F5F8B;--cream:#FAFBF9;--weekend:#F1F2EE;--rest:#F7EFD9;--rest-ink:#6B5212;--urlop:#DCE8F3;--urlop-ink:#143F5D;--danger:#B3261E;--amber:#F2A541;--side:#1C2321}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121615;--paper:#1A1F1D;--ink:#E8ECE9;--muted:#9AA5A0;--line:#262D2A;--line2:#333D3A;--accent:#5B9BC8;--cream:#161B19;--weekend:#1E2421;--rest:#3A3218;--rest-ink:#E8C87A;--urlop:#1D3346;--urlop-ink:#9CC4EA;--side:#0E1211}}
+  :root[data-theme="dark"]{--bg:#121615;--paper:#1A1F1D;--ink:#E8ECE9;--muted:#9AA5A0;--line:#262D2A;--line2:#333D3A;--accent:#5B9BC8;--cream:#161B19;--weekend:#1E2421;--rest:#3A3218;--rest-ink:#E8C87A;--urlop:#1D3346;--urlop-ink:#9CC4EA;--side:#0E1211}
+  body,input,select,button,.btn,nav button,th.sub,.est,.slots,b.ini,.hol,.daydone,.daypart{font-family:'IBM Plex Sans',system-ui,sans-serif}
+  .bal,.mono{font-family:'IBM Plex Mono',ui-monospace,monospace}
+  .side{background:var(--side);padding:24px 16px}
+  .side .brand{font-size:18px;font-weight:700;padding:0 8px 20px}
+  .side .brand::after{content:".";color:var(--amber)}
+  .side a,.side .nav-item{border-radius:8px;padding:10px 12px;color:#E8ECE9;font-weight:500}
+  .side .nav-item.active{background:var(--amber);color:#1C2321;font-weight:600}
+  .main{padding:24px 28px}
+  .board{background:transparent;border:none;box-shadow:none;border-radius:0;overflow:visible}
+  .head{background:transparent;border:none;padding:0 0 16px}
+  .head h1{font-size:24px;font-weight:700}
+  nav{background:transparent;border:none;padding:0 0 16px;gap:0}
+  nav button{border-radius:0;padding:10px 14px;background:var(--paper);color:var(--ink);font-weight:500;border:1px solid var(--line2);margin-left:-1px}
+  nav button:first-child{border-radius:8px 0 0 8px;margin-left:0}nav button:last-child{border-radius:0 8px 8px 0}
+  nav button.active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .screen{padding:0}
+  .screen.active{background:transparent}
+  .btn{background:var(--accent);border-radius:8px;font-weight:600}
+  .btn.ghost{background:var(--paper);border:1px solid var(--line2);color:var(--ink);font-weight:500}
+  input,select{border-radius:8px;border:1px solid var(--line2)}
+  .grid-scroll{background:var(--paper);border:1px solid var(--line2);border-radius:12px}
+  ul.cards li{background:var(--paper);border:1px solid var(--line2);border-radius:10px}
+  th.corner,th.day,th.sub{background:var(--cream)}
+  .chip,.bar,.palette .chip,.tl-pool .chip{color:#1C2321;border:1px solid rgba(28,35,33,.10);background-image:none;font-weight:600;text-shadow:none}
+  .chip small,.bar small{color:#1C2321;opacity:.75}
+  .chip.closed,.bar.closed{box-shadow:inset 0 0 0 2px #1C2321;background-image:none}
+  .floto{background:var(--paper);border:1px solid var(--line2);border-radius:10px}
+  .kpi{background:var(--paper);border:1px solid var(--line2);border-radius:10px}
+  #notice:not(:empty){border-radius:8px}
+  table.plan td.cell,table.plan td.who{background:var(--paper)!important;background-image:none!important}
+  table.plan td.cell.weekend{background:var(--weekend)!important}
+  table.plan .alt,table.tl th.alt{background-image:none}
+  .chip.locked{box-shadow:inset 0 0 0 1.5px rgba(28,35,33,.55)!important;outline:none}
+  .chip.locked.closed{box-shadow:inset 0 0 0 2px #1C2321!important}
 </style>
 
 <div class="wrap">
@@ -430,7 +469,7 @@ const restOf=sh=>sh==null?0:(Number.isFinite(sh.rest)?sh.rest:restDays(sh.weight
 const fmt=d=>d.toISOString().slice(0,10);
 const addDays=(s,n)=>{const d=new Date(s+"T00:00:00Z");d.setUTCDate(d.getUTCDate()+n);return fmt(d)};
 function* range(a,b){for(let d=a;d<=b;d=addDays(d,1))yield d}
-const colorOf=id=>COLORS[Math.max(0,S.shifts.findIndex(s=>s.id===id))%COLORS.length];
+const colorOf=id=>{const s=S.shifts.find(x=>x.id===id);if(!s)return"#E3E7EE";if((s.part||"full")==="pm")return"#E3E7EE";if((s.weight??1)>=2)return"#F6DCC9";if(/zwrot/i.test(s.name))return"#E6EED0";if(s.fromFloto)return"#E9E1F3";return"#DCEBDD"};
 const absMap=()=>{const m={};S.abs.forEach(a=>{if(BLOCKING_REASONS.has(a.reason))(m[a.empId]??={})[a.date]=a.reason});return m};
 const pendingMap=()=>{const m={};S.abs.forEach(a=>{if(a.reason==="wniosek")(m[a.empId]??={})[a.date]=true});return m};
 

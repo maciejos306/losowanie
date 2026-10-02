@@ -69,3 +69,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v55
 - Grafik wysyłany do FlotoMax bez godzin (tylko etykiety).
+
+## v56
+- Nowa szata wg projektu planera (https://claude.ai/artifact/RVYkkMqBy6e591oLbX4aiu): IBM Plex Sans/Mono, tło #F3F4F1, ciemne menu z bursztynowym aktywnym, niebieski przycisk główny, zakładki jako segmenty, białe karty; kafelki w kolorach kategorii (dzienne zielone, dalekie pomarańczowe, dyżur szary, zwroty oliwkowe, z FlotoMax fioletowe) z ciemnym tekstem; jasny i ciemny motyw.
