@@ -129,3 +129,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 - Zastępca nie dostaje drugiej zmiany tego samego dnia (np. trasa 01:30 + dyżur 14:30).
 - Spośród możliwych zastępców wybierany jest ten, kto ma w tym tygodniu najmniej dni pracy.
 - Sprawdzone symulacją urlopu (Knura 06–08.10, tylko lokalnie): Trasa 7 → Schmidt / Misiewicz / Czogała zamiast Misiewicza 2×.
+
+## v70 — wyraźniejszy urlop
+- Urlop w tabeli i na osi godzin: ciemnoniebieskie pasy, biały napis WIELKIMI LITERAMI, obramowanie i cień.
