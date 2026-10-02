@@ -165,6 +165,7 @@
   .tl-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px}
   .bar.spill{border-top-right-radius:0;border-bottom-right-radius:0;border-right:none}
   .bar.cont{border-top-left-radius:0;border-bottom-left-radius:0;border-left:none;background-image:linear-gradient(180deg,rgba(255,255,255,.18),rgba(0,0,0,.08)),repeating-linear-gradient(135deg,transparent 0 6px,rgba(255,255,255,.12) 6px 10px);cursor:default}
+  .bar.cont[data-tl],.bar.spill[data-tl]{cursor:grab}
   .bar.locked{outline:2px solid var(--ink);outline-offset:-2px}
   .tl-rest{position:absolute;top:7px;height:36px;left:2%;right:2%;border-radius:7px;background:var(--rest);color:var(--rest-ink);border:1.5px solid #e6c98a;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;z-index:0}
   .tl-rest.carry{opacity:.55;border-style:dashed}
@@ -464,8 +465,26 @@ const byPriority=(a,b)=>(b.weight-a.weight)||(S.shifts.findIndex(s=>s.id===a.id)
 // Wybór kierowcy: 1) ten, kto wczoraj jechał tę samą trasę (ciągłość),
 // 2) dla dalekiej trasy — ktoś, kto wczoraj nie miał trasy (nie przerywamy ciągu),
 // 3) najmniej obciążony, remis losowo.
-function pick(cands,counts,sh,prevDay,bias){
+// dalekie trasy (od T8 wzwyż, waga od 2 dniówek) rotują: każdy przez nie przechodzi, ale nie ciągiem
+const FAR_W=2,FAR_GAP=6,FAR_WIN=42;
+const isFar=sh=>!!sh&&(sh.weight??1)>=FAR_W&&(sh.part||"full")!=="pm";
+const dDiff=(a,b)=>Math.round((Date.parse(a+"T00:00:00Z")-Date.parse(b+"T00:00:00Z"))/864e5);
+// dalekie trasy z innych grafików w oknie ±FAR_WIN dni (do rotacji przy losowaniu i naprawie)
+function farLogFor(start,end,excludeId){const m={};S.shifts.forEach(x=>m[x.id]=x);const lo=addDays(start,-FAR_WIN),hi=addDays(end,FAR_WIN),log={};
+  for(const s of Object.values(S.scheds)){if(s.id===excludeId)continue;for(const c of s.cells||[])if(c.empId&&c.date>=lo&&c.date<=hi&&isFar(m[c.shiftId]))(log[c.empId]??=[]).push(c.date)}return log}
+// trasa A (dzień dA) koliduje z daleką trasą B na dzień dA+1, gdy A jeszcze trwa w chwili wyjazdu B (wieczorem dnia dA)
+const clashNext=(shA,dA,shB,dB)=>!!shA&&!!shB&&startsPrevDay(shB)&&(shB.part||"full")!=="pm"&&(shA.part||"full")!=="pm"&&addDays(dA,1)===dB&&(startOf(shA,dA)-(startsPrevDay(shA)?24:0)+hoursOf(shA))>startOf(shB,dB);
+function pick(cands,counts,sh,prevDay,bias,farLog,day){
   if(!cands.length)return null;
+  if(farLog&&day&&isFar(sh)){
+    const near=e=>(farLog[e.id]||[]).some(d=>Math.abs(dDiff(d,day))<FAR_GAP);
+    const ok=cands.filter(e=>!near(e));const pool0=ok.length?ok:cands;
+    const cnt=e=>(farLog[e.id]||[]).filter(d=>d!==day&&Math.abs(dDiff(d,day))<=FAR_WIN).length;
+    const mc=Math.min(...pool0.map(cnt));let pool=pool0.filter(e=>cnt(e)===mc);
+    const since=e=>{const p=(farLog[e.id]||[]).filter(d=>d<day);return p.length?dDiff(day,p.sort().pop()):999};const ms=Math.max(...pool.map(since));pool=pool.filter(e=>since(e)>=Math.min(ms,FAR_WIN));
+    const free=pool.filter(e=>!(prevDay[e.id]||[]).length);if(free.length)pool=free;
+    const m=Math.min(...pool.map(e=>counts[e.id]));const b=pool.filter(e=>counts[e.id]===m);
+    return b[Math.floor(Math.random()*b.length)].id}
   const minB=bias?Math.min(...cands.map(e=>bias[e.id]||0)):0;
   const same=cands.filter(e=>(prevDay[e.id]||[]).includes(sh.id)&&(!bias||(bias[e.id]||0)-minB<=2));
   if(same.length)return same[Math.floor(Math.random()*same.length)].id;
@@ -477,15 +496,17 @@ function pick(cands,counts,sh,prevDay,bias){
 function generate(start,end,excludeId){
   const emps=S.emps.filter(e=>e.active), counts={}, am=absMap(), cells=[], shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
   const bal=balances(excludeId), bias={};emps.forEach(e=>{bias[e.id]=biasOf(bal[e.id]);counts[e.id]=bias[e.id]});
-  let {rest,prevDay,worked}=seedState(start,excludeId,shMap);
+  let {rest,prevDay,worked}=seedState(start,excludeId,shMap);const farLog=farLogFor(start,end,excludeId);
   for(const day of range(start,end)){
     const used={}, today={}, heavy=new Set();
     for(const sh of [...shiftsOn(day)].sort(byPriority)) for(let slot=0;slot<sh.people;slot++){
       const pt=partOf(sh,day);
-      const c=emps.filter(e=>canDrive(e,sh)&&!clash(used,e.id,pt)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&(pt==="pm"?!heavy.has(e.id):canWork(worked,e.id,day)));
+      const pc=e=>(prevDay[e.id]||[]).some(id=>clashNext(shMap[id],addDays(day,-1),sh,day));
+      const c=emps.filter(e=>canDrive(e,sh)&&!clash(used,e.id,pt)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&!pc(e)&&(pt==="pm"?!heavy.has(e.id):canWork(worked,e.id,day)));
       let extra=false, pool=c;
-      if(!pool.length&&pt!=="pm"){pool=emps.filter(e=>canDrive(e,sh)&&!clash(used,e.id,pt)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&canWorkX(worked,e.id,day));extra=pool.length>0}
-      const emp=pick(pool,counts,sh,prevDay,bias);
+      if(!pool.length&&pt!=="pm"){pool=emps.filter(e=>canDrive(e,sh)&&!clash(used,e.id,pt)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&!pc(e)&&canWorkX(worked,e.id,day));extra=pool.length>0}
+      const emp=pick(pool,counts,sh,prevDay,bias,farLog,day);
+      if(emp!=null&&isFar(sh))(farLog[emp]??=[]).push(day);
       if(emp!=null){counts[emp]+=(sh.weight??1);mark(used,emp,pt);if(pt!=="pm"){(today[emp]??=[]).push(sh.id);noteWork(worked,emp,day);if((sh.weight??1)>=1.5)heavy.add(emp)}const r=restOf(sh);if(r>0)rest[emp]=addDays(day,r)}
       cells.push(extra&&emp!=null?{date:day,shiftId:sh.id,slot,empId:emp,extra:true}:{date:day,shiftId:sh.id,slot,empId:emp});
     }
@@ -499,10 +520,14 @@ function repair(sched,fromDate,extraLocked=new Set(),ban=new Set()){
   const bal=balances(sched.id), bias={};emps.forEach(e=>{bias[e.id]=biasOf(bal[e.id]);counts[e.id]=bias[e.id]});
   const shOf={};S.shifts.forEach(s=>shOf[s.id]=s);
   const key=c=>c.date+"|"+c.shiftId+"|"+c.slot;
-  let changed=0, {rest,prevDay,worked}=seedState(sched.start,sched.id,shOf);
+  let changed=0, {rest,prevDay,worked}=seedState(sched.start,sched.id,shOf);const farLog=farLogFor(sched.start,sched.end,sched.id);
+  // zablokowane, zakończone i wcześniejsze (zamrożone) dalekie trasy tego grafiku są znane z góry
+  const fixedFar=new Set();for(const c of sched.cells){if(c.empId!=null&&isFar(shOf[c.shiftId])&&(lockedKeys.has(key(c))||c.closed||c.flotoRoute!=null||c.date<fromDate||c.date<warsawDay())){(farLog[c.empId]??=[]).push(c.date);fixedFar.add(c)}}
   const lockDays={};sched.cells.forEach(c=>{if(c.empId!=null&&lockedKeys.has(key(c)))(lockDays[c.empId]??=new Set()).add(c.date)});
-  const restHitsLock=(emp,sh,day)=>{const r=restOf(sh);for(let i=1;i<=r;i++)if(lockDays[emp]?.has(addDays(day,i)))return true;return false};
-  const accept=(emp,sh,day,part)=>{if(emp==null)return;counts[emp]=(counts[emp]||0)+(sh.weight??1);if(part!=="pm")noteWork(worked,emp,day);const r=restOf(sh);if(r>0)rest[emp]=addDays(day,r)};
+  const restHitsLock=(emp,sh,day)=>{const r=restOf(sh);for(let i=1;i<=r;i++)if(lockDays[emp]?.has(addDays(day,i)))return true;
+    const nd=addDays(day,1);return sched.cells.some(c=>c.empId===emp&&c.date===nd&&lockedKeys.has(key(c))&&clashNext(sh,day,shOf[c.shiftId],nd))};
+  const prevClash=(emp,sh,day)=>(prevDay[emp]||[]).some(id=>clashNext(shOf[id],addDays(day,-1),sh,day));
+  const accept=(emp,sh,day,part,c)=>{if(emp==null)return;if(isFar(sh)&&!(c&&fixedFar.has(c)))(farLog[emp]??=[]).push(day);counts[emp]=(counts[emp]||0)+(sh.weight??1);if(part!=="pm")noteWork(worked,emp,day);const r=restOf(sh);if(r>0)rest[emp]=addDays(day,r)};
   for(const day of range(sched.start,sched.end)){
     const used={}, today={}, heavy=new Set(), frozen=day<fromDate||(S.freezePast!==false&&day<warsawDay());
     const todays=sched.cells.filter(c=>c.date===day).sort((a,b)=>(lockedKeys.has(key(a))?0:1)-(lockedKeys.has(key(b))?0:1)||byPriority(shOf[a.shiftId]||{weight:1,id:a.shiftId},shOf[b.shiftId]||{weight:1,id:b.shiftId})||a.slot-b.slot);
@@ -510,17 +535,17 @@ function repair(sched,fromDate,extraLocked=new Set(),ban=new Set()){
       const sh=shOf[c.shiftId]||{id:c.shiftId,weight:1}; const w=sh.weight; let emp=c.empId;
       const part=cpart(c,sh,day);const dutyLike=part==="pm"&&!c.part;const pk=dutyLike?"pm":(part==="pm"?"pmr":part);
       const empObj=emps.find(e=>e.id===emp);
-      if(frozen||lockedKeys.has(key(c))||c.closed||c.flotoRoute!=null||c.duty==="done"){if(emp!=null){mark(used,emp,pk);if(!dutyLike){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,dutyLike?"pm":"full")}continue}
-      const valid=emp!=null&&active.has(emp)&&canDrive(empObj,sh)&&!restHitsLock(emp,sh,day)&&!clash(used,emp,pk)&&!am[emp]?.[day]&&!(rest[emp]&&rest[emp]>=day)&&(dutyLike?!heavy.has(emp):(c.extra?canWorkX:canWork)(worked,emp,day));
+      if(frozen||lockedKeys.has(key(c))||c.closed||c.flotoRoute!=null||c.duty==="done"){if(emp!=null){mark(used,emp,pk);if(!dutyLike){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,dutyLike?"pm":"full",c)}continue}
+      const valid=emp!=null&&active.has(emp)&&canDrive(empObj,sh)&&!restHitsLock(emp,sh,day)&&!prevClash(emp,sh,day)&&!clash(used,emp,pk)&&!am[emp]?.[day]&&!(rest[emp]&&rest[emp]>=day)&&(dutyLike?!heavy.has(emp):(c.extra?canWorkX:canWork)(worked,emp,day));
       if(!valid){
-        const cand=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!restHitsLock(e.id,sh,day)&&!clash(used,e.id,pk)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&(dutyLike?!heavy.has(e.id):canWork(worked,e.id,day)));
+        const cand=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!restHitsLock(e.id,sh,day)&&!prevClash(e.id,sh,day)&&!clash(used,e.id,pk)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&(dutyLike?!heavy.has(e.id):canWork(worked,e.id,day)));
         let pool=cand, extra=false;
-        if(!pool.length&&!dutyLike){pool=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!restHitsLock(e.id,sh,day)&&!clash(used,e.id,pk)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&canWorkX(worked,e.id,day));extra=pool.length>0}
-        emp=pick(pool,counts,sh,prevDay,bias);
+        if(!pool.length&&!dutyLike){pool=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!restHitsLock(e.id,sh,day)&&!prevClash(e.id,sh,day)&&!clash(used,e.id,pk)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&canWorkX(worked,e.id,day));extra=pool.length>0}
+        emp=pick(pool,counts,sh,prevDay,bias,farLog,day);
         if(extra&&emp!=null)c.extra=true;else delete c.extra;
         if(emp!==c.empId){c.empId=emp;delete c.duty;delete c.dutyH;delete c.closed;delete c.out;delete c.back;changed++}
       }
-      if(emp!=null){mark(used,emp,pk);if(!dutyLike){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,dutyLike?"pm":"full")}
+      if(emp!=null){mark(used,emp,pk);if(!dutyLike){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,dutyLike?"pm":"full",c)}
     }
     prevDay=today;
   }
@@ -773,6 +798,19 @@ async function assignShift(empId,date,shiftId,opts={}){
 })();
 let suppressClick=false;
 
+// przewijanie tabeli i strony przy krawędzi podczas przeciągania
+const tlAuto={x:0,y:0,t:null,cb:null};
+// komórka dnia pod kursorem; przy kolumnie Σ lub nagłówku bierze najbliższy dzień w wierszu
+function tlCellAt(x,y,skip){if(skip)skip.style.visibility="hidden";let el=document.elementFromPoint(x,y);if(skip)skip.style.visibility="";
+  let td=el&&el.closest("table.tl td[data-tl-day]"),tr=el&&el.closest("table.tl tr[data-tl-emp]");
+  if(!tr){const rows=[...document.querySelectorAll("table.tl tr[data-tl-emp]")];tr=rows.find(r=>{const b=r.getBoundingClientRect();return y>=b.top&&y<=b.bottom})}
+  if(!tr)return null;
+  if(!td){let best=null,bd=1e9;tr.querySelectorAll("td[data-tl-day]").forEach(t=>{const b=t.getBoundingClientRect();const d=x<b.left?b.left-x:x>b.right?x-b.right:0;if(d<bd){bd=d;best=t}});if(!best||bd>260)return null;td=best}
+  const ln=td.querySelector(".lane")||td;const r=ln.getBoundingClientRect();return{td,tr,emp:tr.dataset.tlEmp,date:td.dataset.tlDay,h:Math.max(0,Math.min(23.99,(x-r.left)/r.width*24))}}
+function tlEdgeScroll(ev,cb){tlAuto.cb=cb||null;const g=document.querySelector("#timeline .grid-scroll");if(!g)return;const r=g.getBoundingClientRect(),E=48;
+  tlAuto.x=ev.clientX<r.left+E?-1:ev.clientX>r.right-E?1:0;tlAuto.y=ev.clientY<E?-1:ev.clientY>innerHeight-E?1:0;
+  if((tlAuto.x||tlAuto.y)&&!tlAuto.t)tlAuto.t=setInterval(()=>{if(!tlAuto.x&&!tlAuto.y){clearInterval(tlAuto.t);tlAuto.t=null;return}if(tlAuto.x)g.scrollLeft+=tlAuto.x*18;if(tlAuto.y)scrollBy(0,tlAuto.y*18);tlAuto.cb&&tlAuto.cb()},30)}
+function tlEdgeStop(){tlAuto.x=tlAuto.y=0;if(tlAuto.t){clearInterval(tlAuto.t);tlAuto.t=null}}
 async function tlNew(shiftId,empId,date,hour){const sh=S.shifts.find(x=>x.id===shiftId),e=S.emps.find(x=>x.id===empId);if(!sh||!e)return;
   let day=date,st=hour;if(startsPrevDay(sh)&&!isDutyCell({},sh)&&hour>=12)day=addDays(date,1); // daleka trasa: upuszczona wieczorem = wyjazd dzień przed dniem rozwózki
   const s=S.scheds[S.current];if(!s||day<s.start||day>s.end){notice("Ten dzień jest poza otwartym harmonogramem.");renderPlan();return}
@@ -783,14 +821,16 @@ async function tlNew(shiftId,empId,date,hour){const sh=S.shifts.find(x=>x.id===s
   if(c&&!c.out&&Math.abs(st-startOf(sh,day))>=0.25){c.startH=Math.round(st*4)/4;c.manualT=true;await saveSched(s2);renderPlan()}
   notice(`${sh.name} → ${e.name}, ${day.slice(8)}.${day.slice(5,7)}, start ${fmtH(c&&Number.isFinite(c.startH)?c.startH:startOf(sh,day))}${day!==date?" (wyjazd dzień wcześniej)":""}.`)}
 (function(){let g=null,tip=null,tgt=null;
-  const at=(x,y)=>{const el=document.elementFromPoint(x,y);const td=el&&el.closest("table.tl td[data-tl-day]");const tr=td&&td.closest("tr[data-tl-emp]");if(!td||!tr)return null;const ln=td.querySelector(".lane")||td;const r=ln.getBoundingClientRect();return{td,emp:tr.dataset.tlEmp,date:td.dataset.tlDay,hour:Math.max(0,Math.min(23.75,Math.round((x-r.left)/r.width*24*4)/4))}};
+  const at=(x,y)=>{const a=tlCellAt(x,y);return a&&{td:a.td,emp:a.emp,date:a.date,hour:Math.max(0,Math.min(23.75,Math.round(a.h*4)/4))}};
   document.addEventListener("pointerdown",ev=>{const el=ev.target.closest("[data-tl-new]");if(!el||!S.db||ev.button>0)return;g={el,sid:el.dataset.tlNew,x:ev.clientX,y:ev.clientY,id:ev.pointerId,moved:false}});
   document.addEventListener("pointermove",ev=>{if(!g||ev.pointerId!==g.id)return;
     if(!g.moved){if(Math.hypot(ev.clientX-g.x,ev.clientY-g.y)<6)return;g.moved=true;g.gh=g.el.cloneNode(true);g.gh.classList.add("tl-ghost");g.gh.removeAttribute("data-tl-new");document.body.appendChild(g.gh);tip=document.createElement("div");tip.className="tl-tip";document.body.appendChild(tip);try{g.el.setPointerCapture(ev.pointerId)}catch(e){}}
-    ev.preventDefault();g.gh.style.left=ev.clientX+"px";g.gh.style.top=ev.clientY+"px";g.gh.style.display="none";const a=at(ev.clientX,ev.clientY);g.gh.style.display="";
-    if(tgt?.td!==a?.td){tgt?.td.classList.remove("tl-cell-target");a?.td.classList.add("tl-cell-target")}tgt=a;
-    tip.style.left=ev.clientX+"px";tip.style.top=ev.clientY+"px";tip.textContent=a?`${S.emps.find(x=>x.id===a.emp)?.name||""}, ${a.date.slice(8)}.${a.date.slice(5,7)}, start ${fmtH(a.hour)}`:"upuść na wiersz kierowcy"},{passive:false});
-  const end=ev=>{if(!g||ev.pointerId!==g.id)return;const d=g,a=tgt;g=null;tgt=null;tip?.remove();tip=null;d.gh?.remove();a?.td.classList.remove("tl-cell-target");
+    ev.preventDefault();const X=ev.clientX,Y=ev.clientY;g.gh.style.left=X+"px";g.gh.style.top=Y+"px";
+    const upd=()=>{if(!g)return;g.gh.style.display="none";const a=at(X,Y);g.gh.style.display="";
+      if(tgt?.td!==a?.td){tgt?.td.classList.remove("tl-cell-target");a?.td.classList.add("tl-cell-target")}tgt=a;
+      tip.style.left=X+"px";tip.style.top=Y+"px";tip.textContent=a?`${S.emps.find(x=>x.id===a.emp)?.name||""}, ${a.date.slice(8)}.${a.date.slice(5,7)}, start ${fmtH(a.hour)}`:"upuść na wiersz kierowcy"};
+    upd();tlEdgeScroll(ev,upd)},{passive:false});
+  const end=ev=>{if(!g||ev.pointerId!==g.id)return;tlEdgeStop();const d=g,a=tgt;g=null;tgt=null;tip?.remove();tip=null;d.gh?.remove();a?.td.classList.remove("tl-cell-target");
     if(!d.moved||ev.type==="pointercancel"||!a)return;ev.preventDefault();suppressClick=true;setTimeout(()=>suppressClick=false,300);guard(()=>tlNew(d.sid,a.emp,a.date,a.hour))};
   document.addEventListener("pointerup",end);document.addEventListener("pointercancel",end)})();
 
@@ -806,18 +846,23 @@ function shiftCellTime(c,sh,dh){
   else if(c.out&&c.back&&tmin(c.out)!=null&&tmin(c.back)!=null){const f=m=>{m=((Math.round(m)%1440)+1440)%1440;return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0")};c.out=f(tmin(c.out)+dh*60);c.back=f(tmin(c.back)+dh*60)}
   else{const base=Number.isFinite(c.startH)?c.startH:startOf(sh,c.date);c.startH=((Math.round((base+dh)*4)/4)%24+24)%24}
   c.manualT=true;c.locked=true}
-async function tlDrop(key,dh,toEmp,mode,target){const s=S.scheds[S.current];if(!s||!S.db)return;const [emp,date,shiftId,slot]=key.split("|");
-  const c=s.cells.find(x=>x.date===date&&x.shiftId===shiftId&&String(x.slot)===slot&&x.empId===emp);if(!c)return;
+async function tlDrop(key,dh,toEmp,mode,target){if(!S.db)return;const [emp,date,shiftId,slot]=key.split("|");
+  const fnd=s=>s?.cells.find(x=>x.date===date&&x.shiftId===shiftId&&String(x.slot)===slot&&x.empId===emp);
+  // kafelek może należeć do sąsiedniego grafiku (np. wyjazd w niedzielę wieczorem na poniedziałek następnego tygodnia)
+  let s=S.scheds[S.current];if(!fnd(s))s=Object.values(S.scheds).find(x=>fnd(x));const c=fnd(s);
+  if(!c){notice("Nie znaleziono tej trasy w grafiku. Odśwież stronę i spróbuj ponownie.");renderPlan();return}
+  const curId=S.current;if(s.id!==S.current)S.current=s.id;try{await tlDrop2(s,c,emp,date,shiftId,slot,dh,mode,target)}finally{if(S.current!==curId&&S.scheds[curId]){S.current=curId;renderPlan()}}}
+async function tlDrop2(s,c,emp,date,shiftId,slot,dh,mode,target){
   const sh=S.shifts.find(x=>x.id===shiftId),nm=sh?.name||"Trasa",dd=d=>d.slice(8)+"."+d.slice(5,7);
   if(mode==="resize"){if(Math.abs(dh)<0.25){renderPlan();return}resizeCell(c,sh,dh);await saveSched(s);renderPlan();const b=cellBounds(c,sh,date);notice(`${nm} ${dd(date)}: nowy czas ${String(b.hh).replace(".",",")} h${c.back?" (powrót "+c.back+")":""}.`);return}
-  if(!target){renderPlan();return}
+  if(!target){notice("Upuść kafelek w kolumnie dnia, w wierszu kierowcy.");renderPlan();return}
   const label=target.label,to=target.emp||emp;
   if(label===date&&to===emp){ // ten sam dzień i kierowca: tylko godzina
     if(Math.abs(dh)<0.25){renderPlan();return}
     shiftCellTime(c,sh,dh);await saveSched(s);renderPlan();const b=cellBounds(c,sh,date);
     notice(`${nm} ${dd(date)}: wyjazd ${fmtH(((b.st%24)+24)%24)}${startsPrevDay(sh)&&!isDutyCell(c,sh)?" (dzień wcześniej)":""}${c.out?" (wyjazd "+c.out+", powrót "+c.back+")":""}.`);return}
   if(c.closed||c.flotoRoute!=null||c.duty==="done"){notice(`${nm} ${dd(date)} jest zakończona (dane z FlotoMax). Można zmienić tylko jej godziny, nie dzień ani kierowcę.`);renderPlan();return}
-  if(label<s.start||label>s.end){notice(`Dzień ${dd(label)} jest poza otwartym harmonogramem (${dd(s.start)}–${dd(s.end)}).`);renderPlan();return}
+  if(label<s.start||label>s.end){notice(`Dzień ${dd(label)} jest poza grafikiem tej trasy (${dd(s.start)}–${dd(s.end)}). Trasy między tygodniami przenieś w oknie edycji (dotknij kafelka).`);renderPlan();return}
   const t=S.emps.find(x=>x.id===to);if(!t){renderPlan();return}
   if(!canDrive(t,sh)){notice(`${t.name} nie ma kat. C, a ${nm} jej wymaga.`);renderPlan();return}
   if(absMap()[to]?.[label]){notice(`${t.name} ma ${dd(label)} nieobecność (${REASONS[absMap()[to][label]]||"nieobecność"}).`);renderPlan();return}
@@ -833,19 +878,23 @@ async function tlDrop(key,dh,toEmp,mode,target){const s=S.scheds[S.current];if(!
   document.addEventListener("pointerdown",ev=>{const el=ev.target.closest(".bar[data-tl]");if(!el||!S.db||ev.button>0)return;const s=S.scheds[S.current];if(!s)return;
     const lane=el.closest(".lane"),td=el.closest("td[data-tl-day]");const w=lane?lane.getBoundingClientRect().width:200,lr=lane?lane.getBoundingClientRect():{left:0};
     const st=+el.dataset.tlSt||0,ld=td?td.dataset.tlDay:el.dataset.tl.split("|")[1];const ptr=absH(s.start,ld,(ev.clientX-lr.left)/w*24),dep=absH(s.start,ld,st);
-    dg={el,key:el.dataset.tl,base:s.start,dep,grab:ptr-dep,x:ev.clientX,y:ev.clientY,id:ev.pointerId,w,moved:false,row:null,cell:null,dh:0,tgt:null,mode:ev.target.closest(".rs")?"resize":"move",w0:el.getBoundingClientRect().width}});
+    dg={el,lane0:lane,l0:lr.left,t0:lane?lane.getBoundingClientRect().top:0,key:el.dataset.tl,base:s.start,dep,grab:ptr-dep,x:ev.clientX,y:ev.clientY,id:ev.pointerId,w,moved:false,row:null,cell:null,dh:0,tgt:null,mode:ev.target.closest(".rs")?"resize":"move",w0:el.getBoundingClientRect().width}});
   document.addEventListener("pointermove",ev=>{if(!dg||ev.pointerId!==dg.id)return;const dx=ev.clientX-dg.x,dy=ev.clientY-dg.y;
     if(!dg.moved){if(Math.hypot(dx,dy)<8)return;dg.moved=true;dg.el.classList.add("tl-drag");try{dg.el.setPointerCapture(ev.pointerId)}catch(e){}tip=document.createElement("div");tip.className="tl-tip";document.body.appendChild(tip)}
     ev.preventDefault();tip.style.left=ev.clientX+"px";tip.style.top=ev.clientY+"px";
     if(dg.mode==="resize"){dg.dh=snap(dx/dg.w*24);dg.el.style.width=Math.max(12,dg.w0+dx)+"px";tip.textContent=dg.dh?`czas ${dg.dh>0?"+":""}${String(dg.dh).replace(".",",")} h`:"bez zmiany";return}
-    dg.el.style.transform=`translate(${dx}px,${dy}px)`;dg.el.style.visibility="hidden";const a=cellAt(ev.clientX,ev.clientY);dg.el.style.visibility="";
+    const X=ev.clientX,Y=ev.clientY;const upd=()=>{if(!dg)return;
+    const er=dg.lane0?dg.lane0.getBoundingClientRect():null;const sx=er?er.left-dg.l0:0,sy=er?er.top-dg.t0:0;
+    dg.el.style.transform=`translate(${X-dg.x-sx}px,${Y-dg.y-sy}px)`;const a=tlCellAt(X,Y,dg.el);
     if(a?.td!==dg.cell?.td){dg.cell?.td.classList.remove("tl-cell-target");a?.td.classList.add("tl-cell-target")}dg.cell=a;
     if(!a){dg.tgt=null;tip.textContent="upuść na wiersz kierowcy w wybranym dniu";return}
     const [emp,date,sid]=dg.key.split("|");const sh=S.shifts.find(x=>x.id===sid);const far=startsPrevDay(sh)&&(sh?.part||"full")!=="pm";
     const nd=snap(absH(dg.base,a.date,a.h)-dg.grab),dayI=Math.floor(nd/24),depH=nd-dayI*24,depDate=addDays(dg.base,dayI),label=far?addDays(depDate,1):depDate;
     dg.dh=nd-dg.dep;dg.tgt={emp:a.emp,label,depDate,depH};const toE=a.emp!==emp?S.emps.find(x=>x.id===a.emp):null;
-    tip.textContent=`${toE?toE.name+", ":""}${DAYN[wdOf(label)]} ${label.slice(8)}.${label.slice(5,7)}, wyjazd ${fmtH(depH)}${far?" dzień wcześniej":""}`},{passive:false});
-  const end=ev=>{if(!dg||ev.pointerId!==dg.id)return;const d=dg;dg=null;tip?.remove();tip=null;d.cell?.td.classList.remove("tl-cell-target");
+    const cc=Object.values(S.scheds).flatMap(x=>x.cells).find(x=>x.date===date&&x.shiftId===sid&&x.empId===emp);const locked=cc&&(cc.closed||cc.flotoRoute!=null||cc.duty==="done")&&(label!==date||a.emp!==emp);
+    tip.textContent=locked?"trasa zakończona: można zmienić tylko godzinę w tym samym dniu":`${toE?toE.name+", ":""}${DAYN[wdOf(label)]} ${label.slice(8)}.${label.slice(5,7)}, wyjazd ${fmtH(depH)}${far?" dzień wcześniej":""}`};
+    upd();tlEdgeScroll(ev,upd)},{passive:false});
+  const end=ev=>{if(!dg||ev.pointerId!==dg.id)return;tlEdgeStop();const d=dg;dg=null;tip?.remove();tip=null;d.cell?.td.classList.remove("tl-cell-target");
     if(!d.moved)return;ev.preventDefault();suppressClick=true;setTimeout(()=>suppressClick=false,300);d.el.style.transform="";d.el.classList.remove("tl-drag");
     if(ev.type==="pointercancel"){renderPlan();return}
     guard(()=>tlDrop(d.key,d.dh,null,d.mode,d.tgt))};

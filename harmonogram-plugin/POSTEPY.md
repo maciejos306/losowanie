@@ -55,3 +55,10 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 - Zmiany automatyczne tylko w przyszłości (repair zamraża dni przed dziś i trasy zakończone).
 - 9 h odpoczynku kat. C na długiej trasie poza czasem pracy (restHours z FlotoMax ma pierwszeństwo).
 - Testy: testy/floto2.js, tl.js, rest9.js; reg.js zaktualizowany. Uzgodnienia: DLA-FLOTOMAX.md.
+
+## v52–v53 (02.10)
+- Rotacja dalekich tras (waga ≥ 2, T8–T12): pierwszeństwo ma kierowca z najmniejszą liczbą dalekich tras w oknie ±42 dni, potem ten, kto najdłużej nie jechał; po dalekiej trasie 6 dni przerwy, jeśli jest ktoś inny. Zablokowane i zakończone dalekie trasy liczą się z góry.
+- Twarda reguła: dalekiej trasy wyjeżdżającej wieczorem nie dostaje kierowca, którego trasa z tego dnia jeszcze trwa (np. T12 w niedzielę 13:00–05:00 i T9 w poniedziałek z wyjazdem w niedzielę 21:00).
+- Oś godzin: kafelki dalekich tras mają kursor przeciągania, działa też kafelek z sąsiedniego grafiku, automatyczne przewijanie przy krawędzi, komunikaty przy nieudanym upuszczeniu.
+- W bazie przeliczono dalekie trasy w grafiku 05.10–01.11 (od dziś, bez zablokowanych).
+- Test: testy/far.js.
