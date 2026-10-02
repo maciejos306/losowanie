@@ -100,3 +100,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v61
 - Oś godzin: godziny trasy pogrubione na początku drugiej linii kafelka; kolumna „Σ godzin”: bieżący tydzień (godziny pracy, liczba kafelków, nadwyżka ponad 40 h) i suma widocznych dni.
+
+## v62
+- Pauza 9 h na kafelku: pełna wysokość, ukośne pasy, środek pauzy ≈ 5/12 długości trasy (między 1/3 a 1/2).
