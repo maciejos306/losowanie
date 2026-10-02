@@ -1,0 +1,20 @@
+const fs=require('fs');const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell'});const pg=await b.newPage();const errs=[];pg.on('pageerror',e=>errs.push(e.message));
+await pg.goto('file://'+process.cwd()+'/local.html');await pg.waitForTimeout(2800);
+const ok=(k,v,x='')=>console.log((v?'OK   ':'FAIL ')+k+(x?'  '+x:''));
+const L=p=>JSON.parse(fs.readFileSync(p,'utf8'));
+const r=await pg.evaluate(([w,shifts,emps])=>{FL.mcp=null;Object.keys(S.scheds).forEach(id=>delete S.scheds[id]);S.abs=[];S.shifts=shifts;S.emps=emps;S.scheds[w.id]=w;S.current=w.id;
+ const m={};S.shifts.forEach(x=>m[x.id]=x);const E=n=>S.emps.find(e=>e.name===n);
+ return{knura:workH(E('Grzegorz Knura'),m.t10,33.03),czog:workH(E('Andrzej Czogała'),m.t8,18.36),bubonLong:workH(E('Tomasz Bubon'),m.t8,18),short:workH(E('Grzegorz Knura'),m.t8,10),t1:workH(E('Grzegorz Knura'),m.t1,9.5),t12:workH(E('Stanisław Piórkowski'),m.t12,19.03),
+  reg:weekRegister('2026-09-28').filter(x=>/Knura|Czoga/.test(x.name)).map(x=>x.name+':'+x.hAct)}},[L('live3/schedules/week-2026-09-28.json'),L('live3/app/shifts.json').items,L('live3/app/employees.json').items]);
+console.log(JSON.stringify(r));
+ok('Knura T10 33,03 h → 24,03 h pracy',r.knura===24.03);
+ok('Czogała T8 18,36 h → 9,36 h pracy',r.czog===9.36);
+ok('T12 Piórkowskiego 19,03 h → 10,03 h',r.t12===10.03);
+ok('bez kat. C: bez odliczenia',r.bubonLong===18);
+ok('wyjazd krótszy niż 12 h: bez odliczenia',r.short===10);
+ok('zwykła trasa: bez odliczenia',r.t1===9.5);
+const r2=await pg.evaluate(()=>{const m={};S.shifts.forEach(x=>m[x.id]=x);const E=n=>S.emps.find(e=>e.name===n);return{act0:workH(E('Andrzej Czogała'),m.t8,18.36,{restH:0}),act9:workH(E('Grzegorz Knura'),m.t10,33.03,{restH:9}),bub:workH(E('Tomasz Bubon'),m.t1,6,{restH:0})}});
+ok('faktyczny odpoczynek z FlotoMax ma pierwszeństwo (Czogała T8: 0 h odpoczynku → 18,36 h pracy)',r2.act0===18.36,JSON.stringify(r2));
+ok('Knura T10 z FlotoMax: 9 h → 24,03 h',r2.act9===24.03);
+console.log('ERRS',errs);await b.close()})();

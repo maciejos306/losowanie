@@ -48,3 +48,10 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 - Wyjazdy: dzień = dzień dostawy, out/back w czasie polskim, `tripAt` (pełne daty, dokładne godziny także > doby), trasa zamknięta, Nagel/dyżur = zrealizowany z dutyH. Wyjazd < 15 min pomijany, nieznany typ trasy (np. „Trasa niezapowiedziana”) zgłaszany. Faktyczny kierowca zastępuje zaplanowanego.
 - Wpisano do bazy wyjazdy 29.09–02.10 (20) i kierowcę Dariusz Faraś.
 - Test: testy/floto.js (dane: testy/floto_data.json).
+
+## v50–v51 (02.10)
+- Oś godzin: kafelek łapie się i upuszcza jak w typowym programie do grafików (wiersz = kierowca, kolumna = dzień, miejsce = godzina wyjazdu, co 15 min); prawa krawędź zmienia długość; „Pula etykiet” nad osią; Cofnij działa. Zakończonym trasom zmienia się tylko godziny.
+- FlotoMax: plan zleceń (list_assignments) z blokadą i zwrotami, nieobecności w obie strony, dostępność i wolne miejsca na urlop (set_availability), kierowca wirtualny, nowe typy zmian z nieznanych etykiet.
+- Zmiany automatyczne tylko w przyszłości (repair zamraża dni przed dziś i trasy zakończone).
+- 9 h odpoczynku kat. C na długiej trasie poza czasem pracy (restHours z FlotoMax ma pierwszeństwo).
+- Testy: testy/floto2.js, tl.js, rest9.js; reg.js zaktualizowany. Uzgodnienia: DLA-FLOTOMAX.md.

@@ -145,6 +145,15 @@
   .ticks{display:flex;font-size:9px;color:var(--muted);padding:0 0 2px;font-variant-numeric:tabular-nums}
   .ticks span{flex:1;text-align:left;padding-left:2px;border-left:1px solid var(--line)}
   table.tl td.cell{padding:0;height:50px;position:relative}
+  .bar[data-tl]{cursor:grab;touch-action:none}.bar.tl-drag{cursor:grabbing;z-index:20;opacity:.92;outline:2px dashed #fff;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+  table.tl tr.tl-target td{box-shadow:inset 0 0 0 2px #d79b00}
+  .tl-tip{position:fixed;z-index:60;pointer-events:none;background:#1f2430;color:#fff;font-size:12px;font-weight:700;padding:4px 8px;border-radius:6px;transform:translate(12px,-130%)}
+  .bar .rs{position:absolute;right:0;top:0;bottom:0;width:9px;cursor:ew-resize;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55));border-radius:0 7px 7px 0}
+  .tl-pool{position:sticky;top:0;z-index:15;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px;margin:0 0 8px;border:1px solid var(--line);border-radius:10px;background:var(--paper)}
+  .tl-pool .chip{cursor:grab;touch-action:none;min-width:0;width:auto;flex:0 0 auto;display:inline-flex;flex-direction:column;align-items:flex-start;padding:5px 10px;border-radius:8px;color:#fff;font-weight:800;font-size:12px;line-height:1.2;min-height:0;height:auto}
+  .tl-pool .chip small{font-weight:600;font-size:10px;opacity:.9}
+  .tl-pool .chip.tl-ghost,.chip.tl-ghost{position:fixed;z-index:70;pointer-events:none;transform:translate(-50%,-50%);opacity:.9}
+  table.tl td.tl-cell-target .lane{box-shadow:inset 0 0 0 2px #d79b00}
   .lane{position:relative;height:50px;background-image:linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:25% 100%}
   .lane::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(31,36,48,.06) 0 25%,transparent 25% 91.7%,rgba(31,36,48,.06) 91.7%);pointer-events:none}
   .bar{position:absolute;top:7px;height:36px;border-radius:7px;color:#fff;font-weight:800;font-size:12px;display:flex;flex-direction:column;justify-content:center;padding:0 8px;overflow:hidden;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.18);background-image:linear-gradient(180deg,rgba(255,255,255,.18),rgba(0,0,0,.08));text-shadow:0 1px 1px rgba(0,0,0,.25);border:1.5px solid rgba(0,0,0,.12);z-index:1;cursor:pointer}
@@ -211,7 +220,7 @@
     </div>
 
     <div class="screen" id="rejestr">
-      <p class="lead" data-label="txt-rejestr">Rejestr tygodni: ile dniówek (monet) i ile roboczogodzin zrobił w tygodniu każdy kierowca. Godziny są rzeczywiste, gdy znamy odjazd od bazy i powrót, a w pozostałych przypadkach pochodzą z Założeń. Na tej podstawie widać, który system rozliczania, dniówkami czy godzinami, jest dla kierowcy i dla firmy korzystniejszy.</p>
+      <p class="lead" data-label="txt-rejestr">Rejestr tygodni: ile dniówek (monet) i ile roboczogodzin zrobił w tygodniu każdy kierowca. Godziny są rzeczywiste, gdy znamy odjazd od bazy i powrót, a w pozostałych przypadkach pochodzą z Założeń. Odpoczynek w trasie kierowcy kat. C nie jest czasem pracy: odliczamy faktyczny odpoczynek zgłoszony we FlotoMax, a gdy go brak (plan), 9 h na długiej trasie (od 2 dniówek, wyjazd co najmniej 12 h). Na tej podstawie widać, który system rozliczania, dniówkami czy godzinami, jest dla kierowcy i dla firmy korzystniejszy.</p>
       <div class="row"><label class="muted">Tydzień <select id="reg-week"></select></label><label class="muted">Zakres porównania <select id="reg-scope"><option value="week">wybrany tydzień</option><option value="month">miesiąc wybranego tygodnia</option><option value="all">wszystkie tygodnie</option></select></label><label class="muted">Dodatek za godziny ponad normę (system godzinowy) <input type="number" id="reg-prem" min="0" max="300" step="5" style="width:80px"> %</label><button class="btn ghost sm" id="reg-csv">Kopiuj CSV</button></div>
       <div id="reg-verdict"></div>
       <div class="grid-scroll"><table class="plan hr" id="reg-table"></table></div>
@@ -346,6 +355,12 @@ function checkLeave(empId,from,to){const bad=[];for(const d of range(from,to)){c
 const leaveNote=bad=>`Zgłoszenie odrzucone: w dniach ${bad.map(b=>b.date.slice(8)+"."+b.date.slice(5,7)).join(", ")} nie ma już wolnych miejsc na urlop (potrzebnych kierowców: ${bad[0].need}, aktywnych: ${bad[0].active}, nieobecnych: ${bad[0].absent}).`;
 const biasOf=d=>Math.max(-3,Math.min(3,d||0));
 const DAY_H=8.5, WEEK_DAYS=5;
+// kierowca kat. C na długiej trasie (co najmniej 2 dniówki, np. T8–T12) ma w trasie 9 h odpoczynku, który nie wlicza się do czasu pracy;
+// odliczamy go, gdy wyjazd trwał co najmniej 12 h (krótszy nie mieści 9 h odpoczynku i pracy)
+const TRIP_REST_H=9,TRIP_REST_MIN=12;
+// faktyczny odpoczynek z FlotoMax (restHours przy wyjeździe) ma pierwszeństwo przed regułą
+const tripRestH=(e,sh,hh,c)=>c&&Number.isFinite(c.restH)?Math.min(c.restH,hh):(e&&hasCatC(e)&&sh&&(sh.weight??1)>=2&&(sh.part||"full")!=="pm"&&hh>=TRIP_REST_MIN?TRIP_REST_H:0);
+const workH=(e,sh,hh,c)=>Math.round(Math.max(0,hh-tripRestH(e,sh,hh,c))*100)/100;
 const payHours=sh=>{const w=sh?.weight??1;return w===1?8.5:hoursOf(sh)};
 const DUTY_LIMIT_H=5;
 const tmin=x=>{const m=/^(\d{1,2}):(\d{2})$/.exec(String(x||"").trim());return m&&+m[1]<24&&+m[2]<60?(+m[1]*60+ +m[2]):null};
@@ -369,7 +384,7 @@ const isDutyCell=(c,sh)=>!c.part&&(sh?.part||"full")==="pm";
 const cellDn=(c,sh)=>{const w=sh?.weight??1;if(!isDutyCell(c,sh))return w;if(c.duty!=="done")return 0;const dh=Number.isFinite(c.dutyH)?c.dutyH:tripHours(c.out,c.back);if(dh!=null&&dh>DUTY_LIMIT_H)return 1;return w};
 const startsPrevDay=sh=>!!sh&&(typeof sh.startPrev==="boolean"?sh.startPrev:(startOf(sh)>=18&&(sh.weight??1)>=2.5));
 const isClosed=(c,sh)=>!!c.closed||(isDutyCell(c,sh)&&(c.duty==="done"||c.duty==="cancelled"));
-function cellBounds(c,sh,d){const actual=cellTripH(c);const planH=(c.duty==="done"&&isDutyCell(c,sh)&&Number.isFinite(c.dutyH))?c.dutyH:hoursOf(sh);const o=c.out&&tmin(c.out)!=null?tmin(c.out)/60:null;return{st:o!=null?o:startOf(sh,d),hh:actual!=null?actual:planH}}
+function cellBounds(c,sh,d){const actual=cellTripH(c);const planH=(c.duty==="done"&&isDutyCell(c,sh)&&Number.isFinite(c.dutyH))?c.dutyH:(Number.isFinite(c.durH)&&c.durH>0?c.durH:hoursOf(sh));const o=c.out&&tmin(c.out)!=null?tmin(c.out)/60:null;return{st:o!=null?o:(Number.isFinite(c.startH)?c.startH:startOf(sh,d)),hh:actual!=null?actual:planH}}
 function closedTag(s,d){const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);const cs=s.cells.filter(c=>c.date===d&&c.empId!=null);if(!cs.length)return"";const n=cs.filter(c=>isClosed(c,shMap[c.shiftId])).length;if(!n)return"";return n===cs.length?`<span class="daydone" title="Wszystkie trasy tego dnia są zakończone (dane z FlotoMax).">✔ dzień zakończony</span>`:`<span class="daypart" title="Zakończone trasy (dane z FlotoMax).">zakończone ${n}/${cs.length}</span>`}
 const fd=v=>(v>0?"+":"")+String(Math.round(v*100)/100).replace(".",",");
 // księga dniówek: dniówka to „moneta”. Trasa daje tyle dniówek, ile ma wagi (dyżur 0,5; Trasa 8–11 po 2,5).
@@ -489,13 +504,13 @@ function repair(sched,fromDate,extraLocked=new Set(),ban=new Set()){
   const restHitsLock=(emp,sh,day)=>{const r=restOf(sh);for(let i=1;i<=r;i++)if(lockDays[emp]?.has(addDays(day,i)))return true;return false};
   const accept=(emp,sh,day,part)=>{if(emp==null)return;counts[emp]=(counts[emp]||0)+(sh.weight??1);if(part!=="pm")noteWork(worked,emp,day);const r=restOf(sh);if(r>0)rest[emp]=addDays(day,r)};
   for(const day of range(sched.start,sched.end)){
-    const used={}, today={}, heavy=new Set(), frozen=day<fromDate;
+    const used={}, today={}, heavy=new Set(), frozen=day<fromDate||(S.freezePast!==false&&day<warsawDay());
     const todays=sched.cells.filter(c=>c.date===day).sort((a,b)=>(lockedKeys.has(key(a))?0:1)-(lockedKeys.has(key(b))?0:1)||byPriority(shOf[a.shiftId]||{weight:1,id:a.shiftId},shOf[b.shiftId]||{weight:1,id:b.shiftId})||a.slot-b.slot);
     for(const c of todays){
       const sh=shOf[c.shiftId]||{id:c.shiftId,weight:1}; const w=sh.weight; let emp=c.empId;
       const part=cpart(c,sh,day);const dutyLike=part==="pm"&&!c.part;const pk=dutyLike?"pm":(part==="pm"?"pmr":part);
       const empObj=emps.find(e=>e.id===emp);
-      if(frozen||lockedKeys.has(key(c))){if(emp!=null){mark(used,emp,pk);if(!dutyLike){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,dutyLike?"pm":"full")}continue}
+      if(frozen||lockedKeys.has(key(c))||c.closed||c.flotoRoute!=null||c.duty==="done"){if(emp!=null){mark(used,emp,pk);if(!dutyLike){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,dutyLike?"pm":"full")}continue}
       const valid=emp!=null&&active.has(emp)&&canDrive(empObj,sh)&&!restHitsLock(emp,sh,day)&&!clash(used,emp,pk)&&!am[emp]?.[day]&&!(rest[emp]&&rest[emp]>=day)&&(dutyLike?!heavy.has(emp):(c.extra?canWorkX:canWork)(worked,emp,day));
       if(!valid){
         const cand=emps.filter(e=>canDrive(e,sh)&&!ban.has(e.id+"|"+day)&&!restHitsLock(e.id,sh,day)&&!clash(used,e.id,pk)&&!am[e.id]?.[day]&&!(rest[e.id]&&rest[e.id]>=day)&&(dutyLike?!heavy.has(e.id):canWork(worked,e.id,day)));
@@ -627,21 +642,22 @@ function renderTimeline(){
         else lanes[i].push(`<div class="tl-off" style="${off}" data-pick="${e.id}|${d}">— wolne —</div>`);
         return;
       }
-      for(const c of cs){const sh=shMap[c.shiftId];const cx=c.duty==="cancelled";const cl=isClosed(c,sh)&&!cx;const bd=cellBounds(c,sh,d);const st=bd.st,hh=bd.hh,end=st+hh,col=colorOf(c.shiftId),lk=(c.locked?" locked":"")+(cx?" dutyx":"")+(cl?" closed":"");const tk=cl?"✓ ":"";if(!cx)total+=hh;if(hh>=16)far+=hh;
+      for(const c of cs){const sh=shMap[c.shiftId];const cx=c.duty==="cancelled";const cl=isClosed(c,sh)&&!cx;const bd=cellBounds(c,sh,d);const st=bd.st,hh=bd.hh,end=st+hh,col=colorOf(c.shiftId),lk=(c.locked?" locked":"")+(cx?" dutyx":"")+(cl?" closed":"");const tk=cl?"✓ ":"";const rH=tripRestH(e,sh,hh,c);if(!cx)total+=hh-rH;if(hh>=16)far+=hh-rH;
         if(startsPrevDay(sh)&&!isDutyCell(c,sh)){ // wyjazd wieczorem dzień wcześniej: w tym dniu widać końcówkę
-          const e2=Math.max(end-24,0.4);lanes[i].push(`<div class="bar cont${lk}" style="left:0;width:${pct(e2)};background-color:${col}" data-pick="${e.id}|${d}" title="${esc(sh?.name||"")}: wyjazd ${fmtH(st%24)} dzień wcześniej, powrót ${fmtH(end%24)} (${hh} h)">${tk}→ ${esc(sh?.name||"?")}<small>wyjazd ${fmtH(st%24)} dzień wcześniej · do ${fmtH(end%24)}</small></div>`);continue}
-        if(end<=24)lanes[i].push(`<div class="bar${lk}" style="left:${pct(st)};width:${pct(hh)};background-color:${col}" data-pick="${e.id}|${d}" title="${esc(sh?.name||"")} ${fmtH(st)}–${fmtH(end)} (${hh} h)">${tk}${esc(sh?.name||"?")}<small>${fmtH(st)}–${fmtH(end)} · ${String(hh).replace(".",",")} h</small></div>`);
-        else{lanes[i].push(`<div class="bar spill${lk}" style="left:${pct(st)};width:${pct(24-st)};background-color:${col}" data-pick="${e.id}|${d}" title="${esc(sh?.name||"")} start ${fmtH(st)}, ${hh} h">${tk}${esc(sh?.name||"?")}<small>${fmtH(st)} → ${String(hh).replace(".",",")} h</small></div>`);if(i+1<days.length)lanes[i+1].push(`<div class="bar cont${cl?" closed":""}" style="left:0;width:${pct(end-24)};background-color:${col}">→ ${esc(sh?.name||"")}<small>do ${fmtH(end-24)}</small></div>`)}
+          const e2=Math.max(end-24,0.4);lanes[i].push(`<div class="bar cont${lk}" style="left:0;width:${pct(e2)};background-color:${col}" data-pick="${e.id}|${d}" data-tl="${c.empId}|${c.date}|${c.shiftId}|${c.slot}" data-tl-st="${st-24}" title="${esc(sh?.name||"")}: wyjazd ${fmtH(st%24)} dzień wcześniej, powrót ${fmtH(end%24)} (${hh} h${rH?`, w tym ${rH} h odpoczynku w trasie: czas pracy ${String(Math.round((hh-rH)*100)/100).replace(".",",")} h`:""}${c.katCNote?" · "+esc(c.katCNote):""})">${tk}→ ${esc(sh?.name||"?")}<small>wyjazd ${fmtH(st%24)} dzień wcześniej · do ${fmtH(end%24)}</small><i class="rs" title="Przeciągnij, aby zmienić godzinę końca"></i></div>`);continue}
+        if(end<=24)lanes[i].push(`<div class="bar${lk}" style="left:${pct(st)};width:${pct(hh)};background-color:${col}" data-pick="${e.id}|${d}" data-tl="${c.empId}|${c.date}|${c.shiftId}|${c.slot}" data-tl-st="${st}" title="${esc(sh?.name||"")} ${fmtH(st)}–${fmtH(end)} (${hh} h)">${tk}${esc(sh?.name||"?")}<small>${fmtH(st)}–${fmtH(end)} · ${String(hh).replace(".",",")} h</small><i class="rs" title="Przeciągnij, aby zmienić godzinę końca"></i></div>`);
+        else{lanes[i].push(`<div class="bar spill${lk}" style="left:${pct(st)};width:${pct(24-st)};background-color:${col}" data-pick="${e.id}|${d}" data-tl="${c.empId}|${c.date}|${c.shiftId}|${c.slot}" data-tl-st="${st}" title="${esc(sh?.name||"")} start ${fmtH(st)}, ${hh} h${rH?`, w tym ${rH} h odpoczynku w trasie: czas pracy ${String(Math.round((hh-rH)*100)/100).replace(".",",")} h`:""}">${tk}${esc(sh?.name||"?")}<small>${fmtH(st)} → ${String(hh).replace(".",",")} h</small></div>`);if(i+1<days.length)lanes[i+1].push(`<div class="bar cont${cl?" closed":""}" style="left:0;width:${pct(end-24)};background-color:${col}">→ ${esc(sh?.name||"")}<small>do ${fmtH(end-24)}</small></div>`)}
       }
     });
-    days.forEach((d,i)=>{for(const sp of spillsIn[i]){const cl=isClosed(sp.c,sp.sh);const bd=cellBounds(sp.c,sp.sh,sp.date);lanes[i].push(`<div class="bar spill${sp.c.locked?" locked":""}${cl?" closed":""}" style="left:${pct(bd.st)};width:${pct(24-bd.st)};background-color:${colorOf(sp.c.shiftId)}" data-pick="${e.id}|${sp.date}" title="${esc(sp.sh.name)}: wyjazd ${fmtH(bd.st)} (trasa na ${sp.date.slice(8)}.${sp.date.slice(5,7)})">${cl?"✓ ":""}${esc(sp.sh.name)}<small>wyjazd ${fmtH(bd.st)}</small></div>`)}});
+    days.forEach((d,i)=>{for(const sp of spillsIn[i]){const cl=isClosed(sp.c,sp.sh);const bd=cellBounds(sp.c,sp.sh,sp.date);lanes[i].push(`<div class="bar spill${sp.c.locked?" locked":""}${cl?" closed":""}" style="left:${pct(bd.st)};width:${pct(24-bd.st)};background-color:${colorOf(sp.c.shiftId)}" data-pick="${e.id}|${sp.date}" data-tl="${sp.c.empId}|${sp.c.date}|${sp.c.shiftId}|${sp.c.slot}" data-tl-st="${bd.st}" title="${esc(sp.sh.name)}: wyjazd ${fmtH(bd.st)} (trasa na ${sp.date.slice(8)}.${sp.date.slice(5,7)})">${cl?"✓ ":""}${esc(sp.sh.name)}<small>wyjazd ${fmtH(bd.st)}</small></div>`)}});
     grand+=total; if(total>40)over40++;
     const ec=empColor(e);
-    html+=`<tr><td style="border-left:6px solid ${ec};background:linear-gradient(${tint(ec,.12)},${tint(ec,.12)}),var(--paper)"><span class="edot" style="background:${ec}"></span>${esc(e.name)}</td>`+lanes.map((l,i)=>`<td class="cell dstart${i%2?" alt":""}${wdOf(days[i])===0||wdOf(days[i])===6?" weekend":""}"><div class="lane" style="${wdOf(days[i])===0||wdOf(days[i])===6?"":"background-color:"+tint(ec,.06)}">${l.join("")}</div></td>`).join("")+`<td class="sum">${String(total).replace(".",",")} h<small>${total>40?"+"+String(Math.round((total-40)*10)/10).replace(".",",")+" h ponad 40":total?"w normie":""}</small></td></tr>`;
+    html+=`<tr data-tl-emp="${e.id}"><td style="border-left:6px solid ${ec};background:linear-gradient(${tint(ec,.12)},${tint(ec,.12)}),var(--paper)"><span class="edot" style="background:${ec}"></span>${esc(e.name)}</td>`+lanes.map((l,i)=>`<td data-tl-day="${days[i]}" class="cell dstart${i%2?" alt":""}${wdOf(days[i])===0||wdOf(days[i])===6?" weekend":""}"><div class="lane" style="${wdOf(days[i])===0||wdOf(days[i])===6?"":"background-color:"+tint(ec,.06)}">${l.join("")}</div></td>`).join("")+`<td class="sum">${String(total).replace(".",",")} h<small>${total>40?"+"+String(Math.round((total-40)*10)/10).replace(".",",")+" h ponad 40":total?"w normie":""}</small></td></tr>`;
   }
   const f1=v=>String(Math.round(v*10)/10).replace(".",",");
-  T.innerHTML=`<p class="lead">Każdy dzień to oś 24 h. Szerokość kafelka = planowany czas pracy od statystycznej godziny startu (ustawianej przy typie zmiany). Dalekie trasy 8–11 wyjeżdżają wieczorem dzień wcześniej (dzień na grafiku to dzień rozwózki), a kreskowana kontynuacja pokazuje ich końcówkę. Trasy i dni zakończone (dane z FlotoMax) mają znacznik ✓ i biały kontur. Szare pasy po bokach = noc. Dotknięcie kafelka otwiera edycję.</p>
-  <div class="kpis"><div class="kpi">Suma godzin w trasie<b>${f1(grand)} h</b></div><div class="kpi">W tym trasy dalekie<b>${f1(far)} h</b></div><div class="kpi">Średnio na kierowcę<b>${f1(grand/Math.max(1,empsShown.length))} h</b></div><div class="kpi">Kierowców ponad 40 h<b>${over40}</b></div></div>
+  T.innerHTML=`<p class="lead">Każdy dzień to oś 24 h. Szerokość kafelka = planowany czas pracy od statystycznej godziny startu (ustawianej przy typie zmiany). Dalekie trasy 8–11 wyjeżdżają wieczorem dzień wcześniej (dzień na grafiku to dzień rozwózki), a kreskowana kontynuacja pokazuje ich końcówkę. Trasy i dni zakończone (dane z FlotoMax) mają znacznik ✓ i biały kontur. Sumy godzin to czas pracy: kierowcy kat. C na długiej trasie odliczamy 9 h odpoczynku w trasie. Szare pasy po bokach = noc. Dotknięcie kafelka otwiera edycję. Kafelek można złapać i upuścić w dowolnym miejscu: wiersz to kierowca, kolumna to dzień, a miejsce w kolumnie to godzina wyjazdu (co 15 min). Zakończonym trasom można zmienić tylko godziny. Prawa krawędź kafelka zmienia jego długość. Nowe zadanie przeciągnij z „Puli etykiet”. Ruch cofa przycisk „↩ Cofnij”.</p>
+  <div class="kpis"><div class="kpi">Suma godzin pracy<b>${f1(grand)} h</b></div><div class="kpi">W tym trasy dalekie (bez odpoczynku)<b>${f1(far)} h</b></div><div class="kpi">Średnio na kierowcę<b>${f1(grand/Math.max(1,empsShown.length))} h</b></div><div class="kpi">Kierowców ponad 40 h<b>${over40}</b></div></div>
+  <div class="tl-pool" aria-label="Pula etykiet"><b>Pula etykiet</b><span class="muted">przeciągnij na kierowcę i godzinę:</span>${S.shifts.map(sh=>`<div class="chip" style="background:${colorOf(sh.id)}" data-tl-new="${sh.id}" title="${esc(sh.name)}: złap i upuść na wiersz kierowcy w wybranym dniu i godzinie">${esc(sh.name)}<small>${startsPrevDay(sh)?"wyjazd dzień wcześniej · ":""}${fmtH(startOf(sh))} · ${String(hoursOf(sh)).replace(".",",")} h</small></div>`).join("")}</div>
   <div class="grid-scroll"><table class="tl">${html}</table></div>
   <div class="tl-legend">${S.shifts.map(x=>`<span><i style="background:${colorOf(x.id)}"></i>${esc(x.name)} · ${startsPrevDay(x)?"dzień wcześniej ":""}${fmtH(startOf(x))} · ${String(hoursOf(x)).replace(".",",")} h</span>`).join("")}<span><i style="background:#9ca3af;box-shadow:inset 0 0 0 2px #fff"></i>✓ zakończona (FlotoMax)</span><span><i style="background:var(--rest);border:1px solid #e6c98a"></i>odpoczynek</span><span><i style="background:rgba(31,36,48,.08);border:1px solid var(--line2)"></i>noc</span></div>`;
 }
@@ -757,6 +773,85 @@ async function assignShift(empId,date,shiftId,opts={}){
 })();
 let suppressClick=false;
 
+async function tlNew(shiftId,empId,date,hour){const sh=S.shifts.find(x=>x.id===shiftId),e=S.emps.find(x=>x.id===empId);if(!sh||!e)return;
+  let day=date,st=hour;if(startsPrevDay(sh)&&!isDutyCell({},sh)&&hour>=12)day=addDays(date,1); // daleka trasa: upuszczona wieczorem = wyjazd dzień przed dniem rozwózki
+  const s=S.scheds[S.current];if(!s||day<s.start||day>s.end){notice("Ten dzień jest poza otwartym harmonogramem.");renderPlan();return}
+  if(!canDrive(e,sh)){notice(`${e.name} nie ma kat. C, a ${sh.name} jej wymaga.`);return}
+  if(absMap()[empId]?.[day]){notice(`${e.name} ma ${day.slice(8)}.${day.slice(5,7)} nieobecność (${REASONS[absMap()[empId][day]]||"nieobecność"}).`);return}
+  await assignShift(empId,day,shiftId);
+  const s2=S.scheds[S.current];const c=s2.cells.find(x=>x.date===day&&x.shiftId===shiftId&&x.empId===empId);
+  if(c&&!c.out&&Math.abs(st-startOf(sh,day))>=0.25){c.startH=Math.round(st*4)/4;c.manualT=true;await saveSched(s2);renderPlan()}
+  notice(`${sh.name} → ${e.name}, ${day.slice(8)}.${day.slice(5,7)}, start ${fmtH(c&&Number.isFinite(c.startH)?c.startH:startOf(sh,day))}${day!==date?" (wyjazd dzień wcześniej)":""}.`)}
+(function(){let g=null,tip=null,tgt=null;
+  const at=(x,y)=>{const el=document.elementFromPoint(x,y);const td=el&&el.closest("table.tl td[data-tl-day]");const tr=td&&td.closest("tr[data-tl-emp]");if(!td||!tr)return null;const ln=td.querySelector(".lane")||td;const r=ln.getBoundingClientRect();return{td,emp:tr.dataset.tlEmp,date:td.dataset.tlDay,hour:Math.max(0,Math.min(23.75,Math.round((x-r.left)/r.width*24*4)/4))}};
+  document.addEventListener("pointerdown",ev=>{const el=ev.target.closest("[data-tl-new]");if(!el||!S.db||ev.button>0)return;g={el,sid:el.dataset.tlNew,x:ev.clientX,y:ev.clientY,id:ev.pointerId,moved:false}});
+  document.addEventListener("pointermove",ev=>{if(!g||ev.pointerId!==g.id)return;
+    if(!g.moved){if(Math.hypot(ev.clientX-g.x,ev.clientY-g.y)<6)return;g.moved=true;g.gh=g.el.cloneNode(true);g.gh.classList.add("tl-ghost");g.gh.removeAttribute("data-tl-new");document.body.appendChild(g.gh);tip=document.createElement("div");tip.className="tl-tip";document.body.appendChild(tip);try{g.el.setPointerCapture(ev.pointerId)}catch(e){}}
+    ev.preventDefault();g.gh.style.left=ev.clientX+"px";g.gh.style.top=ev.clientY+"px";g.gh.style.display="none";const a=at(ev.clientX,ev.clientY);g.gh.style.display="";
+    if(tgt?.td!==a?.td){tgt?.td.classList.remove("tl-cell-target");a?.td.classList.add("tl-cell-target")}tgt=a;
+    tip.style.left=ev.clientX+"px";tip.style.top=ev.clientY+"px";tip.textContent=a?`${S.emps.find(x=>x.id===a.emp)?.name||""}, ${a.date.slice(8)}.${a.date.slice(5,7)}, start ${fmtH(a.hour)}`:"upuść na wiersz kierowcy"},{passive:false});
+  const end=ev=>{if(!g||ev.pointerId!==g.id)return;const d=g,a=tgt;g=null;tgt=null;tip?.remove();tip=null;d.gh?.remove();a?.td.classList.remove("tl-cell-target");
+    if(!d.moved||ev.type==="pointercancel"||!a)return;ev.preventDefault();suppressClick=true;setTimeout(()=>suppressClick=false,300);guard(()=>tlNew(d.sid,a.emp,a.date,a.hour))};
+  document.addEventListener("pointerup",end);document.addEventListener("pointercancel",end)})();
+
+// ---------- oś godzin: przeciąganie kafelków (godzina w poziomie, kierowca w pionie) ----------
+function resizeCell(c,sh,dh){
+  if(Array.isArray(c.tripAt)&&c.out&&c.back){const nb=new Date(Math.max(Date.parse(c.tripAt[0])+9e5,Date.parse(c.tripAt[1])+dh*36e5)).toISOString();c.tripAt=[c.tripAt[0],nb];c.back=flotoLocal(nb)}
+  else if(c.out&&c.back&&tmin(c.back)!=null){const m=((Math.round(tmin(c.back)+dh*60)%1440)+1440)%1440;c.back=String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0")}
+  else{const b=cellBounds(c,sh,c.date);c.durH=Math.max(0.25,Math.round((b.hh+dh)*4)/4)}
+  if(isDutyCell(c,sh)&&c.duty==="done"){const v=cellTripH(c);if(v!=null)c.dutyH=v}
+  c.manualT=true;c.locked=true}
+function shiftCellTime(c,sh,dh){
+  if(Array.isArray(c.tripAt)&&c.out&&c.back){const mv=x=>new Date(Date.parse(x)+dh*36e5).toISOString();c.tripAt=c.tripAt.map(mv);c.out=flotoLocal(c.tripAt[0]);c.back=flotoLocal(c.tripAt[1])}
+  else if(c.out&&c.back&&tmin(c.out)!=null&&tmin(c.back)!=null){const f=m=>{m=((Math.round(m)%1440)+1440)%1440;return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0")};c.out=f(tmin(c.out)+dh*60);c.back=f(tmin(c.back)+dh*60)}
+  else{const base=Number.isFinite(c.startH)?c.startH:startOf(sh,c.date);c.startH=((Math.round((base+dh)*4)/4)%24+24)%24}
+  c.manualT=true;c.locked=true}
+async function tlDrop(key,dh,toEmp,mode,target){const s=S.scheds[S.current];if(!s||!S.db)return;const [emp,date,shiftId,slot]=key.split("|");
+  const c=s.cells.find(x=>x.date===date&&x.shiftId===shiftId&&String(x.slot)===slot&&x.empId===emp);if(!c)return;
+  const sh=S.shifts.find(x=>x.id===shiftId),nm=sh?.name||"Trasa",dd=d=>d.slice(8)+"."+d.slice(5,7);
+  if(mode==="resize"){if(Math.abs(dh)<0.25){renderPlan();return}resizeCell(c,sh,dh);await saveSched(s);renderPlan();const b=cellBounds(c,sh,date);notice(`${nm} ${dd(date)}: nowy czas ${String(b.hh).replace(".",",")} h${c.back?" (powrót "+c.back+")":""}.`);return}
+  if(!target){renderPlan();return}
+  const label=target.label,to=target.emp||emp;
+  if(label===date&&to===emp){ // ten sam dzień i kierowca: tylko godzina
+    if(Math.abs(dh)<0.25){renderPlan();return}
+    shiftCellTime(c,sh,dh);await saveSched(s);renderPlan();const b=cellBounds(c,sh,date);
+    notice(`${nm} ${dd(date)}: wyjazd ${fmtH(((b.st%24)+24)%24)}${startsPrevDay(sh)&&!isDutyCell(c,sh)?" (dzień wcześniej)":""}${c.out?" (wyjazd "+c.out+", powrót "+c.back+")":""}.`);return}
+  if(c.closed||c.flotoRoute!=null||c.duty==="done"){notice(`${nm} ${dd(date)} jest zakończona (dane z FlotoMax). Można zmienić tylko jej godziny, nie dzień ani kierowcę.`);renderPlan();return}
+  if(label<s.start||label>s.end){notice(`Dzień ${dd(label)} jest poza otwartym harmonogramem (${dd(s.start)}–${dd(s.end)}).`);renderPlan();return}
+  const t=S.emps.find(x=>x.id===to);if(!t){renderPlan();return}
+  if(!canDrive(t,sh)){notice(`${t.name} nie ma kat. C, a ${nm} jej wymaga.`);renderPlan();return}
+  if(absMap()[to]?.[label]){notice(`${t.name} ma ${dd(label)} nieobecność (${REASONS[absMap()[to][label]]||"nieobecność"}).`);renderPlan();return}
+  const keep={orders:c.orders,durH:c.durH,flotoPlan:c.flotoPlan};
+  await assignShift(to,label,shiftId,{from:{date,shiftId,slot:+slot}});
+  const s2=S.scheds[S.current];const n=s2.cells.find(x=>x.date===label&&x.shiftId===shiftId&&x.empId===to);
+  if(n){for(const [k,v] of Object.entries(keep))if(v!==undefined)n[k]=v;const st=Math.round(target.depH*4)/4;if(Math.abs(st-startOf(sh,label))>=0.25){n.startH=st;n.manualT=true}else delete n.startH;await saveSched(s2);renderPlan()}
+  notice(`${nm}: ${to!==emp?t.name+", ":""}${dd(label)}, wyjazd ${fmtH(target.depH)}${label!==target.depDate?" dzień wcześniej":""}.`)}
+(function(){
+  let dg=null,tip=null;const snap=x=>Math.round(x*4)/4;
+  const absH=(base,d,h)=>(Date.parse(d+"T00:00:00Z")-Date.parse(base+"T00:00:00Z"))/36e5+h;
+  const cellAt=(x,y)=>{const el=document.elementFromPoint(x,y);const td=el&&el.closest("table.tl td[data-tl-day]");const tr=td&&td.closest("tr[data-tl-emp]");if(!td||!tr)return null;const ln=td.querySelector(".lane")||td;const r=ln.getBoundingClientRect();return{td,tr,emp:tr.dataset.tlEmp,date:td.dataset.tlDay,h:Math.max(0,Math.min(24,(x-r.left)/r.width*24))}};
+  document.addEventListener("pointerdown",ev=>{const el=ev.target.closest(".bar[data-tl]");if(!el||!S.db||ev.button>0)return;const s=S.scheds[S.current];if(!s)return;
+    const lane=el.closest(".lane"),td=el.closest("td[data-tl-day]");const w=lane?lane.getBoundingClientRect().width:200,lr=lane?lane.getBoundingClientRect():{left:0};
+    const st=+el.dataset.tlSt||0,ld=td?td.dataset.tlDay:el.dataset.tl.split("|")[1];const ptr=absH(s.start,ld,(ev.clientX-lr.left)/w*24),dep=absH(s.start,ld,st);
+    dg={el,key:el.dataset.tl,base:s.start,dep,grab:ptr-dep,x:ev.clientX,y:ev.clientY,id:ev.pointerId,w,moved:false,row:null,cell:null,dh:0,tgt:null,mode:ev.target.closest(".rs")?"resize":"move",w0:el.getBoundingClientRect().width}});
+  document.addEventListener("pointermove",ev=>{if(!dg||ev.pointerId!==dg.id)return;const dx=ev.clientX-dg.x,dy=ev.clientY-dg.y;
+    if(!dg.moved){if(Math.hypot(dx,dy)<8)return;dg.moved=true;dg.el.classList.add("tl-drag");try{dg.el.setPointerCapture(ev.pointerId)}catch(e){}tip=document.createElement("div");tip.className="tl-tip";document.body.appendChild(tip)}
+    ev.preventDefault();tip.style.left=ev.clientX+"px";tip.style.top=ev.clientY+"px";
+    if(dg.mode==="resize"){dg.dh=snap(dx/dg.w*24);dg.el.style.width=Math.max(12,dg.w0+dx)+"px";tip.textContent=dg.dh?`czas ${dg.dh>0?"+":""}${String(dg.dh).replace(".",",")} h`:"bez zmiany";return}
+    dg.el.style.transform=`translate(${dx}px,${dy}px)`;dg.el.style.visibility="hidden";const a=cellAt(ev.clientX,ev.clientY);dg.el.style.visibility="";
+    if(a?.td!==dg.cell?.td){dg.cell?.td.classList.remove("tl-cell-target");a?.td.classList.add("tl-cell-target")}dg.cell=a;
+    if(!a){dg.tgt=null;tip.textContent="upuść na wiersz kierowcy w wybranym dniu";return}
+    const [emp,date,sid]=dg.key.split("|");const sh=S.shifts.find(x=>x.id===sid);const far=startsPrevDay(sh)&&(sh?.part||"full")!=="pm";
+    const nd=snap(absH(dg.base,a.date,a.h)-dg.grab),dayI=Math.floor(nd/24),depH=nd-dayI*24,depDate=addDays(dg.base,dayI),label=far?addDays(depDate,1):depDate;
+    dg.dh=nd-dg.dep;dg.tgt={emp:a.emp,label,depDate,depH};const toE=a.emp!==emp?S.emps.find(x=>x.id===a.emp):null;
+    tip.textContent=`${toE?toE.name+", ":""}${DAYN[wdOf(label)]} ${label.slice(8)}.${label.slice(5,7)}, wyjazd ${fmtH(depH)}${far?" dzień wcześniej":""}`},{passive:false});
+  const end=ev=>{if(!dg||ev.pointerId!==dg.id)return;const d=dg;dg=null;tip?.remove();tip=null;d.cell?.td.classList.remove("tl-cell-target");
+    if(!d.moved)return;ev.preventDefault();suppressClick=true;setTimeout(()=>suppressClick=false,300);d.el.style.transform="";d.el.classList.remove("tl-drag");
+    if(ev.type==="pointercancel"){renderPlan();return}
+    guard(()=>tlDrop(d.key,d.dh,null,d.mode,d.tgt))};
+  document.addEventListener("pointerup",end);document.addEventListener("pointercancel",end);
+})();
+
 // ---------- manual edit sheet ----------
 function openSheet(empId,date){
   const s=S.scheds[S.current]; if(!s||!S.db) return;
@@ -796,14 +891,14 @@ $("btn-new").onclick=()=>guard(async()=>{
   if(!S.emps.some(e=>e.active)||!S.shifts.length){notice("Potrzebny co najmniej jeden aktywny pracownik i jeden typ zmiany.");return}
   const [a,b]=start<=end?[start,end]:[end,start];
   const s={id:uid(),name:$("new-name").value.trim()||`Harmonogram ${a}`,start:a,end:b,createdAt:new Date().toISOString(),cells:generate(a,b,null)};
-  S.current=s.id; await saveSched(s); $("new-name").value=""; document.querySelector('nav .tab[data-tab="plan"]').click(); renderList(); renderPlan(); notice("Wylosowano nowy harmonogram.");
+  S.current=s.id; await saveSched(s); $("new-name").value=""; document.querySelector('nav .tab[data-tab="plan"]').click(); renderList(); renderPlan(); notice("Wylosowano nowy harmonogram.");setTimeout(()=>flotoSync(false),300);
 });
 $("btn-next-week").onclick=()=>guard(async()=>{
   const ends=Object.values(S.scheds).map(s=>s.end).sort(); const last=ends[ends.length-1];
   const a=last?addDays(last,1):weekKey(fmt(new Date())); const b=addDays(a,6);
   if(!S.emps.some(e=>e.active)||!S.shifts.length){notice("Potrzebny co najmniej jeden aktywny pracownik i jeden typ zmiany.");return}
   const s={id:uid(),name:`Tydzień ${a.slice(8)}.${a.slice(5,7)} – ${b.slice(8)}.${b.slice(5,7)}`,start:a,end:b,createdAt:new Date().toISOString(),cells:generate(a,b,null)};
-  S.current=s.id; await saveSched(s); document.querySelector('nav .tab[data-tab="plan"]').click(); renderList(); renderPlan(); notice(`Wylosowano ${s.name} (na podstawie poprzedniego tygodnia).`);
+  S.current=s.id; await saveSched(s); document.querySelector('nav .tab[data-tab="plan"]').click(); renderList(); renderPlan(); notice(`Wylosowano ${s.name} (na podstawie poprzedniego tygodnia).`);setTimeout(()=>flotoSync(false),300);
 });
 $("btn-undo").onclick=undoLast;
 document.addEventListener("input",ev=>{const id=ev.target.id;if(id!=="duty-out"&&id!=="duty-back"&&id!=="duty-h"&&id!=="duty-state")return;const box=document.getElementById("duty-cmp");if(!box)return;const th=tripHours(document.getElementById("duty-out").value,document.getElementById("duty-back").value);const hm=parseFloat(document.getElementById("duty-h").value);const h=th!=null?th:hm;const st=document.getElementById("duty-state").value;if(st==="cancelled"){box.textContent="Anulowany: 0 dniówek.";box.style.color="";return}if(!Number.isFinite(h)){box.textContent="";return}const v=dutyVerdict(h);box.textContent="Porównanie: "+v.text+".";box.style.color=v.over?"#1e40af":"#166534";if(th!=null){document.getElementById("duty-h").value=th}});
@@ -964,7 +1059,7 @@ function weekRegister(monday,cfg=regCfg()){
     let dn=0,hAct=0,hPlan=0,routes=0,duties=0,dutyOpen=0,closed=0;
     for(const c of byE[e.id]||[]){const sh=shMap[c.shiftId],isD=isDutyCell(c,sh);dn+=cellDn(c,sh);const act=cellTripH(c);
       if(isD){duties++;if(c.duty==="cancelled")continue;if(c.duty!=="done"){dutyOpen++;continue}closed++;if(act!=null)hAct+=act;else if(Number.isFinite(c.dutyH))hAct+=c.dutyH;else hPlan+=hoursOf(sh)}
-      else{routes++;if(c.closed)closed++;if(act!=null)hAct+=act;else hPlan+=hoursOf(sh)}}
+      else{routes++;if(c.closed)closed++;if(act!=null)hAct+=workH(e,sh,act,c);else hPlan+=workH(e,sh,cellBounds(c,sh,c.date).hh,c)}}
     const l4=new Set(S.abs.filter(a=>a.empId===e.id&&a.reason==="l4"&&a.date>=monday&&a.date<=end&&!reducesNorm(a.date)).map(a=>a.date)).size;
     const norm=Math.max(0,base-Math.min(base,l4)),normH=norm*DAY_H,h=hAct+hPlan;
     const rt=empRates(e,monday);let payD=null,payH=null;
@@ -1142,62 +1237,138 @@ async function reportDutyImpl(employeeId,date,{went,hours,departure,return:ret}=
   if(h==null)return{ok:true,dniowki:duty?.weight??0.5,godziny:null,porownanie:"Brak czasu wyjazdu: liczone 0,5 dniówki."};
   const v=dutyVerdict(h,duty?.weight??0.5);return{ok:true,dniowki:v.dn,godziny:h,porownanie:v.text}}
 // ---------- FlotoMax (łącznik MCP) ----------
-const FLOTO="FlotoMax", FL={mcp:undefined,busy:false,last:null,state:"",text:"",items:[]};
+const FLOTO="FlotoMax", FL={mcp:undefined,busy:false,last:null,state:"",text:"",items:[],avail:{},kinds:{}};
 const warsawDay=(off=0)=>{const d=new Date(Date.now()+off*864e5);return new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Warsaw"}).format(d)};
 function flotoShift(label){const l=String(label||"").trim().toLowerCase().replace(/\s+/g," ");if(!l)return null;
   const byName=S.shifts.find(s=>s.name.trim().toLowerCase().replace(/\s+/g," ")===l);if(byName)return byName;
   const m=/^trasa (\d+)$/.exec(l);if(m)return S.shifts.find(s=>s.name.trim().toLowerCase().replace(/\s+/g," ")==="trasa "+(+m[1]))||null;
   if(/nagel|dy[żz]ur/.test(l))return S.shifts.find(s=>s.id==="nagel")||S.shifts.find(s=>(s.part||"full")==="pm")||null;return null}
-function flotoEmp(id,name){let e=S.emps.find(x=>x.flotoId!=null&&String(x.flotoId)===String(id));if(e)return e;
+function flotoEmp(id,name){if(isVirtualDriver(name))return null;let e=S.emps.find(x=>x.flotoId!=null&&String(x.flotoId)===String(id));if(e)return e;
   try{e=empRef(name)}catch(er){return null}return e.flotoId!=null&&String(e.flotoId)!==String(id)?null:e}
+// „Wirtualny kierowca” / symulacja we FlotoMax = trasa bez kierowcy; w Harmonogramie nie jest człowiekiem do losowania
+const isVirtualDriver=n=>/wirtualn|symulac/i.test(String(n||""));
+const flHM=iso=>{const t=Date.parse(iso);if(!Number.isFinite(t))return null;const p=Object.fromEntries(new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Warsaw",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date(t)).map(x=>[x.type,x.value]));return{date:`${p.year}-${p.month}-${p.day}`,h:+p.hour+(+p.minute)/60}};
+function flotoShiftOf(label,kind){if(kind==="zwroty")return S.shifts.find(s=>s.id==="zwroty")||S.shifts.find(s=>/zwrot/i.test(s.name))||null;return flotoShift(label)}
+// nieznana etykieta z FlotoMax (np. „Trasa niezapowiedziana”) → nowy typ zmiany; nie trafia do Założeń, więc losowanie samo jej nie dokłada
+function ensureFlotoShift(label,kind,dep,ret,made){let sh=flotoShiftOf(label,kind);if(sh||kind==="zwroty")return sh;const name=String(label||"").trim().replace(/\s+/g," ").slice(0,40);if(!name)return null;
+  const a=flHM(dep),hrs=tripHours(dep,ret);sh={id:"fx"+uid(),name,people:1,part:"full",weight:1,start:a?Math.round(a.h*4)/4:8,hours:hrs&&hrs>0&&hrs<24?Math.max(0.5,Math.round(hrs*2)/2):8,fromFloto:true};S.shifts.push(sh);made&&made.push(name);return sh}
 function applyFlotoDrivers(list){const added=[],linked=[];
-  for(const d of Array.isArray(list)?list:[]){if(!d||d.id==null||!String(d.name||"").trim())continue;const e=flotoEmp(d.id,d.name);
+  for(const d of Array.isArray(list)?list:[]){if(!d||d.id==null||!String(d.name||"").trim())continue;
+    if(isVirtualDriver(d.name)){const v=S.emps.find(x=>(x.flotoId!=null&&String(x.flotoId)===String(d.id))||x.name===String(d.name).trim());if(v&&(v.active||!v.virtual)){v.active=false;v.virtual=true;v.flotoId=d.id;linked.push(v.name+" (kierowca wirtualny: wyłączony z losowania)")}continue}
+    const e=flotoEmp(d.id,d.name);
     if(!e){if(d.active===false)continue;const n=String(d.name).trim().replace(/\s+/g," ");S.emps.push({id:uid(),name:n,active:true,catC:d.catC===true,flotoId:d.id});added.push(n);continue}
     if(e.flotoId==null||String(e.flotoId)!==String(d.id)){e.flotoId=d.id;linked.push(e.name)}}
   return{added,linked}}
-const clearCell=c=>{c.empId=null;["locked","part","extra","duty","dutyH","closed","out","back","orders","flotoRoute","tripAt"].forEach(k=>delete c[k])};
+const clearCell=c=>{c.empId=null;["locked","part","extra","duty","dutyH","closed","out","back","orders","flotoRoute","tripAt","restH","katCNote"].forEach(k=>delete c[k])};
 // wyjazdy z FlotoMax: dzień = dzień dostawy (etykieta trasy), godziny = odjazd z bazy i powrót do bazy
-function applyFlotoTrips(trips){const done=[],skipped=[],touched=new Set(),shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
+function applyFlotoTrips(trips){const done=[],skipped=[],touched=new Set(),shMap={},newShifts=[];S.shifts.forEach(x=>shMap[x.id]=x);
   for(const t of Array.isArray(trips)?trips:[]){
     const who=t?.driverName||("kierowca "+t?.driverId),what=`${t?.label||"?"} ${t?.deliveryDate||""}`.trim();
     const skip=r=>skipped.push(`${who}, ${what}: ${r}`);
     if(!t||!t.departedAt||!t.returnedToBaseAt){if(t&&t.departedAt)skip("w trasie, brak powrotu do bazy");continue}
     const e=flotoEmp(t.driverId,t.driverName);if(!e){skip("brak takiego kierowcy w Harmonogramie");continue}
     const date=String(t.deliveryDate||"");if(!isoDate(date)){skip("brak daty dostawy");continue}
-    const sh=flotoShift(t.label);if(!sh){skip("nie ma takiego typu zmiany w Harmonogramie (dodaj go w „Typy zmian”)");continue}
+    const sh=ensureFlotoShift(t.label,FL.kinds[t.routeId],t.departedAt,t.returnedToBaseAt,newShifts);if(!sh){skip("nie ma takiego typu zmiany w Harmonogramie (dodaj go w „Typy zmian”)");continue}
     const hrs=tripHours(t.departedAt,t.returnedToBaseAt);if(hrs==null){skip("błędne godziny");continue}
     if(hrs<0.25){skip(`wyjazd trwał tylko ${Math.round(hrs*60)} min, pewnie błędne kliknięcie, nie wpisuję`);continue}
     const ss=Object.values(S.scheds).filter(x=>x.start<=date&&date<=x.end);if(!ss.length){skip("brak harmonogramu na ten dzień");continue}
     let s=ss.find(x=>x.cells.some(c=>c.flotoRoute===t.routeId))||ss.find(x=>x.cells.some(c=>c.date===date&&c.empId===e.id))||ss[0];
     const isD=(sh.part||"full")==="pm",out=flotoLocal(t.departedAt),back=flotoLocal(t.returnedToBaseAt);
-    let c=s.cells.find(x=>x.flotoRoute===t.routeId);
+    let c=s.cells.find(x=>x.flotoRoute===t.routeId)||s.cells.find(x=>x.flotoPlan===t.routeId&&x.date===date&&x.shiftId===sh.id);
     if(c&&(c.date!==date||c.shiftId!==sh.id)){clearCell(c);c=null}
+    if(c&&c.manualT&&c.flotoRoute===t.routeId&&c.empId===e.id)continue; // godziny poprawione ręcznie na osi: nie nadpisuj
     const slots=s.cells.filter(x=>x.date===date&&x.shiftId===sh.id);
     c=c||slots.find(x=>x.empId===e.id)||slots.find(x=>x.empId==null)||slots.find(x=>x.flotoRoute==null);
     if(!c){c={date,shiftId:sh.id,slot:slots.length?Math.max(...slots.map(x=>x.slot))+1:0,empId:null};s.cells.push(c)}
     const before=JSON.stringify(c);
     if(c.empId!==e.id){const prev=c.empId;clearCell(c);c.empId=e.id;
       // kierowca pojechał inną trasą niż w planie: zdejmij go z zaplanowanej, niepotwierdzonej trasy tego dnia
-      if(!isD)s.cells.filter(x=>x!==c&&x.date===date&&x.empId===e.id&&x.flotoRoute==null&&!isDutyCell(x,shMap[x.shiftId])&&!x.part).forEach(clearCell);
+      if(!isD)s.cells.filter(x=>x!==c&&x.date===date&&x.empId===e.id&&x.flotoRoute==null&&x.flotoPlan==null&&!isDutyCell(x,shMap[x.shiftId])&&!x.part).forEach(clearCell);
       if(prev)skipped.push(`${who}, ${what}: w planie był ${S.emps.find(x=>x.id===prev)?.name||prev}, wpisano faktycznego kierowcę`)}
     c.locked=true;c.flotoRoute=t.routeId;c.tripAt=[t.departedAt,t.returnedToBaseAt];c.out=out;c.back=back;
+    if(Number.isFinite(t.restHours))c.restH=t.restHours;else delete c.restH;if(t.katCNote)c.katCNote=String(t.katCNote).slice(0,200);else delete c.katCNote;
+    if(FL.kinds[t.routeId]==="zwroty"){const other=s.cells.find(x=>x!==c&&x.date===date&&x.empId===e.id&&!isDutyCell(x,shMap[x.shiftId]));if(other){c.part="pm";if(!other.part)other.part="am"}}
     if(isD){c.duty="done";c.dutyH=hrs;delete c.closed}else c.closed=true;
     if(JSON.stringify(c)!==before){touched.add(s);done.push(`${e.name}, ${sh.name} ${date.slice(8)}.${date.slice(5,7)}: ${out}–${back} (${String(hrs).replace(".",",")} h)${isD?", "+(hrs>DUTY_LIMIT_H?"1 dniówka":"0,5 dniówki"):""}`)}}
-  return{done,skipped,scheds:[...touched]}}
+  return{done,skipped,scheds:[...touched],newShifts}}
+// zaplanowane zlecenia z FlotoMax (spedytor): blokują przydział w grafiku; zmiany grafiku dotyczą tylko przyszłości
+function setPlannedTime(c,sh,a){if(c.out||c.manualT)return false;const d=flHM(a.plannedDepartureAt),hrs=tripHours(a.plannedDepartureAt,a.plannedReturnAt);let ch=false;
+  const far=startsPrevDay(sh)&&!isDutyCell(c,sh);
+  if(d&&((!far&&d.date===a.date)||(far&&d.date===addDays(a.date,-1)))){const st=Math.round(d.h*4)/4;if(c.startH!==st){c.startH=st;ch=true}}
+  if(hrs!=null&&hrs>0&&hrs<48){const v=Math.round(hrs*4)/4;if(c.durH!==v){c.durH=v;ch=true}}return ch}
+async function applyFlotoAssignments(list,from,to){const r={placed:[],need:[],noSched:{},made:[],warn:[]},today=warsawDay(),dirty=new Set(),cur=S.current,live=new Set(),needC=[];
+  const all=Array.isArray(list)?list:[];all.forEach(a=>{if(a&&a.routeId!=null&&a.kind)FL.kinds[a.routeId]=a.kind});
+  const items=all.filter(a=>a&&isoDate(a.date)&&a.date>=today&&!/^(done|cancel)/i.test(String(a.status||"")));
+  const prevNoUndo=S.noUndo;S.noUndo=true;
+  try{for(const a of items){live.add(String(a.routeId));const lbl=`${a.label||"?"}${a.kind==="zwroty"?" (zwroty)":""} ${a.date.slice(8)}.${a.date.slice(5,7)}`;
+    const sh=ensureFlotoShift(a.label,a.kind,a.plannedDepartureAt,a.plannedReturnAt,r.made);if(!sh){r.warn.push(`${lbl}: brak typu zmiany „Zwroty” w Harmonogramie`);continue}
+    const ss=Object.values(S.scheds).filter(x=>x.start<=a.date&&a.date<=x.end);if(!ss.length){(r.noSched[a.date]??=[]).push(lbl);continue}
+    const virt=isVirtualDriver(a.driverName),e=virt?null:flotoEmp(a.driverId,a.driverName);
+    if(!virt&&!e){r.warn.push(`${lbl}: kierowca ${a.driverName||a.driverId} nieznany w Harmonogramie`);continue}
+    const s=ss.find(x=>x.cells.some(c=>c.flotoPlan===a.routeId))||ss[0];let c=s.cells.find(x=>x.flotoPlan===a.routeId);
+    if(c&&(c.date!==a.date||c.shiftId!==sh.id)){delete c.flotoPlan;delete c.locked;delete c.startH;delete c.durH;dirty.add(s.id);c=null}
+    if(virt){if(!c){const slots=s.cells.filter(x=>x.date===a.date&&x.shiftId===sh.id);c=slots.find(x=>x.flotoPlan==null&&x.empId==null);if(!c){c={date:a.date,shiftId:sh.id,slot:slots.length?Math.max(...slots.map(x=>x.slot))+1:0,empId:null};s.cells.push(c)}c.flotoPlan=a.routeId;dirty.add(s.id)}
+      if(setPlannedTime(c,sh,a))dirty.add(s.id);needC.push({s:s.id,routeId:a.routeId,lbl});continue}
+    if(c&&c.empId===e.id){if(!c.locked){c.locked=true;dirty.add(s.id)}if(setPlannedTime(c,sh,a))dirty.add(s.id);continue}
+    S.current=s.id;await assignShift(e.id,a.date,sh.id,c?{from:{date:c.date,shiftId:c.shiftId,slot:c.slot}}:{});
+    const s2=S.scheds[s.id]||s,n=s2.cells.find(x=>x.date===a.date&&x.shiftId===sh.id&&x.empId===e.id);
+    if(n){n.flotoPlan=a.routeId;setPlannedTime(n,sh,a);dirty.add(s.id);r.placed.push(`${e.name}: ${lbl}`)}else r.warn.push(`${lbl}: nie udało się przydzielić ${e.name}`)}
+  // zlecenie usunięte lub zmienione we FlotoMax: zdejmij blokadę (przydział zostaje, naprawa może go zmienić)
+  for(const s of Object.values(S.scheds))for(const c of s.cells)if(c.flotoPlan!=null&&c.date>=today&&c.date>=from&&c.date<=to&&!live.has(String(c.flotoPlan))&&c.flotoRoute==null){delete c.flotoPlan;delete c.locked;dirty.add(s.id)}
+  for(const id of dirty){const s=S.scheds[id];if(s){const b=s.cells.filter(c=>c.flotoPlan!=null&&c.empId==null&&c.date>=today).map(c=>c.date).sort()[0];if(b)repair(s,b);await saveSched(s)}}
+  for(const n of needC){const c=S.scheds[n.s]?.cells.find(x=>x.flotoPlan===n.routeId);r.need.push(`${n.lbl}: we FlotoMax bez kierowcy (wirtualny)${c?.empId?", Harmonogram proponuje: "+(S.emps.find(x=>x.id===c.empId)?.name||""):", brak wolnego kierowcy"}`)}}
+  finally{S.noUndo=prevNoUndo;S.current=cur&&S.scheds[cur]?cur:S.current}
+  return r}
+// nieobecności: FlotoMax → Harmonogram (urlop, L4, wolne) i z powrotem
+const FL_IN={urlop:"urlop",l4:"l4",wolne:"odpoczynek"},FL_OUT={urlop:"urlop",l4:"l4",odpoczynek:"wolne"};
+function applyFlotoAbsences(list,from,to){const added=[],removed=[],warn=[],seen=new Set();let changed=false;
+  for(const a of Array.isArray(list)?list:[]){const reason=FL_IN[a?.type];if(!reason||!isoDate(a.from)||!isoDate(a.to||a.from))continue;
+    const e=flotoEmp(a.driverId,a.driverName);if(!e){warn.push(`${a.driverName||a.driverId}: nieobecność we FlotoMax, brak kierowcy w Harmonogramie`);continue}
+    seen.add(String(a.id));let n=0;const days=[...range(a.from,a.to||a.from)].slice(0,400);
+    for(const d of days){const ex=S.abs.find(x=>x.empId===e.id&&x.date===d);
+      if(ex){if(String(ex.flotoAbs)!==String(a.id)&&ex.src!=="floto"){ex.flotoAbs=a.id;ex.flotoSent=true;changed=true}else if(ex.src==="floto"&&(String(ex.flotoAbs)!==String(a.id)||ex.reason!==reason)){ex.flotoAbs=a.id;ex.reason=reason;changed=true;n++}continue}
+      S.abs.push({empId:e.id,date:d,reason,src:"floto",flotoAbs:a.id,...(a.note?{note:String(a.note).slice(0,300)}:{})});changed=true;n++}
+    if(n){added.push(`${e.name}: ${REASONS[reason]||reason} ${a.from===a.to||!a.to?a.from:a.from+" – "+a.to}${a.note?" („"+String(a.note).slice(0,80)+"”)":""}`);
+      for(const d of days){const sl=slotsOn(d);if(sl.free<0&&d>=warsawDay())warn.push(`${d}: za dużo nieobecnych (potrzeba ${sl.need}, aktywnych ${sl.active}, nieobecnych ${sl.absent})`)}}}
+  // usunięte we FlotoMax: zdejmij wpisy pochodzące z FlotoMax w pobranym zakresie
+  const before=S.abs.length;S.abs=S.abs.filter(x=>{const gone=x.src==="floto"&&x.date>=from&&x.date<=to&&!seen.has(String(x.flotoAbs));if(gone)removed.push(`${S.emps.find(e=>e.id===x.empId)?.name||x.empId} ${x.date}`);return !gone});if(S.abs.length!==before)changed=true;
+  return{added,removed,warn:[...new Set(warn)],changed}}
+function flotoAbsOutbox(from){const out=[];const byKey={};
+  for(const a of S.abs){if(a.src==="floto"||a.flotoSent||!FL_OUT[a.reason]||a.date<from)continue;const e=S.emps.find(x=>x.id===a.empId);if(!e||e.flotoId==null)continue;(byKey[a.empId+"|"+a.reason]??=[]).push(a)}
+  for(const list of Object.values(byKey)){list.sort((x,y)=>x.date.localeCompare(y.date));let g=null;
+    for(const a of list){if(g&&addDays(g.to,1)===a.date){g.to=a.date;g.items.push(a)}else{g={emp:S.emps.find(x=>x.id===a.empId),reason:a.reason,from:a.date,to:a.date,items:[a]};out.push(g)}}}
+  return out}
+// po nowych nieobecnościach: przestaw tylko przyszłe, niezakończone przydziały
+// także trasy przydzielone kierowcy nieaktywnemu lub wirtualnemu (np. wylosowane, zanim FlotoMax oznaczył go jako wirtualnego)
+function repairForAbsences(){const am=absMap(),today=warsawDay(),act=new Set(S.emps.filter(e=>e.active).map(e=>e.id));let n=0;
+  const wrong=c=>c.empId!=null&&c.date>=today&&!c.closed&&c.flotoRoute==null&&(am[c.empId]?.[c.date]||!act.has(c.empId));
+  for(const s of Object.values(S.scheds)){const bad=s.cells.filter(wrong).map(c=>c.date).sort();
+    if(bad.length){s.cells.forEach(c=>{if(wrong(c)){c.empId=null;delete c.locked}});n+=repair(s,bad[0])+bad.length;s._dirty=true}}
+  return n}
 function renderFloto(){const box=$("floto");if(!box)return;box.className="floto"+(FL.state?" "+FL.state:"");$("floto-txt").textContent=FL.text;$("floto-btn").disabled=FL.busy||FL.mcp===null;
   const det=$("floto-det");det.hidden=!FL.items.length;$("floto-list").innerHTML=FL.items.map(x=>`<li>${esc(x)}</li>`).join("")}
 const flotoErr=e=>{const c=e?.code;return c==="server_not_connected"?"łącznik FlotoMax nie jest podłączony na Twoim koncie claude.ai (Ustawienia → Łączniki)":c==="not_granted"||c==="denied"||c==="consent_denied"?"brak zgody na użycie łącznika FlotoMax":c==="rate_limited"?"za dużo zapytań, spróbuj za chwilę":"błąd: "+(e?.message||c||e)};
-async function flotoSync(manual){if(FL.busy||!S.db)return;
+async function flotoSync(manual){if(FL.busy||!S.db)return;const nb=$("notice"),keepNote=nb?nb.innerHTML:"",prevNoUndo=S.noUndo;S.noUndo=true;try{await flotoSync0(manual)}finally{S.noUndo=prevNoUndo;if(nb)nb.innerHTML=keepNote}}
+async function flotoSync0(manual){
   if(FL.mcp===undefined){FL.mcp=await claude.use("mcp")}
   if(!FL.mcp){FL.state="err";FL.text="FlotoMax: łącznik niedostępny w tym widoku. Dane można wpisać ręcznie.";renderFloto();return}
   FL.busy=true;FL.state="busy";FL.text="FlotoMax: pobieranie…";renderFloto();
   try{const dr=(await FL.mcp.callTool(FLOTO,"list_drivers",{},{cache:false})).payload;const r1=applyFlotoDrivers(dr);if(r1.added.length||r1.linked.length)await saveE();
     const starts=Object.values(S.scheds).map(s=>s.start).sort();const lo=warsawDay(-14);const from=starts.length&&starts[0]>lo?starts[0]:lo,to=warsawDay(1);
+    const pTo=warsawDay(42);const asg=(await FL.mcp.callTool(FLOTO,"list_assignments",{from,to:pTo},{cache:false})).payload;const r4=await applyFlotoAssignments(asg,warsawDay(),pTo);
     const tr=(await FL.mcp.callTool(FLOTO,"list_trips",{from,to},{cache:false})).payload;const r2=applyFlotoTrips(tr);for(const s of r2.scheds)await saveSched(s);
+    if(r2.newShifts.length||r4.made.length)await saveS();
+    const aFrom=warsawDay(-31),aTo=warsawDay(366);const ab=(await FL.mcp.callTool(FLOTO,"list_absences",{from:aFrom,to:aTo},{cache:false})).payload;
+    const r3=applyFlotoAbsences(ab?.absences??ab,aFrom,aTo);const sent=[];
+    for(const g of flotoAbsOutbox(aFrom)){try{await FL.mcp.callTool(FLOTO,"report_absence",{driverId:g.emp.flotoId,from:g.from,to:g.to,type:FL_OUT[g.reason],note:"z Harmonogramu"},{cache:false});g.items.forEach(a=>a.flotoSent=true);r3.changed=true;sent.push(`${g.emp.name}: ${REASONS[g.reason]} ${g.from===g.to?g.from:g.from+" – "+g.to}`)}catch(e){r3.warn.push(`Nie wysłano do FlotoMax (${g.emp.name} ${g.from}): ${flotoErr(e)}`)}}
+    if(r3.changed)await saveA();let moved=repairForAbsences();for(const s of Object.values(S.scheds))if(s._dirty){delete s._dirty;await saveSched(s)}
+    // dostępność i wolne miejsca na urlop na najbliższe 3 tygodnie (FlotoMax blokuje nią wnioski ponad limit)
+    let avN=0;for(let i=0;i<21;i++){const d=warsawDay(i),am=absMap(),act=S.emps.filter(e=>e.active&&e.flotoId!=null);const un=act.filter(e=>am[e.id]?.[d]).map(e=>e.flotoId),av=act.filter(e=>!am[e.id]?.[d]).map(e=>e.flotoId);const sl=slotsOn(d);const note=`Wolnych miejsc na urlop: ${Math.max(0,sl.free)} (potrzeba kierowców: ${sl.need})`;const sig=JSON.stringify([un,av,note]);
+      if(FL.avail[d]===sig)continue;try{await FL.mcp.callTool(FLOTO,"set_availability",{date:d,available:av,unavailable:un,note},{cache:false});FL.avail[d]=sig;avN++}catch(e){r3.warn.push(`Dostępność ${d} nie wysłana: ${flotoErr(e)}`);break}}
     FL.last=new Date();const hm=new Intl.DateTimeFormat("pl-PL",{timeZone:"Europe/Warsaw",hour:"2-digit",minute:"2-digit"}).format(FL.last);
-    FL.items=[...r1.added.map(n=>"Nowy kierowca z FlotoMax: "+n),...r2.done.map(x=>"Wpisano: "+x),...r2.skipped.map(x=>"Do sprawdzenia: "+x)];
-    FL.state=r2.skipped.length?"ok":"ok";FL.text=`FlotoMax: połączono, ostatnie pobranie ${hm}. `+(r1.added.length||r2.done.length?`Nowe: ${r1.added.length} kierowców, ${r2.done.length} wyjazdów.`:"Bez zmian.")+(r2.skipped.length?` Do sprawdzenia: ${r2.skipped.length}.`:"");
-    if(r1.added.length||r2.done.length)render()}
+    FL.items=[...r1.added.map(n=>"Nowy kierowca z FlotoMax: "+n),...r2.done.map(x=>"Wpisano: "+x),...[...r4.made,...r2.newShifts].map(x=>`Nowy typ zmiany z FlotoMax: ${x} (1 dniówka, nie jest w Założeniach; zmień w „Typy zmian”)`),...r4.placed.map(x=>"Plan FlotoMax: "+x),...r4.need.map(x=>"Plan FlotoMax: "+x),...Object.entries(r4.noSched).map(([d,l])=>`Brak harmonogramu na ${d.slice(8)}.${d.slice(5,7)}: FlotoMax ma tam zaplanowane ${l.join(", ")}. Wylosuj grafik na ten okres, a zlecenia zostaną w nim uwzględnione.`),...r4.warn.map(x=>"Do sprawdzenia: "+x),...r3.added.map(x=>"Nieobecność z FlotoMax: "+x),...r3.removed.map(x=>"Usunięta we FlotoMax: "+x),...sent.map(x=>"Wysłano do FlotoMax: "+x),...(moved?[`Grafik od dziś przestawiony z powodu nieobecności lub kierowcy nieaktywnego/wirtualnego (zmiany: ${moved}).`]:[]),...r2.skipped.map(x=>"Do sprawdzenia: "+x),...r3.warn.map(x=>"Do sprawdzenia: "+x)];
+    FL.state=r2.skipped.length?"ok":"ok";FL.text=`FlotoMax: połączono, ostatnie pobranie ${hm}. `+(r1.added.length||r2.done.length||r3.added.length||r3.removed.length||sent.length||r4.placed.length?`Nowe: ${r1.added.length} kierowców, ${r4.placed.length} zleceń z planu, ${r2.done.length} wyjazdów, ${r3.added.length} nieobecności${sent.length?", wysłano "+sent.length:""}.`:"Bez zmian.")+(Object.keys(r4.noSched).length?` Brak grafiku na: ${Object.keys(r4.noSched).sort().map(d=>d.slice(8)+"."+d.slice(5,7)).join(", ")}.`:"")+(r2.skipped.length+r3.warn.length?` Do sprawdzenia: ${r2.skipped.length+r3.warn.length}.`:"");
+    if(r1.added.length||r1.linked.length||r2.done.length||r3.changed||r4.placed.length||r4.made.length||moved)render()}
   catch(e){FL.state="err";FL.text="FlotoMax: "+flotoErr(e)}
   finally{FL.busy=false;renderFloto()}}
 $("floto-btn").onclick=()=>flotoSync(true);
