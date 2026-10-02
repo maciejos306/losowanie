@@ -157,3 +157,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 - Nowa zakładka „Płace 🔒”: stawki i wypłata brutto na miesiąc, propozycja (stawka × dniówki), Zapisz szkic / Zatwierdź listę (kto i kiedy), ponowne otwarcie tylko przez Administratora.
 - Dane zaszyfrowane w app/payroll (AES-GCM, klucz z hasła płacowego, PBKDF2 250 tys.). Hasło ustawia Administrator; bez niego kwot nie odczyta nikt, także ktoś czytający bazę.
 - Uprawnienie „płace” nadawane w Kontach (Jolanta: tak). Stawki usunięte z kartoteki kierowców i z eksportu; pola stawek i kwoty ukryte dla pozostałych.
+
+## v77 — poprawka logowania
+- Konta, płace i migracja stawek czytane przez onSnapshot (baza strony nie ma .get()) — wcześniej strona nie widziała kont i działała bez logowania.
