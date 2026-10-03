@@ -4,7 +4,7 @@ const errs=[];const log=(k,v)=>console.log((v?'OK   ':'FAIL ')+k);
 // telefon
 const pg=await b.newPage({viewport:{width:390,height:800}});pg.on('pageerror',e=>errs.push(e.message));pg.on('console',m=>{if(m.type()==='error'&&!/CERT/.test(m.text()))errs.push(m.text())});
 await pg.goto('file://'+process.cwd()+'/local.html');await pg.waitForTimeout(500);
-for(const t of await pg.$$eval('nav .tab',b=>b.map(x=>x.dataset.tab))){
+for(const t of await pg.$$eval('nav .tab',b=>b.filter(x=>!x.hidden).map(x=>x.dataset.tab))){
  await pg.click(`nav .tab[data-tab="${t}"]`);await pg.waitForTimeout(150);
  const w=await pg.evaluate(()=>[document.documentElement.scrollWidth,innerWidth]);log(`telefon bez poziomego scrolla strony: ${t} ${w}`,w[0]<=w[1]+1)}
 // brzegowe + cofanie

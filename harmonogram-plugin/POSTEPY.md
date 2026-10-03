@@ -160,3 +160,8 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v77 — poprawka logowania
 - Konta, płace i migracja stawek czytane przez onSnapshot (baza strony nie ma .get()) — wcześniej strona nie widziała kont i działała bez logowania.
+
+## Stan na 03.10.2026 — symulacja i zapis
+- Pełny zestaw testów (24 pliki, ~370 sprawdzeń): wszystkie OK. Poprawiony test `edge.js` (pomija zakładki ukryte dla danego konta).
+- Symulacja na danych z bazy (tylko odczyt, bez zapisów do FlotoMax): grafik do 23.10, zamrożone dni bez zmian, brak tras u nieobecnych, brak pustych tras, brak przydziałów dla kierowcy wirtualnego, brak naruszeń 9 h odpoczynku. Sobota 03.10: trasa rano + Zwroty u 5 kierowców — zgodnie z założeniem (łączny czas pokazuje „Σ” na osi godzin).
+- Otwarte: `publish_week_view` (czeka na narzędzie w łączniku FlotoMax i opis parametrów), poprawka `plannedDepartureAt` po stronie FlotoMax (DLA-FLOTOMAX.md p. 5–6), nowe etykiety od 12.10, hasło płacowe do ustawienia przez Administratora.
