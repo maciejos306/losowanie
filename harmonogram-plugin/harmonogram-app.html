@@ -483,16 +483,28 @@ const isDutyCell=(c,sh)=>!c.part&&(sh?.part||"full")==="pm";
 // dyżur liczy się tylko zrealizowany: zaplanowany lub anulowany = 0 dn.; wyjechał do 5 h = 0,5; wyjazd + powrót do bazy dłuższy niż 5 h = 1 dniówka
 const cellDn=(c,sh)=>{const w=sh?.weight??1;if(!isDutyCell(c,sh))return w;if(c.duty!=="done")return 0;const dh=Number.isFinite(c.dutyH)?c.dutyH:tripHours(c.out,c.back);if(dh!=null&&dh>DUTY_LIMIT_H)return 1;return w};
 // wyjazd dzień wcześniej: z typu zmiany albo z planu FlotoMax dla konkretnej trasy (c.prevDep)
-const cellPrev=(c,sh)=>!!sh&&(c&&typeof c.prevDep==="boolean"?c.prevDep:startsPrevDay(sh))&&!isDutyCell(c||{},sh);
-const startsPrevDay=sh=>!!sh&&(typeof sh.startPrev==="boolean"?sh.startPrev:(startOf(sh)>=18&&(sh.weight??1)>=2.5));
+const cellPrev=(c,sh)=>{if(!sh||isDutyCell(c||{},sh))return false;const L=c&&c.date&&!c.manualT&&!c.out?learned(sh,c.date):null;if(L)return L.prev;return c&&typeof c.prevDep==="boolean"?c.prevDep:startsPrevDay(sh,c?.date)};
+const startsPrevDay=(sh,d)=>{if(!sh)return false;if(typeof sh.startPrev==="boolean")return sh.startPrev;const L=learned(sh,d);if(L)return L.prev;return startOf(sh)>=18&&(sh.weight??1)>=2.5};
 const isClosed=(c,sh)=>!!c.closed||(isDutyCell(c,sh)&&(c.duty==="done"||c.duty==="cancelled"));
-// typowy czas trasy w danym dniu tygodnia: mediana faktycznych przejazdów (FlotoMax) z ostatnich 120 dni; min. 2 przejazdy
-let HH={sig:"",map:{}};
-function histH(sh,d){if(!sh)return null;const sig=Object.values(S.scheds).map(s=>s.id+":"+(s.cells||[]).length).join("|");
-  if(HH.sig!==sig){const m={},lo=addDays(typeof warsawDay==="function"?warsawDay():fmt(new Date()),-120);for(const s of Object.values(S.scheds))for(const c of s.cells||[]){if(!Array.isArray(c.tripAt)||c.date<lo)continue;const v=tripHours(c.tripAt[0],c.tripAt[1]);if(v==null||v<0.25||v>48)continue;(m[c.shiftId+"|"+wdOf(c.date)]??=[]).push(v)}
-    const map={};for(const [k,a] of Object.entries(m)){if(a.length<2)continue;a.sort((x,y)=>x-y);const md=a.length%2?a[(a.length-1)/2]:(a[a.length/2-1]+a[a.length/2])/2;map[k]=Math.round(md*4)/4}HH={sig,map}}
-  return HH.map[sh.id+"|"+wdOf(d)]??null}
-function cellBounds(c,sh,d){const actual=cellTripH(c);const planH=(c.duty==="done"&&isDutyCell(c,sh)&&Number.isFinite(c.dutyH))?c.dutyH:(Number.isFinite(c.durH)&&c.durH>0?c.durH:(histH(sh,d)??hoursOf(sh)));const o=c.out&&tmin(c.out)!=null?tmin(c.out)/60:null;return{st:o!=null?o:(Number.isFinite(c.startH)?c.startH:startOf(sh,d)),hh:actual!=null?actual:planH}}
+// nauka z FlotoMax: typowy czas trasy i godzina wyjazdu z faktycznych przejazdów (komórki z tripAt + dziennik triplog).
+// Pierwszy przejazd = średnia; potem średnia z LEARN_N ostatnich. Klucz: typ zmiany + dzień tygodnia; gdy brak, sam typ zmiany.
+const LEARN_N=3,LEARN_DAYS=120;
+let LRN={sig:"",map:{}};
+function learnReadings(){const lo=addDays(typeof warsawDay==="function"?warsawDay():fmt(new Date()),-LEARN_DAYS),by={},seen=new Set(),shMap={};S.shifts.forEach(x=>shMap[x.id]=x);
+  const add=(sh,date,dep,ret,key)=>{if(!sh||!isoDate(date)||date<lo||seen.has(key))return;const hh=tripHours(dep,ret),d=flHM(dep);if(hh==null||hh<0.25||hh>48||!d)return;
+    let rel=d.h;if(d.date<date)rel-=24;else if(d.date>date)rel+=24;if(rel<-12||rel>=24)return;seen.add(key);(by[sh.id]??=[]).push({date,hh,rel})};
+  for(const sc of Object.values(S.scheds))for(const c of sc.cells||[]){if(!Array.isArray(c.tripAt))continue;const sh=shMap[c.shiftId];if(!sh||isDutyCell(c,sh))continue;add(sh,c.date,c.tripAt[0],c.tripAt[1],c.flotoRoute!=null?"r"+c.flotoRoute:"c"+c.date+"|"+c.shiftId+"|"+c.empId)}
+  if(FL.logged)for(const [id,js] of FL.logged){let t;try{t=JSON.parse(js)}catch(e){continue}if(!t||!t.departed||!t.returned||!t.label)continue;const sh=flotoShiftOf(t.label,t.kind);if(!sh||(sh.part||"full")==="pm")continue;add(sh,t.date,t.departed,t.returned,"r"+(t.routeId??id))}
+  // godzina wyjazdu: średnia tylko z przejazdów o podobnej porze co ostatni (±3 h), żeby trasa jeżdżąca raz w południe, raz wieczorem nie dostała średniej „pośrodku”
+  const map={},avg=a=>{const r=a.slice(0,LEARN_N),mean=(l,k)=>l.reduce((x,y)=>x+y[k],0)/l.length;const same=a.filter(x=>Math.abs(x.rel-a[0].rel)<=3).slice(0,LEARN_N);const rr=Math.round(mean(same,"rel")*4)/4;return{hh:Math.round(mean(r,"hh")*4)/4,st:rr<0?rr+24:rr+0,prev:rr<0,n:r.length,last:r[0].date}};
+  for(const [id,a] of Object.entries(by)){a.sort((x,y)=>y.date.localeCompare(x.date));map[id]=avg(a);const wd={};a.forEach(x=>(wd[wdOf(x.date)]??=[]).push(x));for(const [w,l] of Object.entries(wd))map[id+"|"+w]=avg(l)}
+  return map}
+function learned(sh,d){if(!sh||(sh.part||"full")==="pm")return null;const sig=Object.values(S.scheds).map(s=>s.id+":"+(s.cells||[]).filter(c=>c.tripAt).length).join("|")+"#"+(FL.logged?FL.logged.size:0)+"#"+S.shifts.length;
+  if(LRN.sig!==sig)LRN={sig,map:learnReadings()};return(d?LRN.map[sh.id+"|"+wdOf(d)]:null)??LRN.map[sh.id]??null}
+const startAt=(sh,d)=>learned(sh,d)?.st??startOf(sh,d);
+const hoursAt=(sh,d)=>learned(sh,d)?.hh??hoursOf(sh);
+function loadTripLog(){if(!S.db||FL.logged)return;FL.logged=new Map();try{S.db.collection("triplog").onSnapshot(q=>{const n=FL.logged.size;q.docs.forEach(d=>FL.logged.set(d.id,JSON.stringify(d.data())));if(FL.logged.size!==n)render()})}catch(e){}}
+function cellBounds(c,sh,d){const actual=cellTripH(c),L=c.manualT?null:learned(sh,d);const planH=(c.duty==="done"&&isDutyCell(c,sh)&&Number.isFinite(c.dutyH))?c.dutyH:(Number.isFinite(c.durH)&&c.durH>0&&!L)?c.durH:(L?.hh??hoursOf(sh));const o=c.out&&tmin(c.out)!=null?tmin(c.out)/60:null;return{st:o!=null?o:(Number.isFinite(c.startH)&&!L)?c.startH:(L?.st??startOf(sh,d)),hh:actual!=null?actual:planH}}
 function closedTag(s,d){const shMap={};S.shifts.forEach(x=>shMap[x.id]=x);const cs=s.cells.filter(c=>c.date===d&&c.empId!=null);if(!cs.length)return"";const n=cs.filter(c=>isClosed(c,shMap[c.shiftId])).length;if(!n)return"";return n===cs.length?`<span class="daydone" title="Wszystkie trasy tego dnia są zakończone (dane z FlotoMax).">✔ dzień zakończony</span>`:`<span class="daypart" title="Zakończone trasy (dane z FlotoMax).">zakończone ${n}/${cs.length}</span>`}
 const fd=v=>(v>0?"+":"")+String(Math.round(v*100)/100).replace(".",",");
 // księga dniówek: dniówka to „moneta”. Trasa daje tyle dniówek, ile ma wagi (dyżur 0,5; Trasa 8–11 po 2,5).
@@ -606,7 +618,7 @@ function farLogFor(start,end,excludeId){const m={};S.shifts.forEach(x=>m[x.id]=x
 // trasa A (dzień dA) koliduje z daleką trasą B na dzień dA+1, gdy A jeszcze trwa w chwili wyjazdu B (wieczorem dnia dA)
 // przed daleką trasą kierowca musi mieć co najmniej REST_BEFORE_FAR godzin wypoczynku od końca poprzedniej trasy
 const REST_BEFORE_FAR=9;
-const clashNext=(shA,dA,shB,dB)=>!!shA&&!!shB&&startsPrevDay(shB)&&(shB.part||"full")!=="pm"&&(shA.part||"full")!=="pm"&&addDays(dA,1)===dB&&(startOf(shA,dA)-(startsPrevDay(shA)?24:0)+hoursOf(shA))+REST_BEFORE_FAR>startOf(shB,dB);
+const clashNext=(shA,dA,shB,dB)=>!!shA&&!!shB&&startsPrevDay(shB,dB)&&(shB.part||"full")!=="pm"&&(shA.part||"full")!=="pm"&&addDays(dA,1)===dB&&(startAt(shA,dA)-(startsPrevDay(shA,dA)?24:0)+hoursAt(shA,dA))+REST_BEFORE_FAR>startAt(shB,dB);
 function pick(cands,counts,sh,prevDay,bias,farLog,day){
   if(!cands.length)return null;
   if(farLog&&day&&isFar(sh)){
@@ -723,7 +735,7 @@ async function saveLabels(){if(!S.db)return;try{await docL().set({items:S.labels
 async function boot(){
   const db=await claude.use("db");
   if(!db){setStatus("Baza niedostępna w tym widoku — działa tylko podgląd."); render(); return}
-  S.db=db; setStatus("Połączono. Dane zapisują się automatycznie.");
+  S.db=db; setStatus("Połączono. Dane zapisują się automatycznie.");loadTripLog();
   if(location.protocol!=="file:")setTimeout(()=>rollingTick(),1200);setTimeout(()=>flotoSync(false),2800);
   docE().onSnapshot(s=>{S.emps=s.exists?structuredClone(s.data().items||[]):[];if(window.applyPayRates)applyPayRates();render()});
   docS().onSnapshot(s=>{S.shifts=s.exists?structuredClone(s.data().items||[]):[];render()});
@@ -763,7 +775,7 @@ function renderShifts(){
   const wOpts=v=>[0.5,1,1.5,2,2.5].map(w=>`<option value="${w}" ${w===+v?"selected":""}>${String(w).replace(".",",")} dn.</option>`).join("");
   const pOpts=v=>Object.entries(PART).map(([k,l])=>`<option value="${k}" ${k===(v||"full")?"selected":""}>${l}</option>`).join("");
   const rOpts=s=>`<option value="auto" ${!Number.isFinite(s.rest)?"selected":""}>auto (${restDays(s.weight)})</option>`+[0,1,2,3].map(n=>`<option value="${n}" ${s.rest===n?"selected":""}>${n} dni odp.</option>`).join("");
-  $("shift-list").innerHTML=S.shifts.length?S.shifts.map(s=>{const r=restOf(s);const editing=S.editShift===s.id;return `<li><div style="flex:1"><span class="dot" style="background:${colorOf(s.id)}"></span><span class="nm">${esc(s.name)}</span> <span class="tag">${PART[s.part||"full"]}</span><span class="tag">${s.people} os./dzień</span><span class="tag">${String(s.weight).replace(".",",")} dniówki</span><span class="tag">${fmtH(startOf(s))}${s.startDow&&Number.isFinite(s.startDow[6])?" (sob. "+fmtH(s.startDow[6])+")":""} · ${String(hoursOf(s)).replace(".",",")} h</span>${s.reqC?'<span class="tag" style="color:var(--l4-ink)">kat. C</span>':""}${startsPrevDay(s)?'<span class="tag">wyjazd dzień wcześniej</span>':""}${r?`<span class="tag rest">+${r} ${r===1?"dzień":"dni"} odpoczynku${Number.isFinite(s.rest)?" (ręcznie)":""}</span>`:`<span class="tag">bez odpoczynku${Number.isFinite(s.rest)?" (ręcznie)":""}</span>`}
+  $("shift-list").innerHTML=S.shifts.length?S.shifts.map(s=>{const r=restOf(s);const editing=S.editShift===s.id;return `<li><div style="flex:1"><span class="dot" style="background:${colorOf(s.id)}"></span><span class="nm">${esc(s.name)}</span> <span class="tag">${PART[s.part||"full"]}</span><span class="tag">${s.people} os./dzień</span><span class="tag">${String(s.weight).replace(".",",")} dniówki</span><span class="tag">${fmtH(startOf(s))}${s.startDow&&Number.isFinite(s.startDow[6])?" (sob. "+fmtH(s.startDow[6])+")":""} · ${String(hoursOf(s)).replace(".",",")} h</span>${(()=>{const L=learned(s);return L?`<span class="tag" style="color:var(--green2,#166534)" title="Nauczone z FlotoMax: średnia z ${L.n} ostatnich przejazdów (ostatni ${L.last}). Ma pierwszeństwo przed ustawieniem ręcznym i planem FlotoMax; faktyczne godziny wyjazdu i ręczne poprawki na osi są ważniejsze. Dla dnia tygodnia z własnymi przejazdami liczy się osobno.">FlotoMax: ${L.prev?"dzień wcześniej ":""}${fmtH(L.st)} · ${String(L.hh).replace(".",",")} h (śr. z ${L.n})</span>`:""})()}${s.reqC?'<span class="tag" style="color:var(--l4-ink)">kat. C</span>':""}${startsPrevDay(s)?'<span class="tag">wyjazd dzień wcześniej</span>':""}${r?`<span class="tag rest">+${r} ${r===1?"dzień":"dni"} odpoczynku${Number.isFinite(s.rest)?" (ręcznie)":""}</span>`:`<span class="tag">bez odpoczynku${Number.isFinite(s.rest)?" (ręcznie)":""}</span>`}
     ${editing?`<div class="row" style="margin:8px 0 0"><input value="${esc(s.name)}" data-ed-name="${s.id}" style="width:130px"><select data-ed-people="${s.id}"><option value="1" ${s.people==1?"selected":""}>1 os.</option><option value="2" ${s.people==2?"selected":""}>2 os.</option><option value="3" ${s.people==3?"selected":""}>3 os.</option></select><select data-ed-part="${s.id}">${pOpts(s.part)}</select><select data-ed-weight="${s.id}">${wOpts(s.weight)}</select><select data-ed-rest="${s.id}" title="dni odpoczynku po trasie">${rOpts(s)}</select><select data-ed-prev="${s.id}" title="kiedy trasa wyjeżdża"><option value="auto" ${typeof s.startPrev!=="boolean"?"selected":""}>wyjazd: auto (${startsPrevDay(s)?"dzień wcześniej":"tego dnia"})</option><option value="1" ${s.startPrev===true?"selected":""}>wyjazd wieczorem dzień wcześniej</option><option value="0" ${s.startPrev===false?"selected":""}>wyjazd tego samego dnia</option></select><label class="muted">start <input type="time" value="${fmtH(startOf(s))}" data-ed-start="${s.id}" style="width:100px"></label><label class="muted">start sob. <input type="time" value="${s.startDow&&Number.isFinite(s.startDow[6])?fmtH(s.startDow[6]):""}" data-ed-startsat="${s.id}" style="width:100px" title="puste = jak w inne dni"></label><label class="muted">czas h <input type="number" step="0.5" min="0" value="${hoursOf(s)}" data-ed-hours="${s.id}" style="width:70px"></label><label class="muted" style="display:inline-flex;align-items:center;gap:4px"><input type="checkbox" data-ed-reqc="${s.id}" ${s.reqC?"checked":""} style="min-height:0;width:16px;height:16px">wymaga kat. C</label><button class="btn sm" data-edsave="${s.id}">Zapisz</button><button class="btn ghost sm" data-edcancel="1">Anuluj</button></div>`:""}
     </div><div><button class="btn ghost sm" data-edit="${s.id}">Edytuj</button> <button class="btn danger sm" data-delshift="${s.id}">Usuń</button></div></li>`}).join(""):"<li>Brak typów zmian.</li>";
 }
@@ -803,7 +815,7 @@ function renderTimeline(){
   let grand=0,far=0,over40=0;
   for(const e of empsShown){
     let total=0,cnt=0,wT=0,wN=0; const curW=weekKey(warsawDay()); const lanes=days.map(()=>[]);const dayT=days.map(()=>0),dayN=days.map(()=>0);
-    for(const c of hist){if(c.empId!==e.id||c.date!==addDays(days[0],-1))continue;const sh=shMap[c.shiftId];if(cellPrev(c,sh)&&!isDutyCell(c,sh))continue;const end=startOf(sh,c.date)+hoursOf(sh);if(end>24)lanes[0].push(`<div class="bar cont" style="left:0;width:${pct(end-24)};background-color:${colorOf(c.shiftId)}">→ ${esc(sh?.name||"")}<small>do ${fmtH(end-24)} (z pop. tyg.)</small></div>`)}
+    for(const c of hist){if(c.empId!==e.id||c.date!==addDays(days[0],-1))continue;const sh=shMap[c.shiftId];if(cellPrev(c,sh)&&!isDutyCell(c,sh))continue;const end=startAt(sh,c.date)+hoursAt(sh,c.date);if(end>24)lanes[0].push(`<div class="bar cont" style="left:0;width:${pct(end-24)};background-color:${colorOf(c.shiftId)}">→ ${esc(sh?.name||"")}<small>do ${fmtH(end-24)} (z pop. tyg.)</small></div>`)}
     const spillsIn=days.map(()=>[]);
     const consider=(c,date)=>{const sh=shMap[c.shiftId];if(!sh||!cellPrev(c,sh))return;const idx=days.indexOf(addDays(date,-1));if(idx>=0)spillsIn[idx].push({c,sh,date})};
     for(const d of days)for(const c of (byEmpDay[e.id]?.[d]||[]))consider(c,d);
@@ -835,9 +847,9 @@ function renderTimeline(){
   const f1=v=>String(Math.round(v*10)/10).replace(".",",");
   T.innerHTML=`<p class="lead">Każdy dzień to oś 24 h. Szerokość kafelka = planowany czas pracy od statystycznej godziny startu (ustawianej przy typie zmiany). Dalekie trasy 8–11 wyjeżdżają wieczorem dzień wcześniej (dzień na grafiku to dzień rozwózki), a kreskowana kontynuacja pokazuje ich końcówkę. Trasy i dni zakończone (dane z FlotoMax) mają znacznik ✓ i biały kontur. Sumy godzin to czas pracy: kierowcy kat. C na długiej trasie odliczamy 9 h odpoczynku w trasie. Szare pasy po bokach = noc. Dotknięcie kafelka otwiera edycję. Kafelek można złapać i upuścić w dowolnym miejscu: wiersz to kierowca, kolumna to dzień, a miejsce w kolumnie to godzina wyjazdu (co 15 min). Zakończonym trasom można zmienić tylko godziny. Prawa krawędź kafelka zmienia jego długość. Nowe zadanie przeciągnij z „Puli etykiet”. Ruch cofa przycisk „↩ Cofnij”.</p>
   <div class="kpis"><div class="kpi">Suma godzin pracy<b>${f1(grand)} h</b></div><div class="kpi">W tym trasy dalekie (bez odpoczynku)<b>${f1(far)} h</b></div><div class="kpi">Średnio na kierowcę<b>${f1(grand/Math.max(1,empsShown.length))} h</b></div><div class="kpi">Kierowców ponad 40 h<b>${over40}</b></div></div>
-  <div class="tl-wrap"><div class="tl-pool" aria-label="Pula etykiet"><b>Pula etykiet</b><span class="muted">przeciągnij na kierowcę, dzień i godzinę</span><div class="chip urlop" data-tl-new="abs:urlop" title="Urlop: upuść na wiersz kierowcy w wybranym dniu. Działa jak nieobecność z listy (zwalnia trasy i naprawia kolizje).">Urlop<small>nieobecność</small></div><div class="chip l4" data-tl-new="abs:l4" title="L4: upuść na wiersz kierowcy w wybranym dniu. Działa jak nieobecność z listy.">L4<small>nieobecność</small></div>${S.shifts.map(sh=>`<div class="chip" style="background:${colorOf(sh.id)}" data-tl-new="${sh.id}" title="${esc(sh.name)}: złap i upuść na wiersz kierowcy w wybranym dniu i godzinie">${esc(sh.name)}<small>${startsPrevDay(sh)?"wyjazd dzień wcześniej · ":""}${fmtH(startOf(sh))} · ${String(hoursOf(sh)).replace(".",",")} h</small></div>`).join("")}</div>
+  <div class="tl-wrap"><div class="tl-pool" aria-label="Pula etykiet"><b>Pula etykiet</b><span class="muted">przeciągnij na kierowcę, dzień i godzinę</span><div class="chip urlop" data-tl-new="abs:urlop" title="Urlop: upuść na wiersz kierowcy w wybranym dniu. Działa jak nieobecność z listy (zwalnia trasy i naprawia kolizje).">Urlop<small>nieobecność</small></div><div class="chip l4" data-tl-new="abs:l4" title="L4: upuść na wiersz kierowcy w wybranym dniu. Działa jak nieobecność z listy.">L4<small>nieobecność</small></div>${S.shifts.map(sh=>`<div class="chip" style="background:${colorOf(sh.id)}" data-tl-new="${sh.id}" title="${esc(sh.name)}: złap i upuść na wiersz kierowcy w wybranym dniu i godzinie">${esc(sh.name)}<small>${startsPrevDay(sh)?"wyjazd dzień wcześniej · ":""}${fmtH(startAt(sh))} · ${String(hoursAt(sh)).replace(".",",")} h</small></div>`).join("")}</div>
   <div class="grid-scroll"><table class="tl">${html}</table></div></div>
-  <div class="tl-legend">${S.shifts.map(x=>`<span><i style="background:${colorOf(x.id)}"></i>${esc(x.name)} · ${startsPrevDay(x)?"dzień wcześniej ":""}${fmtH(startOf(x))} · ${String(hoursOf(x)).replace(".",",")} h</span>`).join("")}<span><i style="background:#9ca3af;box-shadow:inset 0 0 0 2px #fff"></i>✓ zakończona (FlotoMax)</span><span><i style="background:var(--rest);border:1px solid #e6c98a"></i>odpoczynek</span><span><i style="background:rgba(31,36,48,.08);border:1px solid var(--line2)"></i>noc</span></div>`;
+  <div class="tl-legend">${S.shifts.map(x=>`<span><i style="background:${colorOf(x.id)}"></i>${esc(x.name)} · ${startsPrevDay(x)?"dzień wcześniej ":""}${fmtH(startAt(x))} · ${String(hoursAt(x)).replace(".",",")} h</span>`).join("")}<span><i style="background:#9ca3af;box-shadow:inset 0 0 0 2px #fff"></i>✓ zakończona (FlotoMax)</span><span><i style="background:var(--rest);border:1px solid #e6c98a"></i>odpoczynek</span><span><i style="background:rgba(31,36,48,.08);border:1px solid var(--line2)"></i>noc</span></div>`;
 }
 function renderPlan(){try{updUndo()}catch(e){}try{renderPlan0()}finally{maybeScroll(planView==="hours"?"#timeline .grid-scroll":"#chips-view .grid-scroll");const s=S.scheds[S.current],r=$("roll-ctl");if(r)r.style.display=s?.rolling?"flex":"none"}}
 function renderPlan0(){
@@ -963,7 +975,7 @@ let suppressClick=false;
 
 
 // dziennik wyjazdów (kolekcja triplog): plan i rzeczywistość każdej trasy z FlotoMax – do przewidywania czasów i planowania
-async function logTrips(trips,asg){if(!S.db)return;if(!FL.logged){FL.logged=new Map();try{await new Promise(res=>{let done=false;const un=S.db.collection("triplog").onSnapshot(q=>{q.docs.forEach(d=>FL.logged.set(d.id,JSON.stringify(d.data())));if(!done){done=true;res()}});setTimeout(()=>{if(!done){done=true;res()}},4000)})}catch(e){}}
+async function logTrips(trips,asg){if(!S.db)return;if(!FL.logged){loadTripLog();await new Promise(res=>setTimeout(res,1500))}
   const plan={};for(const a of Array.isArray(asg)?asg:[])if(a&&a.routeId!=null)plan[a.routeId]=a;
   for(const t of Array.isArray(trips)?trips:[]){if(!t||t.routeId==null||!t.departedAt)continue;const a=plan[t.routeId]||{};const e=flotoEmp(t.driverId,t.driverName);
     const doc={routeId:t.routeId,date:t.deliveryDate||a.date||null,label:t.label||a.label||null,kind:a.kind||FL.kinds[t.routeId]||null,driverId:t.driverId,driver:t.driverName||null,empId:e?.id||null,plate:t.plate||a.plate||null,stops:a.stops??null,
@@ -1050,14 +1062,14 @@ async function tlAbs(reason,empId,date){const e=S.emps.find(x=>x.id===empId);if(
   const moved=repairForAbsences();for(const s of Object.values(S.scheds))if(s._dirty){delete s._dirty;await saveSched(s)}
   renderPlan();notice(`${e.name}: ${REASONS[reason]} ${date.slice(8)}.${date.slice(5,7)}.${moved?" Zwolnione trasy przydzielono ponownie.":""}`)}
 async function tlNew(shiftId,empId,date,hour){if(String(shiftId).startsWith("abs:"))return tlAbs(shiftId.slice(4),empId,date);const sh=S.shifts.find(x=>x.id===shiftId),e=S.emps.find(x=>x.id===empId);if(!sh||!e)return;
-  let day=date,st=hour;if(startsPrevDay(sh)&&!isDutyCell({},sh)&&hour>=12)day=addDays(date,1); // daleka trasa: upuszczona wieczorem = wyjazd dzień przed dniem rozwózki
+  let day=date,st=hour;if(startsPrevDay(sh,addDays(date,1))&&!isDutyCell({},sh)&&hour>=12)day=addDays(date,1); // daleka trasa: upuszczona wieczorem = wyjazd dzień przed dniem rozwózki
   const s=S.scheds[S.current];if(!s||day<s.start||day>s.end){notice("Ten dzień jest poza otwartym harmonogramem.");renderPlan();return}
   if(!canDrive(e,sh)){notice(`${e.name} nie ma kat. C, a ${sh.name} jej wymaga.`);return}
   if(absMap()[empId]?.[day]){notice(`${e.name} ma ${day.slice(8)}.${day.slice(5,7)} nieobecność (${REASONS[absMap()[empId][day]]||"nieobecność"}).`);return}
   await assignShift(empId,day,shiftId);
   const s2=S.scheds[S.current];const c=s2.cells.find(x=>x.date===day&&x.shiftId===shiftId&&x.empId===empId);
-  if(c&&!c.out&&Math.abs(st-startOf(sh,day))>=0.25){c.startH=Math.round(st*4)/4;c.manualT=true;await saveSched(s2);renderPlan()}
-  notice(`${sh.name} → ${e.name}, ${day.slice(8)}.${day.slice(5,7)}, start ${fmtH(c&&Number.isFinite(c.startH)?c.startH:startOf(sh,day))}${day!==date?" (wyjazd dzień wcześniej)":""}.`)}
+  if(c&&!c.out&&Math.abs(st-startAt(sh,day))>=0.25){c.startH=Math.round(st*4)/4;c.manualT=true;await saveSched(s2);renderPlan()}
+  notice(`${sh.name} → ${e.name}, ${day.slice(8)}.${day.slice(5,7)}, start ${fmtH(c&&Number.isFinite(c.startH)?c.startH:startAt(sh,day))}${day!==date?" (wyjazd dzień wcześniej)":""}.`)}
 (function(){let g=null,tip=null,tgt=null;
   const at=(x,y)=>{const a=tlCellAt(x,y);return a&&{td:a.td,emp:a.emp,date:a.date,hour:Math.max(0,Math.min(23.75,Math.round(a.h*4)/4))}};
   document.addEventListener("pointerdown",ev=>{const el=ev.target.closest("[data-tl-new]");if(!el||!S.db||ev.button>0)return;g={el,sid:el.dataset.tlNew,x:ev.clientX,y:ev.clientY,id:ev.pointerId,moved:false}});
@@ -1082,7 +1094,7 @@ function resizeCell(c,sh,dh){
 function shiftCellTime(c,sh,dh){
   if(Array.isArray(c.tripAt)&&c.out&&c.back){const mv=x=>new Date(Date.parse(x)+dh*36e5).toISOString();c.tripAt=c.tripAt.map(mv);c.out=flotoLocal(c.tripAt[0]);c.back=flotoLocal(c.tripAt[1])}
   else if(c.out&&c.back&&tmin(c.out)!=null&&tmin(c.back)!=null){const f=m=>{m=((Math.round(m)%1440)+1440)%1440;return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0")};c.out=f(tmin(c.out)+dh*60);c.back=f(tmin(c.back)+dh*60)}
-  else{const base=Number.isFinite(c.startH)?c.startH:startOf(sh,c.date);c.startH=((Math.round((base+dh)*4)/4)%24+24)%24}
+  else{const base=cellBounds(c,sh,c.date).st;c.startH=((Math.round((base+dh)*4)/4)%24+24)%24}
   c.manualT=true;c.locked=true}
 async function tlDrop(key,dh,toEmp,mode,target){if(!S.db)return;const [emp,date,shiftId,slot]=key.split("|");
   const fnd=s=>s?.cells.find(x=>x.date===date&&x.shiftId===shiftId&&String(x.slot)===slot&&x.empId===emp);
@@ -1107,7 +1119,7 @@ async function tlDrop2(s,c,emp,date,shiftId,slot,dh,mode,target){
   const keep={orders:c.orders,durH:c.durH,flotoPlan:c.flotoPlan};
   await assignShift(to,label,shiftId,{from:{date,shiftId,slot:+slot}});
   const s2=S.scheds[S.current];const n=s2.cells.find(x=>x.date===label&&x.shiftId===shiftId&&x.empId===to);
-  if(n){for(const [k,v] of Object.entries(keep))if(v!==undefined)n[k]=v;const st=Math.round(target.depH*4)/4;if(Math.abs(st-startOf(sh,label))>=0.25){n.startH=st;n.manualT=true}else delete n.startH;await saveSched(s2);renderPlan()}
+  if(n){for(const [k,v] of Object.entries(keep))if(v!==undefined)n[k]=v;const st=Math.round(target.depH*4)/4;if(Math.abs(st-startAt(sh,label))>=0.25){n.startH=st;n.manualT=true}else delete n.startH;await saveSched(s2);renderPlan()}
   notice(`${nm}: ${to!==emp?t.name+", ":""}${dd(label)}, wyjazd ${fmtH(target.depH)}${label!==target.depDate?" dzień wcześniej":""}.`)}
 (function(){
   let dg=null,tip=null;const snap=x=>Math.round(x*4)/4;
@@ -1126,7 +1138,7 @@ async function tlDrop2(s,c,emp,date,shiftId,slot,dh,mode,target){
     dg.el.style.transform=`translate(${X-dg.x-sx}px,${Y-dg.y-sy}px)`;const a=tlCellAt(X,Y,dg.el);
     if(a?.td!==dg.cell?.td){dg.cell?.td.classList.remove("tl-cell-target");a?.td.classList.add("tl-cell-target")}dg.cell=a;
     if(!a){dg.tgt=null;tip.textContent="upuść na wiersz kierowcy w wybranym dniu";return}
-    const [emp,date,sid]=dg.key.split("|");const sh=S.shifts.find(x=>x.id===sid);const far=startsPrevDay(sh)&&(sh?.part||"full")!=="pm";
+    const [emp,date,sid]=dg.key.split("|");const sh=S.shifts.find(x=>x.id===sid);const far=startsPrevDay(sh,date)&&(sh?.part||"full")!=="pm";
     const nd=snap(absH(dg.base,a.date,a.h)-dg.grab),dayI=Math.floor(nd/24),depH=nd-dayI*24,depDate=addDays(dg.base,dayI),label=far?addDays(depDate,1):depDate;
     dg.dh=nd-dg.dep;dg.tgt={emp:a.emp,label,depDate,depH};const toE=a.emp!==emp?S.emps.find(x=>x.id===a.emp):null;
     const cc=Object.values(S.scheds).flatMap(x=>x.cells).find(x=>x.date===date&&x.shiftId===sid&&x.empId===emp);const locked=cc&&(cc.closed||cc.flotoRoute!=null||cc.duty==="done")&&(label!==date||a.emp!==emp);
@@ -1235,12 +1247,12 @@ document.body.addEventListener("click",ev=>{
 function availability(date){
   const shMap={};S.shifts.forEach(x=>shMap[x.id]=x); const am=absMap();
   const cells=[];for(const s of Object.values(S.scheds))for(const c of s.cells||[])if(c.empId!=null&&c.date<=date&&c.date>=addDays(date,-3))cells.push({...c,scheduleId:s.id});
-  const tomorrow=[];for(const s of Object.values(S.scheds))for(const c of s.cells||[])if(c.empId!=null&&c.date===addDays(date,1)&&startsPrevDay(shMap[c.shiftId])&&!isDutyCell(c,shMap[c.shiftId]))tomorrow.push(c);
+  const tomorrow=[];for(const s of Object.values(S.scheds))for(const c of s.cells||[])if(c.empId!=null&&c.date===addDays(date,1)&&startsPrevDay(shMap[c.shiftId],c.date)&&!isDutyCell(c,shMap[c.shiftId]))tomorrow.push(c);
   return S.emps.filter(e=>e.active).map(e=>{
     const ab=am[e.id]?.[date];
     const today=cells.filter(c=>c.empId===e.id&&c.date===date).map(c=>({shiftId:c.shiftId,shift:shMap[c.shiftId]?.name||c.shiftId,part:cpart(c,shMap[c.shiftId],date),weight:shMap[c.shiftId]?.weight??1,locked:!!c.locked}));
     let resting=null;for(const c of cells){if(c.empId!==e.id||c.date>=date)continue;const r=restOf(shMap[c.shiftId]);if(r>0&&addDays(c.date,r)>=date)resting={after:shMap[c.shiftId]?.name||c.shiftId,until:addDays(c.date,r)}}
-    const evening=tomorrow.filter(c=>c.empId===e.id).map(c=>({shift:shMap[c.shiftId]?.name||c.shiftId,start:fmtH(startOf(shMap[c.shiftId],c.date))}));
+    const evening=tomorrow.filter(c=>c.empId===e.id).map(c=>({shift:shMap[c.shiftId]?.name||c.shiftId,start:fmtH(startAt(shMap[c.shiftId],c.date))}));
     const fullDay=today.filter(t=>t.part!=="pm");
     const status=ab?"absent":fullDay.length?"busy":resting?"rest":"free";
     return {employeeId:e.id,name:e.name,date,status,statusLabel:{free:"dostępny",busy:"na trasie",rest:"odpoczynek",absent:REASONS[ab]||ab}[status],assignments:today,absence:ab||null,resting,departsEvening:evening,freeAfternoon:!ab&&!resting&&!today.some(t=>t.part==="pm")&&!today.some(t=>t.part==="full")};

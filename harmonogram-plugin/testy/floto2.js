@@ -1,6 +1,6 @@
 const fs=require('fs');const {chromium}=require('playwright');
 (async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell'});
-const pg=await b.newPage({viewport:{width:1700,height:1100}});const errs=[];pg.on('pageerror',e=>errs.push(e.message));
+const pg=await b.newPage({viewport:{width:1700,height:1100}});await pg.addInitScript(()=>{const T=Date.parse('2026-10-02T06:00:00Z');const RD=Date;class D extends RD{constructor(...a){super(...(a.length?a:[T]))}static now(){return T}}window.Date=D});const errs=[];pg.on('pageerror',e=>errs.push(e.message));
 await pg.goto('file://'+process.cwd()+'/local.html');await pg.waitForTimeout(3000);
 const ok=(k,v,x='')=>console.log((v?'OK   ':'FAIL ')+k+(x?'  '+x:''));
 const L=p=>JSON.parse(fs.readFileSync(p,'utf8'));const F=L('floto_data.json');
@@ -26,7 +26,7 @@ ok('użyto wszystkich narzędzi FlotoMax',['list_drivers','list_assignments','li
 ok('sobota 03.10 Czogała: Trasa 2 rano + Zwroty po południu (zablokowane)',r.czog03==='Trasa 2:am*,Zwroty:pm*',r.czog03);
 ok('sobota 03.10 Bubon: Trasa 1 + Zwroty',r.bubon03==='Trasa 1:am*,Zwroty:pm*',r.bubon03);
 ok('niedziela 04.10: Wranik T10, Schmidt T12, Piórkowski T11 wg FlotoMax',r.wranik04.startsWith('Trasa 10')&&r.schmidt04.startsWith('Trasa 12')&&r.pior04.startsWith('Trasa 11'),[r.wranik04,r.schmidt04,r.pior04].join(' / '));
-ok('Wranik T10: wyjazd 23:45 dzień wcześniej wg planu FlotoMax',r.wr&&r.wr.st===23.75,JSON.stringify(r.wr));
+ok('Wranik T10: godziny z nauki (1 przejazd Knury 30.09: 20:15 dzień wcześniej, 33 h) mają pierwszeństwo przed planem FlotoMax 23:45',r.wr&&r.wr.st===20.25&&r.wr.hh===33,JSON.stringify(r.wr));
 ok('Wirtualny kierowca wyłączony z losowania',r.virt.length===0||r.virt.every(a=>a===false),JSON.stringify(r.virt));
 ok('„Trasa niezapowiedziana” dodana jako typ zmiany i wpisana Czogale 02.10',r.niez.length===1&&/Trasa niezapowiedziana/.test(r.czog02),r.niez+' | '+r.czog02);
 ok('brak grafiku na 05.10 zgłoszony',r.items.some(x=>/Brak harmonogramu na 05\.10/.test(x))&&/Brak grafiku na: 05\.10/.test(r.txt));

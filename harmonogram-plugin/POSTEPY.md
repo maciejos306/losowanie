@@ -165,3 +165,13 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 - Pełny zestaw testów (24 pliki, ~370 sprawdzeń): wszystkie OK. Poprawiony test `edge.js` (pomija zakładki ukryte dla danego konta).
 - Symulacja na danych z bazy (tylko odczyt, bez zapisów do FlotoMax): grafik do 23.10, zamrożone dni bez zmian, brak tras u nieobecnych, brak pustych tras, brak przydziałów dla kierowcy wirtualnego, brak naruszeń 9 h odpoczynku. Sobota 03.10: trasa rano + Zwroty u 5 kierowców — zgodnie z założeniem (łączny czas pokazuje „Σ” na osi godzin).
 - Otwarte: `publish_week_view` (czeka na narzędzie w łączniku FlotoMax i opis parametrów), poprawka `plannedDepartureAt` po stronie FlotoMax (DLA-FLOTOMAX.md p. 5–6), nowe etykiety od 12.10, hasło płacowe do ustawienia przez Administratora.
+
+## v78 — nauka czasów tras z FlotoMax
+- Program uczy się z faktycznych przejazdów (komórki z FlotoMax + dziennik `triplog`), ile trwa każda trasa i o której wyjeżdża. Zasada: pierwszy przejazd jest średnią, potem średnia z 3 ostatnich. Liczy osobno dla dnia tygodnia, gdy trasa ma w nim własne przejazdy; inaczej ze wszystkich dni.
+- Godzina wyjazdu: średnia tylko z przejazdów o podobnej porze co ostatni (±3 h), żeby trasa jeżdżąca raz w południe, raz wieczorem nie dostała średniej „pośrodku”. Z tego wynika też, czy wyjazd jest dzień wcześniej.
+- Pierwszeństwo: faktyczny wyjazd/powrót > ręczna poprawka na osi > nauka > plan FlotoMax (`plannedDepartureAt` bywa błędne) > ustawienie w Typach zmian.
+- Nauka działa na osi godzin, w „Σ” dnia, w kontroli 9 h odpoczynku przed daleką trasą, w końcówkach z poprzedniego tygodnia, w Dyspozycji dnia i przy upuszczaniu kafelków. Dyżur (Nagel) się nie uczy.
+- Typy zmian pokazują zieloną etykietę „FlotoMax: … (śr. z N)” z tym, czego program się nauczył.
+- Dziennik `triplog` wczytuje się od razu po starcie, nie dopiero przy pobraniu z FlotoMax.
+- Testy: nowy `testy/learn.js` (16 sprawdzeń); `floto2.js` ma przypiętą datę 02.10 (dane testowe są z tygodnia 28.09) i nowe oczekiwanie dla Trasy 10 (nauka przed planem). Cały zestaw: 23 pliki, 345 OK.
+- Symulacja na danych z bazy: zamrożone dni bez zmian; nauczone godziny np. Zwroty sb 12:00 · 4 h (statycznie 01:30 · 8 h), Trasa 8 śr. wyjazd wt. 20:45 · 18,25 h. Z nauki wynika jedna kolizja 9 h odpoczynku: Wranik 21→22.10 Trasa 3 → Trasa 11 — do „Sprawdź i napraw”.
