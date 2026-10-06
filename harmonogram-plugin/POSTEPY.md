@@ -210,3 +210,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v86
 - Naprawa kolizji nie obsadza pustych miejsc spoza Założeń na dany dzień (bez planu FlotoMax) — takiej trasy tego dnia nie ma; „Brak obsady” też ich nie liczy. Przykład 06.10: pusta Trasa 6 w piątek 09.10 dostała kierowcę, choć piątek w Założeniach nie ma Trasy 6.
+
+## v87
+- Kafelki: jedna etykieta w dniu (trasa z zapamiętaną połówką po dawnym łączeniu z dyżurem) wraca na całe pole; sam dyżur nadal po południu. Test `testy/single.js`.

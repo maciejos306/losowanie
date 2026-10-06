@@ -889,9 +889,11 @@ function renderPlan0(){
       const cs=byEmpDay[e.id]?.[d]||[]; const ab=am[e.id]?.[d];
       const chip=c=>{const sh=shMap[c.shiftId];const lk=(c.locked?" locked":"")+(c.extra?" extra":"");const dn=cellDn(c,sh);const dx=(c.duty==="cancelled"?" dutyx":(isDutyCell(c,sh)&&c.duty!=="done"?" dutyp":""))+(isClosed(c,sh)&&c.duty!=="cancelled"?" closed":"");const isD=isDutyCell(c,sh);const ordP=isD&&c.orders&&c.orders.length?esc(c.orders.join(" + "))+" · ":"";const lbl0=isD&&c.duty==="cancelled"?"anulowany · 0 dn.":isD&&c.duty!=="done"?"zaplanowany · 0 dn.":isD&&Number.isFinite(c.dutyH)?`${String(c.dutyH).replace(".",",")} h · ${String(dn).replace(".",",")} dn.`:`${String(dn).replace(".",",")} dn.`;const lbl=ordP+((!isD&&c.closed)?"zakończona"+(c.out&&c.back?" "+c.out+"–"+c.back:"")+" · "+lbl0:lbl0);const tk=(isClosed(c,sh)&&c.duty!=="cancelled")?"✓ ":"";return `<div class="chip${lk}${dx}" style="background:${colorOf(c.shiftId)}" data-pick="${e.id}|${d}" data-drag-cell="${e.id}|${d}|${c.shiftId}|${c.slot}">${tk}${esc(sh?.name||"?")}<small>${lbl}</small>${ab&&!isClosed(c,sh)?`<b class="abx">⚠ ${REASONS[ab]} – trasa nadal przydzielona</b>`:""}</div>`};
       const full=cs.find(c=>cpart(c,shMap[c.shiftId],d)==="full"), amC=cs.find(c=>cpart(c,shMap[c.shiftId],d)==="am"), pmC=cs.find(c=>cpart(c,shMap[c.shiftId],d)==="pm");
-      if((full&&!pmC)||(!cs.length)){
+      // jedna etykieta (trasa z zapamiętaną połówką po dawnym łączeniu) wraca na całe pole; sam dyżur zostaje po południu
+      const single=cs.length===1&&!isDutyCell(cs[0],shMap[cs[0].shiftId])?cs[0]:null;
+      if(single||(full&&!pmC)||(!cs.length)){
         let inner;
-        if(full)inner=chip(full);
+        if(single||full)inner=chip(single||full);
         else if(ab)inner=`<div class="chip ${ab}" data-pick="${e.id}|${d}">${REASONS[ab]}</div>`;
         else if(rest[e.id]?.[d]&&rest[e.id][d].carry)inner=`<div class="chip rest carry" data-pick="${e.id}|${d}" title="po ${esc(rest[e.id][d].after)} z ${rest[e.id][d].date}">☾ odpoczynek<small>z pop. tygodnia</small></div>`;
         else if(rest[e.id]?.[d])inner=`<div class="chip rest" data-pick="${e.id}|${d}">☾ odpoczynek</div>`;
