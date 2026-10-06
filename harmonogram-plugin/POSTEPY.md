@@ -175,3 +175,9 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 - Dziennik `triplog` wczytuje się od razu po starcie, nie dopiero przy pobraniu z FlotoMax.
 - Testy: nowy `testy/learn.js` (16 sprawdzeń); `floto2.js` ma przypiętą datę 02.10 (dane testowe są z tygodnia 28.09) i nowe oczekiwanie dla Trasy 10 (nauka przed planem). Cały zestaw: 23 pliki, 345 OK.
 - Symulacja na danych z bazy: zamrożone dni bez zmian; nauczone godziny np. Zwroty sb 12:00 · 4 h (statycznie 01:30 · 8 h), Trasa 8 śr. wyjazd wt. 20:45 · 18,25 h. Z nauki wynika jedna kolizja 9 h odpoczynku: Wranik 21→22.10 Trasa 3 → Trasa 11 — do „Sprawdź i napraw”.
+
+## v79 — Urlop i L4 w widoku kafelków
+- Pasek kafelków (Plan tygodnia → Kafelki) ma na początku Urlop i L4 do przeciągnięcia na kierowcę i dzień; do tej pory były tylko na osi godzin. Spedycja ma więc nieobecności bez zakładki Kadry.
+- Okno wyboru komórki (dotknięcie) ma Urlop i L4, a gdy nieobecność już jest — kafelek „✓ Urlop/L4, dotknij, żeby zdjąć”.
+- Ostrzeżenie przy wpisywaniu nieobecności (także w Kadrach): gdy tego dnia zabraknie kierowców do obsady tras lub nie ma już wolnych miejsc na urlop, komunikat „⚠ Uwaga: …”; dodatkowo „⚠ N tras tego dnia nie ma kierowcy”, jeśli naprawa nie znalazła zastępstwa. Nie blokuje wpisu — L4 to fakt. Blokada zostaje tylko dla wniosków urlopowych.
+- Test `testy/abs2.js` (7 sprawdzeń). Cały zestaw: 24 pliki, 352 OK.
