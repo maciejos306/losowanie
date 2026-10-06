@@ -204,3 +204,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v84 — wnioski z FlotoMax
 - `list_absences`: wpisy ze statusem `pending/oczekuje/wniosek` (albo pole `requests`) wchodzą jako „wniosek urlopowy” (nie blokują tras), gdy FlotoMax zacznie je zwracać. Zatwierdzone wnioski kierowców FlotoMax nadal nie przekazuje — DLA-FLOTOMAX p. 8.
+
+## v85
+- „Brak obsady” pod planem liczy tylko dziś i przyszłość (stare braki z minionych dni nie straszą).

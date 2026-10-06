@@ -907,7 +907,7 @@ function renderPlan0(){
   T.innerHTML=h; renderTimeline();
   $("palette").innerHTML=`<div class="chip urlop" data-drag-shift="abs:urlop" title="Urlop: przeciągnij na kierowcę i dzień. Zwalnia trasy tego dnia i naprawia kolizje.">Urlop<small>nieobecność</small></div><div class="chip l4" data-drag-shift="abs:l4" title="L4: przeciągnij na kierowcę i dzień. Zwalnia trasy tego dnia i naprawia kolizje.">L4<small>nieobecność</small></div>`+S.shifts.map(sh=>`<div class="chip" style="background:${colorOf(sh.id)}" data-drag-shift="${sh.id}">${esc(sh.name)}<small>${PART[sh.part||"full"]} · ${String(sh.weight).replace(".",",")} dn.</small></div>`).join("");
   const grpN={};s.cells.forEach(c=>{if(c.empId!=null){const k=c.date+"|"+c.shiftId;grpN[k]=(grpN[k]||0)+1}});
-  const seenG={};const empty=s.cells.filter(c=>{if(c.empId!=null)return false;const k=c.date+"|"+c.shiftId;const need=+(shMap[c.shiftId]?.people)||1;const have=grpN[k]||0;seenG[k]=(seenG[k]||0)+1;return have+seenG[k]-1<need});
+  const seenG={},today0=warsawDay();const empty=s.cells.filter(c=>{if(c.empId!=null||c.date<today0)return false;const k=c.date+"|"+c.shiftId;const need=+(shMap[c.shiftId]?.people)||1;const have=grpN[k]||0;seenG[k]=(seenG[k]||0)+1;return have+seenG[k]-1<need});
   if(empty.length)$("unfilled").innerHTML=`<div class="warn">Brak obsady (${empty.length}): ${empty.map(c=>`${c.date.slice(8)}.${c.date.slice(5,7)} ${esc(shMap[c.shiftId]?.name||"?")}`).join(", ")}</div>`;
 }
 const esc=s=>String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
