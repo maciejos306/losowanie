@@ -77,7 +77,7 @@
   .chip.off,.chip.rest,.chip.urlop,.chip.l4,.chip.wniosek{background-image:none;box-shadow:none;text-shadow:none;letter-spacing:0}
   .chip small{font-weight:600;font-size:9px;opacity:.85}
   .chip.off{background:transparent;color:var(--muted);font-weight:600;font-size:11px;border:1.5px dashed var(--line2)}
-  .chip.rest,.chip.urlop,.chip.l4{font-size:11px;cursor:default}
+  .chip.rest,.chip.urlop,.chip.l4{font-size:11px;cursor:default}.chip .abx{display:block;margin-top:3px;padding:1px 5px;border-radius:6px;background:#b91c1c;color:#fff;font-size:10px;font-weight:700;letter-spacing:0;text-shadow:none}.dberr{position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:12px;background:#b91c1c;color:#fff;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.35)}.dberr .btn{color:#fff;border-color:#fff}
 .chip.chip.urlop{background:repeating-linear-gradient(135deg,#2f7fd0 0 8px,#2569b0 8px 16px);color:#fff;border:2px solid #174a80;box-shadow:0 0 0 2px rgba(47,127,208,.25),0 2px 6px rgba(23,74,128,.35);font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-shadow:0 1px 1px rgba(0,0,0,.35)}
   .chip.locked{outline:2px solid var(--ink);outline-offset:-2px}
   .chip.rest.carry{opacity:.55;border-style:dashed;background-image:repeating-linear-gradient(135deg,transparent 0 6px,rgba(0,0,0,.05) 6px 8px)}
@@ -708,13 +708,22 @@ function repair(sched,fromDate,extraLocked=new Set(),ban=new Set()){
 
 // ---------- db ----------
 const docE=()=>S.db.doc("app/employees"), docS=()=>S.db.doc("app/shifts"), docA=()=>S.db.doc("app/absences"), docP=()=>S.db.doc("app/plan");
-const savePlan=()=>docP().set(S.plan);
-const saveE=()=>docE().set({items:S.emps.map(({rate,rateUnit,...e})=>e)}), saveS=()=>docS().set({items:S.shifts}), saveA=()=>docA().set({items:S.abs});
+// zapis do bazy: każdy błąd widać na czerwonym pasku; brak prawa zapisu przełącza stronę w podgląd
+function dbFail(e,what){const code=e?.code;let t;
+  if(S.canWrite===false||code==="not_granted"||code==="revoked"||(code==="invalid_argument"&&S.canWrite!==true))t="NIE ZAPISANO: to konto ma w Harmonogramie tylko podgląd. Właściciel musi udostępnić stronę z prawem edycji (poziom „może edytować”), a potem odśwież stronę.";
+  else t=`NIE ZAPISANO (${what||"baza"}): ${e?.message||code||e}. Odśwież stronę i spróbuj ponownie.`;
+  if(S.canWrite===false||code==="not_granted"||code==="revoked")S.ro=true;S.lastDbErr=t;setStatus(t);dbBanner(t);throw e}
+function dbBanner(t){let el=$("dberr");if(!el){el=document.createElement("div");el.id="dberr";el.className="dberr";el.innerHTML='<span></span><button class="btn sm ghost" type="button" onclick="this.parentNode.hidden=true">zamknij</button>';document.body.appendChild(el)}el.querySelector("span").textContent="⚠ "+t;el.hidden=!t}
+const dbSet=(p,v,what)=>S.db.doc(p).set(v).catch(e=>dbFail(e,what||p));
+const savePlan=()=>dbSet("app/plan",S.plan,"założenia");
+const saveE=()=>dbSet("app/employees",{items:S.emps.map(({rate,rateUnit,...e})=>e)},"pracownicy"), saveS=()=>dbSet("app/shifts",{items:S.shifts},"typy zmian");
+// nieobecności: gdy zapis się nie uda, pamięć wraca do stanu z bazy, żeby nagłówki nie pokazywały urlopu, którego nie ma
+const saveA=()=>docA().set({items:S.abs}).catch(e=>{if(S.absDb)S.abs=structuredClone(S.absDb);try{render()}catch(_){}dbFail(e,"nieobecności")});
 S.seen={};S.seenAbs={};S.absLoaded=false;S.undo={};const absSig=()=>JSON.stringify(S.abs.map(a=>a.empId+"|"+a.date+"|"+a.reason).sort());
-const saveSched=s=>{const js=JSON.stringify(s);if(!S.noUndo&&S.seen[s.id]&&S.seen[s.id]!==js){(S.undo[s.id]??=[]).push({js:S.seen[s.id],abs:S.seenAbs[s.id]??null});if(S.undo[s.id].length>40)S.undo[s.id].shift()}S.seen[s.id]=js;S.seenAbs[s.id]=absSig();updUndo();return S.db.doc("schedules/"+s.id).set(s)};
+const saveSched=s=>{const js=JSON.stringify(s);if(!S.noUndo&&S.seen[s.id]&&S.seen[s.id]!==js){(S.undo[s.id]??=[]).push({js:S.seen[s.id],abs:S.seenAbs[s.id]??null});if(S.undo[s.id].length>40)S.undo[s.id].shift()}S.seen[s.id]=js;S.seenAbs[s.id]=absSig();updUndo();return dbSet("schedules/"+s.id,s,"grafik")};
 function updUndo(){const b=$("btn-undo");if(b){const n=(S.undo[S.current]||[]).length;b.disabled=!n;b.textContent=n?`↩ Cofnij (${n})`:"↩ Cofnij"}}
 async function undoLast(){const st=S.undo[S.current];if(!st||!st.length){notice("Nie ma czego cofać.");return}const it=st.pop();const prev=JSON.parse(it.js);let fixedUndo=0;if(it.abs!==null&&it.abs!==absSig()){const amx=absMap();const bad=prev.cells.filter(c=>c.empId!=null&&!c.locked&&amx[c.empId]?.[c.date]);if(bad.length)fixedUndo=repair(prev,bad.map(c=>c.date).sort()[0])}S.scheds[S.current]=prev;S.noUndo=true;try{S.seen[prev.id]=JSON.stringify(prev);await guard(()=>saveSched(prev))}finally{S.noUndo=false}notice(fixedUndo?`Cofnięto ostatnią zmianę. ${fixedUndo} przydziałów kolidowało z późniejszymi nieobecnościami, więc program je podmienił.`:"Cofnięto ostatnią zmianę.");renderPlan();updUndo()}
-async function guard(fn){try{await fn()}catch(e){if(e?.code==="invalid_argument"&&!S.ro){S.ro=true;setStatus("Tylko podgląd — nie masz uprawnień do zapisu.")}else setStatus("Błąd zapisu: "+(e?.message||e))}}
+async function guard(fn){try{await fn()}catch(e){if(!S.lastDbErr||!$("dberr")||$("dberr").hidden){try{dbFail(e)}catch(_){}}}}
 function setStatus(t){$("status").textContent=t}
 // ---------- edytowalne napisy ----------
 const docL=()=>S.db.doc("app/labels");
@@ -737,14 +746,15 @@ async function boot(){
   const db=await claude.use("db");
   if(!db){setStatus("Baza niedostępna w tym widoku — działa tylko podgląd."); render(); return}
   S.db=db; setStatus("Połączono. Dane zapisują się automatycznie.");loadTripLog();
+  try{claude.use("user").then(u=>{let w=null;try{w=u?u.can("data.write"):null}catch(e){}if(w===false){S.canWrite=false;S.ro=true;dbBanner("Tylko podgląd: to konto nie ma prawa zapisu w Harmonogramie. Właściciel musi udostępnić stronę z prawem edycji (poziom „może edytować”).")}else if(w===true)S.canWrite=true}).catch(()=>{})}catch(e){}
   if(location.protocol!=="file:")setTimeout(()=>rollingTick(),1200);setTimeout(()=>flotoSync(false),2800);
   docE().onSnapshot(s=>{S.emps=s.exists?structuredClone(s.data().items||[]):[];if(window.applyPayRates)applyPayRates();render()});
   docS().onSnapshot(s=>{S.shifts=s.exists?structuredClone(s.data().items||[]):[];render()});
-  docA().onSnapshot(s=>{S.abs=s.exists?structuredClone(s.data().items||[]):[];if(!S.absLoaded){S.absLoaded=true;for(const id of Object.keys(S.seenAbs))if(S.seenAbs[id]===null)S.seenAbs[id]=absSig()}render()});
+  docA().onSnapshot(s=>{S.abs=s.exists?structuredClone(s.data().items||[]):[];S.absDb=structuredClone(S.abs);if(!S.absLoaded){S.absLoaded=true;for(const id of Object.keys(S.seenAbs))if(S.seenAbs[id]===null)S.seenAbs[id]=absSig()}render();absHeal()});
   docP().onSnapshot(s=>{S.plan=s.exists?structuredClone(s.data()):null;render()});
   docL().onSnapshot(s=>{S.labels=s.exists?structuredClone(s.data().items||{}):{};applyLabels()});
   docHR().onSnapshot(s=>{S.hr=s.exists?structuredClone(s.data().items||{}):{};renderHR();try{renderBilans()}catch(e){}});
-  db.collection("schedules").onSnapshot(q=>{S.scheds={};q.docs.forEach(d=>{S.scheds[d.id]=structuredClone(d.data());if(!S.undoBusy){const js0=JSON.stringify(S.scheds[d.id]);if(S.seen[d.id]!==js0||!(d.id in S.seenAbs)){S.seen[d.id]=js0;S.seenAbs[d.id]=S.absLoaded?absSig():null}}});if(S.scheds.rolling&&S.current!=="rolling")S.current="rolling";if(!S.current||!S.scheds[S.current]){const ids=Object.keys(S.scheds).sort((a,b)=>(S.scheds[b].createdAt||"").localeCompare(S.scheds[a].createdAt||""));S.current=ids[0]||null}render()});
+  db.collection("schedules").onSnapshot(q=>{S.scheds={};q.docs.forEach(d=>{S.scheds[d.id]=structuredClone(d.data());if(!S.undoBusy){const js0=JSON.stringify(S.scheds[d.id]);if(S.seen[d.id]!==js0||!(d.id in S.seenAbs)){S.seen[d.id]=js0;S.seenAbs[d.id]=S.absLoaded?absSig():null}}});if(S.scheds.rolling&&S.current!=="rolling")S.current="rolling";if(!S.current||!S.scheds[S.current]){const ids=Object.keys(S.scheds).sort((a,b)=>(S.scheds[b].createdAt||"").localeCompare(S.scheds[a].createdAt||""));S.current=ids[0]||null}render();absHeal()});
 }
 
 // ---------- render ----------
@@ -875,7 +885,7 @@ function renderPlan0(){
     let di=-1;for(const d of days){di++;
       const we=isWe(d), span=isSun(d)?1:2, wc=(we?" weekend":"")+(di%2?" alt":"");
       const cs=byEmpDay[e.id]?.[d]||[]; const ab=am[e.id]?.[d];
-      const chip=c=>{const sh=shMap[c.shiftId];const lk=(c.locked?" locked":"")+(c.extra?" extra":"");const dn=cellDn(c,sh);const dx=(c.duty==="cancelled"?" dutyx":(isDutyCell(c,sh)&&c.duty!=="done"?" dutyp":""))+(isClosed(c,sh)&&c.duty!=="cancelled"?" closed":"");const isD=isDutyCell(c,sh);const ordP=isD&&c.orders&&c.orders.length?esc(c.orders.join(" + "))+" · ":"";const lbl0=isD&&c.duty==="cancelled"?"anulowany · 0 dn.":isD&&c.duty!=="done"?"zaplanowany · 0 dn.":isD&&Number.isFinite(c.dutyH)?`${String(c.dutyH).replace(".",",")} h · ${String(dn).replace(".",",")} dn.`:`${String(dn).replace(".",",")} dn.`;const lbl=ordP+((!isD&&c.closed)?"zakończona"+(c.out&&c.back?" "+c.out+"–"+c.back:"")+" · "+lbl0:lbl0);const tk=(isClosed(c,sh)&&c.duty!=="cancelled")?"✓ ":"";return `<div class="chip${lk}${dx}" style="background:${colorOf(c.shiftId)}" data-pick="${e.id}|${d}" data-drag-cell="${e.id}|${d}|${c.shiftId}|${c.slot}">${tk}${esc(sh?.name||"?")}<small>${lbl}</small></div>`};
+      const chip=c=>{const sh=shMap[c.shiftId];const lk=(c.locked?" locked":"")+(c.extra?" extra":"");const dn=cellDn(c,sh);const dx=(c.duty==="cancelled"?" dutyx":(isDutyCell(c,sh)&&c.duty!=="done"?" dutyp":""))+(isClosed(c,sh)&&c.duty!=="cancelled"?" closed":"");const isD=isDutyCell(c,sh);const ordP=isD&&c.orders&&c.orders.length?esc(c.orders.join(" + "))+" · ":"";const lbl0=isD&&c.duty==="cancelled"?"anulowany · 0 dn.":isD&&c.duty!=="done"?"zaplanowany · 0 dn.":isD&&Number.isFinite(c.dutyH)?`${String(c.dutyH).replace(".",",")} h · ${String(dn).replace(".",",")} dn.`:`${String(dn).replace(".",",")} dn.`;const lbl=ordP+((!isD&&c.closed)?"zakończona"+(c.out&&c.back?" "+c.out+"–"+c.back:"")+" · "+lbl0:lbl0);const tk=(isClosed(c,sh)&&c.duty!=="cancelled")?"✓ ":"";return `<div class="chip${lk}${dx}" style="background:${colorOf(c.shiftId)}" data-pick="${e.id}|${d}" data-drag-cell="${e.id}|${d}|${c.shiftId}|${c.slot}">${tk}${esc(sh?.name||"?")}<small>${lbl}</small>${ab&&!isClosed(c,sh)?`<b class="abx">⚠ ${REASONS[ab]} – trasa nadal przydzielona</b>`:""}</div>`};
       const full=cs.find(c=>cpart(c,shMap[c.shiftId],d)==="full"), amC=cs.find(c=>cpart(c,shMap[c.shiftId],d)==="am"), pmC=cs.find(c=>cpart(c,shMap[c.shiftId],d)==="pm");
       if((full&&!pmC)||(!cs.length)){
         let inner;
@@ -1060,8 +1070,8 @@ function tlEdgeScroll(ev,cb){tlAuto.cb=cb||null;const g=document.querySelector("
 function tlEdgeStop(){tlAuto.x=tlAuto.y=0;if(tlAuto.t){clearInterval(tlAuto.t);tlAuto.t=null}}
 async function tlAbs(reason,empId,date){const e=S.emps.find(x=>x.id===empId);if(!e)return;
   if(date<warsawDay()){notice("Nieobecność można wpisać tylko od dziś w przód.");renderPlan();return}
-  const warn=absWarn(empId,date,date);S.abs=S.abs.filter(x=>!(x.empId===empId&&x.date===date));S.abs.push({empId,date,reason});await saveA();
-  const moved=repairForAbsences();for(const s of Object.values(S.scheds))if(s._dirty){delete s._dirty;await saveSched(s)}
+  const warn=absWarn(empId,date,date);S.localAbsEdit=Date.now();S.healMoved=0;S.abs=S.abs.filter(x=>!(x.empId===empId&&x.date===date));S.abs.push({empId,date,reason});await saveA();
+  const moved=repairForAbsences()+(S.healMoved||0);S.healMoved=0;for(const s of Object.values(S.scheds))if(s._dirty){delete s._dirty;await saveSched(s)}
   renderPlan();const left=Object.values(S.scheds).flatMap(x=>x.cells||[]).filter(c=>c.date===date&&c.empId==null&&c.date>=warsawDay()).length;notice(`${e.name}: ${REASONS[reason]} ${date.slice(8)}.${date.slice(5,7)}.${moved?" Zwolnione trasy przydzielono ponownie.":""}${left?` ⚠ ${left} ${left===1?"trasa tego dnia nie ma":"trasy tego dnia nie mają"} kierowcy.`:""}${warn}`)}
 async function tlNew(shiftId,empId,date,hour){if(String(shiftId).startsWith("abs:"))return tlAbs(shiftId.slice(4),empId,date);const sh=S.shifts.find(x=>x.id===shiftId),e=S.emps.find(x=>x.id===empId);if(!sh||!e)return;
   let day=date,st=hour;if(startsPrevDay(sh,addDays(date,1))&&!isDutyCell({},sh)&&hour>=12)day=addDays(date,1); // daleka trasa: upuszczona wieczorem = wyjazd dzień przed dniem rozwózki
@@ -1241,7 +1251,7 @@ document.body.addEventListener("click",ev=>{
     if(d.toggle){const e=S.emps.find(x=>x.id===d.toggle);e.active=!e.active;await saveE()}
     else if(d.delemp){if(!t.dataset.confirm){t.dataset.confirm="1";t.textContent="Na pewno?";setTimeout(()=>{delete t.dataset.confirm;t.textContent="Usuń"},2500);return}S.emps=S.emps.filter(x=>x.id!==d.delemp);S.abs=S.abs.filter(a=>a.empId!==d.delemp);await saveE();await saveA()}
     else if(d.trplan){const from=document.querySelector(`[data-trfrom="${d.trplan}"]`).value,mentor=document.querySelector(`[data-trmentor="${d.trplan}"]`).value;if(!from){notice("Podaj, od kiedy ma być tydzień nauki.");return}const r=await planTraining(d.trplan,from,mentor||null);notice(r);return}
-    else if(d.absadd){const from=document.querySelector(`[data-absdate="${d.absadd}"]`).value,to=document.querySelector(`[data-absdate2="${d.absadd}"]`).value||from,reason=document.querySelector(`[data-absreason="${d.absadd}"]`).value;if(!from)return;const [a,b]=from<=to?[from,to]:[to,from];if((new Date(b)-new Date(a))/864e5>120){notice("Zakres nieobecności jest za długi (max 120 dni).");return}if(reason==="wniosek"){const bad=checkLeave(d.absadd,a,b);if(bad.length){notice(leaveNote(bad));return}}const w=absWarn(d.absadd,a,b);for(const day of range(a,b)){S.abs=S.abs.filter(x=>!(x.empId===d.absadd&&x.date===day));S.abs.push({empId:d.absadd,date:day,reason})}await saveA();if(w)notice(w.trim())}
+    else if(d.absadd){const from=document.querySelector(`[data-absdate="${d.absadd}"]`).value,to=document.querySelector(`[data-absdate2="${d.absadd}"]`).value||from,reason=document.querySelector(`[data-absreason="${d.absadd}"]`).value;if(!from)return;const [a,b]=from<=to?[from,to]:[to,from];if((new Date(b)-new Date(a))/864e5>120){notice("Zakres nieobecności jest za długi (max 120 dni).");return}if(reason==="wniosek"){const bad=checkLeave(d.absadd,a,b);if(bad.length){notice(leaveNote(bad));return}}const w=absWarn(d.absadd,a,b);S.localAbsEdit=Date.now();S.healMoved=0;for(const day of range(a,b)){S.abs=S.abs.filter(x=>!(x.empId===d.absadd&&x.date===day));S.abs.push({empId:d.absadd,date:day,reason})}await saveA();const moved=repairForAbsences()+(S.healMoved||0);S.healMoved=0;for(const x of Object.values(S.scheds))if(x._dirty){delete x._dirty;await saveSched(x)}const en=S.emps.find(x=>x.id===d.absadd)?.name||"";notice(`${en}: ${REASONS[reason]||reason} ${a===b?a.slice(8)+"."+a.slice(5,7):a.slice(8)+"."+a.slice(5,7)+" – "+b.slice(8)+"."+b.slice(5,7)}.${moved?" Zwolnione trasy przydzielono ponownie.":""}${w}`);render()}
     else if(d.abs){const [emp,from,to]=d.abs.split("|");S.abs=S.abs.filter(a=>!(a.empId===emp&&a.date>=from&&a.date<=to));await saveA()}
     else if(d.delshift){if(!t.dataset.confirm){t.dataset.confirm="1";t.textContent="Na pewno?";setTimeout(()=>{delete t.dataset.confirm;t.textContent="Usuń"},2500);return}S.shifts=S.shifts.filter(x=>x.id!==d.delshift);await saveS()}
     else if(d.delsched){if(!t.dataset.confirm){t.dataset.confirm="1";t.textContent="Na pewno?";setTimeout(()=>{delete t.dataset.confirm;t.textContent="Usuń"},2500);return}await S.db.doc("schedules/"+d.delsched).delete()}
@@ -1667,6 +1677,35 @@ function flotoAbsOutbox(from){const out=[];const byKey={};
   return out}
 // po nowych nieobecnościach: przestaw tylko przyszłe, niezakończone przydziały
 // także trasy przydzielone kierowcy nieaktywnemu lub wirtualnemu (np. wylosowane, zanim FlotoMax oznaczył go jako wirtualnego)
+// nieobecność może przyjść z każdej strony (kafelek, Kadry, FlotoMax, inna przeglądarka): jeśli nieobecny kierowca nadal ma trasy od dziś, program sam je zdejmuje i szuka zastępstwa
+let healSig="",healBusy=false;
+async function absHeal(){if(healBusy||S.ro||!S.db||!S.absLoaded||!S.emps.length||!S.shifts.length||!Object.keys(S.scheds).length)return;
+  const sig=absSig()+"#"+Object.values(S.scheds).map(x=>x.id+":"+JSON.stringify((x.cells||[]).map(c=>c.date+c.shiftId+c.slot+c.empId))).join("|");if(sig===healSig)return;healSig=sig;
+  const am=absMap(),today=warsawDay(),act=new Set(S.emps.filter(e=>e.active).map(e=>e.id));
+  const bad=Object.values(S.scheds).some(x=>(x.cells||[]).some(c=>c.empId!=null&&c.date>=today&&!c.closed&&c.flotoRoute==null&&(am[c.empId]?.[c.date]||!act.has(c.empId))));if(!bad)return;
+  healBusy=true;const prevNoUndo=S.noUndo;S.noUndo=true;try{const moved=repairForAbsences();S.healMoved=(S.healMoved||0)+moved;
+    for(const x of Object.values(S.scheds))if(x._dirty){delete x._dirty;await guard(()=>saveSched(x))}
+    if(moved){if(!(S.localAbsEdit&&Date.now()-S.localAbsEdit<5000)){try{notice(`Grafik przestawiony z powodu nieobecności (zmiany: ${moved}).`)}catch(e){}}render()}}
+  finally{S.noUndo=prevNoUndo;healBusy=false}}
+// zamiany na jeden dzień uzgodnione w FlotoMax (status accepted): wpis obu kierowców po zamianie (dayAfter) ma pierwszeństwo przed planem Harmonogramu
+function swapLabels(txt){const out=[];for(const part of String(txt||"").split("+")){const p=part.trim();if(!p||/^(wolne|wolny|—|-)$/i.test(p))continue;const m=/^(.*?)(?:\s+od\s+(\d{1,2}:\d{2}))?$/i.exec(p);const lbl=m[1].trim();if(/^(urlop|l4|odpoczynek|wniosek)/i.test(lbl))continue;const sh=flotoShiftOf(lbl,/zwrot/i.test(lbl)?"zwroty":null);if(sh)out.push({sh,start:m[2]&&tmin(m[2])!=null?tmin(m[2])/60:null});else out.push({unknown:p})}return out}
+async function applyFlotoSwaps(list){const r={applied:[],warn:[]},today=warsawDay(),dirty=new Set(),cur0=S.current,prevNoUndo=S.noUndo;S.noUndo=true;
+  const sw=(Array.isArray(list)?list:[]).filter(x=>x&&x.status==="accepted"&&isoDate(x.date)&&x.date>=today).sort((a,b)=>String(a.decidedAt||"").localeCompare(String(b.decidedAt||""))||(a.id||0)-(b.id||0));
+  const dd=d=>d.slice(8)+"."+d.slice(5,7);
+  // liczy się ostatni stan każdego kierowcy w danym dniu (zamiany tam i z powrotem nie są odtwarzane po kolei)
+  const byDay={};for(const x of sw){const d=byDay[x.date]??={mention:new Set(),drivers:{}};[...swapLabels(x.gave),...swapLabels(x.took)].filter(w=>w.sh).forEach(w=>d.mention.add(w.sh.id));for(const dr of [x.driverA,x.driverB])if(dr)d.drivers[String(dr.id)]={dr,x}}
+  try{for(const date of Object.keys(byDay).sort()){const {mention,drivers}=byDay[date];const s0=Object.values(S.scheds).find(z=>z.start<=date&&date<=z.end);if(!s0)continue;const sid=s0.id,sch=()=>S.scheds[sid]||s0; // po każdym zapisie S.scheds dostaje nowe obiekty, więc zawsze bierz aktualny
+      const plan=[];for(const {dr,x} of Object.values(drivers)){const e=flotoEmp(dr.id,dr.name);if(!e){r.warn.push(`zamiana ${dd(date)}: kierowca ${dr.name||dr.id} nieznany w Harmonogramie`);continue}
+        const want=swapLabels(dr.dayAfter);const unk=want.filter(w=>w.unknown);if(unk.length){r.warn.push(`zamiana ${dd(date)} ${e.name}: nie znam etykiety „${unk.map(u=>u.unknown).join(", ")}” (dodaj typ zmiany)`);continue}plan.push({e,want,dr,x})}
+      // najpierw zdejmij etykiety z zamiany, których po niej nie ma, potem wpisz: zwolnione miejsce (np. dyżur) przejmuje drugi kierowca
+      const chE=new Set();for(const {e,want} of plan)for(const c of sch().cells.filter(c=>c.date===date&&c.empId===e.id)){if(!mention.has(c.shiftId)||want.some(w=>w.sh.id===c.shiftId)||c.closed||c.flotoRoute!=null)continue;clearCell(c);chE.add(e.id);dirty.add(sid)}
+      for(const {e,want,dr,x} of plan){for(const w of want){const has=sch().cells.find(c=>c.date===date&&c.empId===e.id&&c.shiftId===w.sh.id);if(has){if(!has.locked){has.locked=true;dirty.add(sid)}continue}
+          S.current=sid;await assignShift(e.id,date,w.sh.id,{auto:true});const n=sch().cells.find(c=>c.date===date&&c.shiftId===w.sh.id&&c.empId===e.id);
+          if(n){n.locked=true;n.flotoSwap=x.id;if(w.start!=null&&Math.abs(w.start-startAt(w.sh,date))>=0.25){n.startH=w.start;n.manualT=true}dirty.add(sid);chE.add(e.id)}else r.warn.push(`zamiana ${dd(date)}: nie udało się wpisać ${e.name}: ${w.sh.name}`)}
+        if(chE.has(e.id))r.applied.push(`${dd(date)} ${e.name}: ${dr.dayAfter||"wolne"}`)}}
+    for(const id of dirty){const s=S.scheds[id];if(s){const b=s.cells.filter(c=>c.empId==null&&c.date>=today).map(c=>c.date).sort()[0];if(b)repair(s,b);await saveSched(s)}}}
+  finally{S.noUndo=prevNoUndo;S.current=cur0&&S.scheds[cur0]?cur0:S.current}
+  return r}
 function repairForAbsences(){const am=absMap(),today=warsawDay(),act=new Set(S.emps.filter(e=>e.active).map(e=>e.id));let n=0;
   const wrong=c=>c.empId!=null&&c.date>=today&&!c.closed&&c.flotoRoute==null&&(am[c.empId]?.[c.date]||!act.has(c.empId));
   for(const s of Object.values(S.scheds)){const bad=s.cells.filter(wrong).map(c=>c.date).sort();
@@ -1683,6 +1722,7 @@ async function flotoSync0(manual){
   try{const dr=(await FL.mcp.callTool(FLOTO,"list_drivers",{},{cache:false})).payload;const r1=applyFlotoDrivers(dr);if(r1.added.length||r1.linked.length)await saveE();
     const starts=Object.values(S.scheds).map(s=>s.start).sort();const lo=warsawDay(-14);const from=starts.length&&starts[0]>lo?starts[0]:lo,to=warsawDay(1);
     const pTo=warsawDay(42);const asg=(await FL.mcp.callTool(FLOTO,"list_assignments",{from,to:pTo},{cache:false})).payload;const r4=await applyFlotoAssignments(asg,warsawDay(),pTo);
+    let r5={applied:[],warn:[]};try{const swp=(await FL.mcp.callTool(FLOTO,"list_swaps",{from:warsawDay(),to:pTo},{cache:false})).payload;r5=await applyFlotoSwaps(swp?.swaps??swp)}catch(e){r5.warn.push("zamiany z FlotoMax nie pobrane: "+flotoErr(e)+(e?.code==="not_in_manifest"?" (odśwież stronę)":""))}
     const tr=(await FL.mcp.callTool(FLOTO,"list_trips",{from,to},{cache:false})).payload;const r2=applyFlotoTrips(tr);for(const s of r2.scheds)await saveSched(s);
     await logTrips(tr,asg);
     if(r2.newShifts.length||r4.made.length)await saveS();
@@ -1694,9 +1734,9 @@ async function flotoSync0(manual){
     let avN=0;for(let i=0;i<21;i++){const d=warsawDay(i),am=absMap(),act=S.emps.filter(e=>e.active&&e.flotoId!=null);const un=act.filter(e=>am[e.id]?.[d]).map(e=>e.flotoId),av=act.filter(e=>!am[e.id]?.[d]).map(e=>e.flotoId);const sl=slotsOn(d);const note=`Wolnych miejsc na urlop: ${Math.max(0,sl.free)} (potrzeba kierowców: ${sl.need})`;const sig=JSON.stringify([un,av,note]);
       if(FL.avail[d]===sig)continue;try{await FL.mcp.callTool(FLOTO,"set_availability",{date:d,available:av,unavailable:un,note},{cache:false});FL.avail[d]=sig;avN++}catch(e){r3.warn.push(`Dostępność ${d} nie wysłana: ${flotoErr(e)}`);break}}
     FL.last=new Date();const hm=new Intl.DateTimeFormat("pl-PL",{timeZone:"Europe/Warsaw",hour:"2-digit",minute:"2-digit"}).format(FL.last);
-    FL.items=[...r1.added.map(n=>"Nowy kierowca z FlotoMax: "+n),...r2.done.map(x=>"Wpisano: "+x),...[...r4.made,...r2.newShifts].map(x=>`Nowy typ zmiany z FlotoMax: ${x} (1 dniówka, nie jest w Założeniach; zmień w „Typy zmian”)`),...r4.placed.map(x=>"Plan FlotoMax: "+x),...r4.need.map(x=>"Plan FlotoMax: "+x),...Object.entries(r4.noSched).map(([d,l])=>`Brak harmonogramu na ${d.slice(8)}.${d.slice(5,7)}: FlotoMax ma tam zaplanowane ${l.join(", ")}. Wylosuj grafik na ten okres, a zlecenia zostaną w nim uwzględnione.`),...r4.warn.map(x=>"Do sprawdzenia: "+x),...r3.added.map(x=>"Nieobecność z FlotoMax: "+x),...r3.removed.map(x=>"Usunięta we FlotoMax: "+x),...sent.map(x=>"Wysłano do FlotoMax: "+x),...(moved?[`Grafik od dziś przestawiony z powodu nieobecności lub kierowcy nieaktywnego/wirtualnego (zmiany: ${moved}).`]:[]),...r2.skipped.map(x=>"Do sprawdzenia: "+x),...r3.warn.map(x=>"Do sprawdzenia: "+x)];
-    FL.state=r2.skipped.length?"ok":"ok";FL.text=`FlotoMax: połączono, ostatnie pobranie ${hm}. `+(r1.added.length||r2.done.length||r3.added.length||r3.removed.length||sent.length||r4.placed.length?`Nowe: ${r1.added.length} kierowców, ${r4.placed.length} zleceń z planu, ${r2.done.length} wyjazdów, ${r3.added.length} nieobecności${sent.length?", wysłano "+sent.length:""}.`:"Bez zmian.")+(Object.keys(r4.noSched).length?` Brak grafiku na: ${Object.keys(r4.noSched).sort().map(d=>d.slice(8)+"."+d.slice(5,7)).join(", ")}.`:"")+(r2.skipped.length+r3.warn.length?` Do sprawdzenia: ${r2.skipped.length+r3.warn.length}.`:"");
-    if(r1.added.length||r1.linked.length||r2.done.length||r3.changed||r4.placed.length||r4.made.length||moved)render()}
+    FL.items=[...r1.added.map(n=>"Nowy kierowca z FlotoMax: "+n),...r2.done.map(x=>"Wpisano: "+x),...[...r4.made,...r2.newShifts].map(x=>`Nowy typ zmiany z FlotoMax: ${x} (1 dniówka, nie jest w Założeniach; zmień w „Typy zmian”)`),...r4.placed.map(x=>"Plan FlotoMax: "+x),...r5.applied.map(x=>"Zamiana z FlotoMax: "+x),...r5.warn.map(x=>"Do sprawdzenia: "+x),...r4.need.map(x=>"Plan FlotoMax: "+x),...Object.entries(r4.noSched).map(([d,l])=>`Brak harmonogramu na ${d.slice(8)}.${d.slice(5,7)}: FlotoMax ma tam zaplanowane ${l.join(", ")}. Wylosuj grafik na ten okres, a zlecenia zostaną w nim uwzględnione.`),...r4.warn.map(x=>"Do sprawdzenia: "+x),...r3.added.map(x=>"Nieobecność z FlotoMax: "+x),...r3.removed.map(x=>"Usunięta we FlotoMax: "+x),...sent.map(x=>"Wysłano do FlotoMax: "+x),...(moved?[`Grafik od dziś przestawiony z powodu nieobecności lub kierowcy nieaktywnego/wirtualnego (zmiany: ${moved}).`]:[]),...r2.skipped.map(x=>"Do sprawdzenia: "+x),...r3.warn.map(x=>"Do sprawdzenia: "+x)];
+    FL.state=r2.skipped.length?"ok":"ok";FL.text=`FlotoMax: połączono, ostatnie pobranie ${hm}. `+(r1.added.length||r2.done.length||r3.added.length||r3.removed.length||sent.length||r4.placed.length||r5.applied.length?`Nowe: ${r1.added.length} kierowców, ${r4.placed.length} zleceń z planu, ${r5.applied.length} zamian, ${r2.done.length} wyjazdów, ${r3.added.length} nieobecności${sent.length?", wysłano "+sent.length:""}.`:"Bez zmian.")+(Object.keys(r4.noSched).length?` Brak grafiku na: ${Object.keys(r4.noSched).sort().map(d=>d.slice(8)+"."+d.slice(5,7)).join(", ")}.`:"")+(r2.skipped.length+r3.warn.length?` Do sprawdzenia: ${r2.skipped.length+r3.warn.length}.`:"");
+    if(r1.added.length||r1.linked.length||r2.done.length||r3.changed||r4.placed.length||r4.made.length||r5.applied.length||moved)render()}
   catch(e){FL.state="err";FL.text="FlotoMax: "+flotoErr(e)}
   finally{FL.busy=false;renderFloto()}}
 $("floto-btn").onclick=()=>flotoSync(true);
@@ -1963,7 +2003,7 @@ const pinHash=async(salt,pin)=>{const b=await crypto.subtle.digest("SHA-256",new
 const newSalt=()=>[...crypto.getRandomValues(new Uint8Array(8))].map(x=>x.toString(16).padStart(2,"0")).join("");
 const canEdit=()=>!AUTH.me||GROUPS[AUTH.me.group]?.edit;
 const isAdmin=()=>!AUTH.me||AUTH.me.group==="admin";
-const saveUsers=async()=>{await S.db.doc("app/users").set({items:AUTH.users})};
+const saveUsers=async()=>{await dbSet("app/users",{items:AUTH.users},"konta")};
 function applyRole(){
   const g=AUTH.me?GROUPS[AUTH.me.group]:null;const allow=g?.tabs;
   document.querySelectorAll("nav .tab").forEach(b=>{b.hidden=!!allow&&!allow.includes(b.dataset.tab)&&b.dataset.tab!=="konta";if(b.dataset.tab==="konta")b.hidden=!isAdmin()||!AUTH.users});
@@ -2041,7 +2081,7 @@ const b64=u=>btoa(String.fromCharCode(...new Uint8Array(u))),unb64=s=>Uint8Array
 async function payKey(pass,salt){const k=await crypto.subtle.importKey("raw",new TextEncoder().encode(pass),"PBKDF2",false,["deriveKey"]);return crypto.subtle.deriveKey({name:"PBKDF2",salt:unb64(salt),iterations:250000,hash:"SHA-256"},k,{name:"AES-GCM",length:256},false,["encrypt","decrypt"])}
 async function payEnc(obj){const iv=crypto.getRandomValues(new Uint8Array(12));const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},PAY.key,new TextEncoder().encode(JSON.stringify(obj)));return{iv:b64(iv),ct:b64(ct)}}
 async function payDec(d){const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(d.iv)},PAY.key,unb64(d.ct));return JSON.parse(new TextDecoder().decode(pt))}
-async function savePay(){const e=await payEnc(PAY.data);PAY.doc={...PAY.doc,...e,by:AUTH.me?.name||"",at:new Date().toISOString()};await S.db.doc("app/payroll").set(PAY.doc)}
+async function savePay(){const e=await payEnc(PAY.data);PAY.doc={...PAY.doc,...e,by:AUTH.me?.name||"",at:new Date().toISOString()};await dbSet("app/payroll",PAY.doc,"płace")}
 function applyPayRates(){const r=PAY.key&&hasPay()?PAY.data?.rates||{}:null;for(const e of S.emps){if(r&&r[e.id]){e.rate=r[e.id].rate;e.rateUnit=r[e.id].unit}else{delete e.rate;delete e.rateUnit}}}
 function payLock(){PAY.key=null;PAY.data=null;applyPayRates();document.body.classList.remove("pay-ok")}
 async function payLoad(){try{const s=await docOnce("app/payroll");PAY.doc=s.exists?structuredClone(s.data()):null}catch(e){PAY.doc=null}}

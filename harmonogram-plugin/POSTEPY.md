@@ -184,3 +184,11 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v80 — dzisiejszy dzień w planie
 - Nagłówek bieżącego dnia ma etykietę „DZIŚ” i podkreślenie w kolorze akcentu, a jego kolumna w widoku kafelków boczne obramowanie. Na osi godzin oznaczony jest nagłówek.
+
+## v81 — zamiany z FlotoMax, nieobecności z każdej strony, widoczne błędy zapisu
+- **Zamiany z FlotoMax** (`list_swaps`): przyjęte zamiany na jeden dzień między kierowcami są wczytywane przy każdym pobraniu. Liczy się ostatni stan każdego kierowcy danego dnia (`dayAfter`), więc zamiany tam i z powrotem nie są odtwarzane po kolei. Najpierw zdejmuje etykietę z zamiany, potem wpisuje drugiego kierowcę w zwolnione miejsce; wpisy są zablokowane. Oczekujące (pending) pomijane. Komunikat „Zamiana z FlotoMax: 08.10 Andrzej Czogała: Dyżur od 14:30”. Deklaracja łącznika rozszerzona o `list_swaps` (8 narzędzi).
+- **Nieobecność z każdej strony zdejmuje trasy**: formularz w Kadrach nie uruchamiał naprawy grafiku (urlop wpisany, trasy zostawały) — naprawione. Do tego samonaprawa (`absHeal`): gdy nieobecność przyjdzie z FlotoMax, z innej przeglądarki albo z pominiętej ścieżki, a nieobecny kierowca nadal ma trasy od dziś, program sam je zdejmuje, szuka zastępstwa i zapisuje.
+- **Widoczny błąd zapisu**: każdy nieudany zapis do bazy pokazuje czerwony pasek „NIE ZAPISANO …”; brak prawa zapisu (konto z samym podglądem) tłumaczy, że właściciel musi udostępnić stronę z prawem edycji. Nieudany zapis nieobecności cofa ją w pamięci, żeby nagłówki nie pokazywały urlopu, którego nie ma w bazie. Prawo zapisu sprawdzane z góry (`user.can("data.write")`).
+- **Kolizja na kafelku**: nieobecny kierowca z nadal przydzieloną trasą ma na kafelku czerwone „⚠ Urlop – trasa nadal przydzielona” (np. w trybie podglądu).
+- Testy: `testy/abs3.js` (8), `testy/floto3.js` (8). Cały zestaw: 26 plików, 368 OK. Symulacja na danych z bazy: bez błędów, zamrożone dni bez zmian.
+- Zgłoszenie użytkownika (06.10): urlop Dziadury 07–11.10 nie trafił do bazy (w bazie nie ma żadnej ręcznie wpisanej nieobecności, tylko 45 dni z FlotoMax) — najpewniej odmowa zapisu, wcześniej niewidoczna. Po odświeżeniu trzeba wpisać ponownie.
