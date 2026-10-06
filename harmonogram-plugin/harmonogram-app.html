@@ -1699,7 +1699,8 @@ const FL_IN={urlop:"urlop",l4:"l4",wolne:"odpoczynek"},FL_OUT={urlop:"urlop",l4:
 const absIgnore=()=>new Set((S.hr?._absIgnore||[]).map(String));
 async function absForget(items){const ids=[...new Set(items.filter(a=>a&&a.flotoAbs!=null).map(a=>String(a.flotoAbs)))];if(!ids.length)return;S.hr=S.hr||{};S.hr._absIgnore=[...new Set([...(S.hr._absIgnore||[]).map(String),...ids])].slice(-500);try{await dbSet("app/hr",{items:S.hr},"kadry")}catch(e){}}
 function applyFlotoAbsences(list,from,to){const added=[],removed=[],warn=[],seen=new Set(),ign=absIgnore();let changed=false;
-  for(const a of Array.isArray(list)?list:[]){const reason=FL_IN[a?.type];if(!reason||!isoDate(a.from)||!isoDate(a.to||a.from))continue;if(ign.has(String(a.id)))continue; // usunięta w Harmonogramie: nie wczytuj ponownie
+  // wnioski kierowców (status pending/oczekuje/wniosek) wchodzą jako „wniosek urlopowy” do zatwierdzenia, nie blokują tras
+  for(const a of Array.isArray(list)?list:[]){const pend=/^(pending|oczekuj|wniosek|requested|new)/i.test(String(a?.status||""));const reason=pend?"wniosek":FL_IN[a?.type];if(!reason||!isoDate(a.from)||!isoDate(a.to||a.from))continue;if(ign.has(String(a.id)))continue; // usunięta w Harmonogramie: nie wczytuj ponownie
     const e=flotoEmp(a.driverId,a.driverName);if(!e){warn.push(`${a.driverName||a.driverId}: nieobecność we FlotoMax, brak kierowcy w Harmonogramie`);continue}
     seen.add(String(a.id));let n=0;const days=[...range(a.from,a.to||a.from)].slice(0,400);
     for(const d of days){const ex=S.abs.find(x=>x.empId===e.id&&x.date===d);
@@ -1767,7 +1768,7 @@ async function flotoSync0(manual){
     await logTrips(tr,asg);
     if(r2.newShifts.length||r4.made.length)await saveS();
     const aFrom=warsawDay(-31),aTo=warsawDay(366);const ab=(await FL.mcp.callTool(FLOTO,"list_absences",{from:aFrom,to:aTo},{cache:false})).payload;
-    const r3=applyFlotoAbsences(ab?.absences??ab,aFrom,aTo);const sent=[];
+    const abList=[...(ab?.absences??(Array.isArray(ab)?ab:[])),...(ab?.requests??ab?.wnioski??ab?.pending??[]).map(x=>({...x,status:x.status||"pending"}))];const r3=applyFlotoAbsences(abList,aFrom,aTo);const sent=[];
     for(const g of flotoAbsOutbox(aFrom)){try{await FL.mcp.callTool(FLOTO,"report_absence",{driverId:g.emp.flotoId,from:g.from,to:g.to,type:FL_OUT[g.reason],note:"z Harmonogramu"},{cache:false});g.items.forEach(a=>a.flotoSent=true);r3.changed=true;sent.push(`${g.emp.name}: ${REASONS[g.reason]} ${g.from===g.to?g.from:g.from+" – "+g.to}`)}catch(e){r3.warn.push(`Nie wysłano do FlotoMax (${g.emp.name} ${g.from}): ${flotoErr(e)}`)}}
     if(r3.changed)await saveA();let moved=repairForAbsences();for(const s of Object.values(S.scheds))if(s._dirty){delete s._dirty;await saveSched(s)}
     // dostępność i wolne miejsca na urlop na najbliższe 3 tygodnie (FlotoMax blokuje nią wnioski ponad limit)

@@ -201,3 +201,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v83 — pasek kafelków przyklejony
 - Pasek kafelków (Urlop, L4, trasy) w widoku Kafelki jest przyklejony u góry ekranu przy przewijaniu, więc kafelek da się upuścić na kierowcę z dołu listy. Test `testy/sticky.js`.
+
+## v84 — wnioski z FlotoMax
+- `list_absences`: wpisy ze statusem `pending/oczekuje/wniosek` (albo pole `requests`) wchodzą jako „wniosek urlopowy” (nie blokują tras), gdy FlotoMax zacznie je zwracać. Zatwierdzone wnioski kierowców FlotoMax nadal nie przekazuje — DLA-FLOTOMAX p. 8.
