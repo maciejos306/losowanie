@@ -33,6 +33,8 @@ const r=await pg.evaluate(()=>{FL.mcp=null;const o={};const m={};S.shifts.forEac
  w.cells.push({date:"2026-10-02",shiftId:"t7",slot:0,empId:"e3",flotoRoute:921,tripAt:["2026-10-01T21:45:00Z","2026-10-02T05:00:00Z"],out:"23:45",back:"07:00",closed:true});
  w.cells.push({date:"2026-10-01",shiftId:"t7",slot:0,empId:"e4",flotoRoute:922,tripAt:["2026-09-30T22:15:00Z","2026-10-01T05:00:00Z"],out:"00:15",back:"07:00",closed:true});
  o.t7=learned(m.t7);
+ // trasa daleka bez własnych przejazdów (t10) w niedzielę bierze wzorzec dalekich tras z niedzieli (t11: 12:30 tego dnia)
+ o.t10sun=learned(m.t10,"2026-10-11");o.t10wed=learned(m.t10,"2026-10-07");
  // dyżur (Nagel) się nie uczy
  w.cells.push({date:"2026-09-30",shiftId:"nagel",slot:0,empId:"e7",tripAt:["2026-09-30T12:00:00Z","2026-09-30T19:00:00Z"],out:"14:00",back:"21:00",duty:"done",dutyH:7});
  o.nagel=learned(m.nagel,"2026-10-07");
@@ -52,6 +54,8 @@ ok('dziennik triplog uczy bez komórki (Trasa 5: 06:00, 8 h)',r.t5&&r.t5.n===1&&
 ok('trasa o dwóch porach: ogólnie pora ostatniego przejazdu (12:30 tego dnia), czas = średnia obu (22 h)',r.t11&&r.t11.st===12.5&&r.t11.prev===false&&r.t11.hh===22&&r.t11.n===2,JSON.stringify(r.t11));
 ok('…a w czwartek własna pora (19:45 dzień wcześniej)',r.t11thu&&r.t11thu.st===19.75&&r.t11thu.prev===true,JSON.stringify(r.t11thu));
 ok('wyjazdy wokół północy uśredniają się na 00:00 tego dnia, nie „dzień wcześniej”',r.t7&&r.t7.st===0&&r.t7.prev===false,JSON.stringify(r.t7));
+ok('trasa bez przejazdów: wzorzec dalekich tras z tego dnia tygodnia',r.t10sun&&r.t10sun.pattern&&r.t10sun.st===12.5&&r.t10sun.prev===false,JSON.stringify(r.t10sun));
+ok('…a w dzień bez wzorca nadal statycznie',r.t10wed===null||!r.t10wed.pattern,JSON.stringify(r.t10wed));
 ok('dyżur się nie uczy',r.nagel===null);
 ok('Typy zmian pokazują naukę',/FlotoMax: dzień wcześniej 19:00 · 18,25 h \(śr\. z 3\)/.test(r.html));
 console.log('ERRS',errs);await b.close()})();

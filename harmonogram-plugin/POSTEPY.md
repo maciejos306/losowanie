@@ -219,3 +219,8 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v89
 - Wysyłka do FlotoMax: dni odpoczynku po dalekiej trasie idą jako „Odpoczynek po Trasa X” zamiast „wolne”.
+
+## v90 — nauka: wzorzec dnia tygodnia, przejazdy bez etykiety
+- Trasa daleka bez własnych przejazdów (np. Trasa 9: FlotoMax nie ma ani jednego zakończonego przejazdu z tą etykietą) bierze wzorzec innych dalekich tras z tego dnia tygodnia (np. niedzielne 11/12/13 wyjeżdżają w niedzielę ok. 12:30–19:00), zamiast statycznych „21:00 dzień wcześniej, 20 h”. Gdy w danym dniu nie ma wzorca, zostaje ustawienie z Typów zmian.
+- Przejazd bez etykiety we FlotoMax (tak zapisano dalekie trasy z 27.09) program przypisuje po kierowcy i dniu z grafiku, jeśli ma tego dnia dokładnie jedną trasę; inaczej zgłasza „wyjazd bez etykiety”.
+- DLA-FLOTOMAX p. 9 oznaczony jako naprawiony po stronie FlotoMax.

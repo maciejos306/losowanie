@@ -499,9 +499,12 @@ function learnReadings(){const lo=addDays(typeof warsawDay==="function"?warsawDa
   // godzina wyjazdu: średnia tylko z przejazdów o podobnej porze co ostatni (±3 h), żeby trasa jeżdżąca raz w południe, raz wieczorem nie dostała średniej „pośrodku”
   const map={},avg=a=>{const r=a.slice(0,LEARN_N),mean=(l,k)=>l.reduce((x,y)=>x+y[k],0)/l.length;const same=a.filter(x=>Math.abs(x.rel-a[0].rel)<=3).slice(0,LEARN_N);const rr=Math.round(mean(same,"rel")*4)/4;return{hh:Math.round(mean(r,"hh")*4)/4,st:rr<0?rr+24:rr+0,prev:rr<0,n:r.length,last:r[0].date}};
   for(const [id,a] of Object.entries(by)){a.sort((x,y)=>y.date.localeCompare(x.date));map[id]=avg(a);const wd={};a.forEach(x=>(wd[wdOf(x.date)]??=[]).push(x));for(const [w,l] of Object.entries(wd))map[id+"|"+w]=avg(l)}
+  // wzorzec dalekich tras danego dnia tygodnia (np. niedzielne wyjeżdżają w niedzielę w południe): dla trasy bez własnych przejazdów
+  const farWd={};for(const [id,a] of Object.entries(by)){if(!isFar(shMap[id]))continue;a.forEach(x=>(farWd[wdOf(x.date)]??=[]).push(x))}
+  for(const [w,l] of Object.entries(farWd)){l.sort((x,y)=>y.date.localeCompare(x.date));map["*far|"+w]={...avg(l),pattern:true}}
   return map}
 function learned(sh,d){if(!sh||(sh.part||"full")==="pm")return null;const sig=Object.values(S.scheds).map(s=>s.id+":"+(s.cells||[]).filter(c=>c.tripAt).length).join("|")+"#"+(FL.logged?FL.logged.size:0)+"#"+S.shifts.length;
-  if(LRN.sig!==sig)LRN={sig,map:learnReadings()};return(d?LRN.map[sh.id+"|"+wdOf(d)]:null)??LRN.map[sh.id]??null}
+  if(LRN.sig!==sig)LRN={sig,map:learnReadings()};return(d?LRN.map[sh.id+"|"+wdOf(d)]:null)??LRN.map[sh.id]??(d&&isFar(sh)?LRN.map["*far|"+wdOf(d)]:null)??null}
 const startAt=(sh,d)=>learned(sh,d)?.st??startOf(sh,d);
 const hoursAt=(sh,d)=>learned(sh,d)?.hh??hoursOf(sh);
 function loadTripLog(){if(!S.db||FL.logged)return;FL.logged=new Map();try{S.db.collection("triplog").onSnapshot(q=>{const n=FL.logged.size;q.docs.forEach(d=>FL.logged.set(d.id,JSON.stringify(d.data())));if(FL.logged.size!==n)render()})}catch(e){}}
@@ -1645,7 +1648,9 @@ function applyFlotoTrips(trips){const done=[],skipped=[],touched=new Set(),shMap
     if(!t||!t.departedAt||!t.returnedToBaseAt){if(t&&t.departedAt)skip("w trasie, brak powrotu do bazy");continue}
     const e=flotoEmp(t.driverId,t.driverName);if(!e){skip("brak takiego kierowcy w Harmonogramie");continue}
     const date=String(t.deliveryDate||"");if(!isoDate(date)){skip("brak daty dostawy");continue}
-    const sh=ensureFlotoShift(t.label,FL.kinds[t.routeId],t.departedAt,t.returnedToBaseAt,newShifts);if(!sh){skip("nie ma takiego typu zmiany w Harmonogramie (dodaj go w „Typy zmian”)");continue}
+    let sh=ensureFlotoShift(t.label,FL.kinds[t.routeId],t.departedAt,t.returnedToBaseAt,newShifts);
+    if(!sh&&!String(t.label||"").trim()){const mine=Object.values(S.scheds).flatMap(x=>x.cells||[]).filter(c=>c.empId===e.id&&c.date===date&&!isDutyCell(c,shMap[c.shiftId])&&shMap[c.shiftId]);if(mine.length===1)sh=shMap[mine[0].shiftId]} // bez etykiety: trasa z grafiku tego kierowcy
+    if(!sh){skip(String(t.label||"").trim()?"nie ma takiego typu zmiany w Harmonogramie (dodaj go w „Typy zmian”)":"wyjazd bez etykiety we FlotoMax i bez jednej trasy w grafiku tego dnia");continue}
     const hrs=tripHours(t.departedAt,t.returnedToBaseAt);if(hrs==null){skip("błędne godziny");continue}
     if(hrs<0.25){skip(`wyjazd trwał tylko ${Math.round(hrs*60)} min, pewnie błędne kliknięcie, nie wpisuję`);continue}
     const ss=Object.values(S.scheds).filter(x=>x.start<=date&&date<=x.end);if(!ss.length){skip("brak harmonogramu na ten dzień");continue}
