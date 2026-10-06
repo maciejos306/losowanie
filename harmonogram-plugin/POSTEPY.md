@@ -207,3 +207,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v85
 - „Brak obsady” pod planem liczy tylko dziś i przyszłość (stare braki z minionych dni nie straszą).
+
+## v86
+- Naprawa kolizji nie obsadza pustych miejsc spoza Założeń na dany dzień (bez planu FlotoMax) — takiej trasy tego dnia nie ma; „Brak obsady” też ich nie liczy. Przykład 06.10: pusta Trasa 6 w piątek 09.10 dostała kierowcę, choć piątek w Założeniach nie ma Trasy 6.

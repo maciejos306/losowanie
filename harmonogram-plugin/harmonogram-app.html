@@ -682,6 +682,8 @@ function repair(sched,fromDate,extraLocked=new Set(),ban=new Set()){
     const todays=sched.cells.filter(c=>c.date===day).sort((a,b)=>(lockedKeys.has(key(a))?0:1)-(lockedKeys.has(key(b))?0:1)||byPriority(shOf[a.shiftId]||{weight:1,id:a.shiftId},shOf[b.shiftId]||{weight:1,id:b.shiftId})||a.slot-b.slot);
     for(const c of todays){
       const sh=shOf[c.shiftId]||{id:c.shiftId,weight:1}; const w=sh.weight; let emp=c.empId;
+      // puste miejsce spoza Założeń na ten dzień (bez planu FlotoMax): nie obsadzaj — nie ma takiej trasy
+      if(emp==null&&c.flotoPlan==null&&!lockedKeys.has(key(c))&&!shiftsOn(day).some(x=>x.id===c.shiftId))continue;
       const part=cpart(c,sh,day);const dutyLike=part==="pm"&&!c.part;const pk=dutyLike?"pm":(part==="pm"?"pmr":part);
       const empObj=emps.find(e=>e.id===emp);
       if(frozen||(soft&&emp!=null)||lockedKeys.has(key(c))||c.closed||c.flotoRoute!=null||c.duty==="done"){if(emp!=null){mark(used,emp,pk);if(!dutyLike){(today[emp]??=[]).push(sh.id);if((sh.weight??1)>=1.5)heavy.add(emp)}accept(emp,sh,day,dutyLike?"pm":"full",c)}continue}
@@ -907,7 +909,7 @@ function renderPlan0(){
   T.innerHTML=h; renderTimeline();
   $("palette").innerHTML=`<div class="chip urlop" data-drag-shift="abs:urlop" title="Urlop: przeciągnij na kierowcę i dzień. Zwalnia trasy tego dnia i naprawia kolizje.">Urlop<small>nieobecność</small></div><div class="chip l4" data-drag-shift="abs:l4" title="L4: przeciągnij na kierowcę i dzień. Zwalnia trasy tego dnia i naprawia kolizje.">L4<small>nieobecność</small></div>`+S.shifts.map(sh=>`<div class="chip" style="background:${colorOf(sh.id)}" data-drag-shift="${sh.id}">${esc(sh.name)}<small>${PART[sh.part||"full"]} · ${String(sh.weight).replace(".",",")} dn.</small></div>`).join("");
   const grpN={};s.cells.forEach(c=>{if(c.empId!=null){const k=c.date+"|"+c.shiftId;grpN[k]=(grpN[k]||0)+1}});
-  const seenG={},today0=warsawDay();const empty=s.cells.filter(c=>{if(c.empId!=null||c.date<today0)return false;const k=c.date+"|"+c.shiftId;const need=+(shMap[c.shiftId]?.people)||1;const have=grpN[k]||0;seenG[k]=(seenG[k]||0)+1;return have+seenG[k]-1<need});
+  const seenG={},today0=warsawDay();const empty=s.cells.filter(c=>{if(c.empId!=null||c.date<today0||(c.flotoPlan==null&&!shiftsOn(c.date).some(x=>x.id===c.shiftId)))return false;const k=c.date+"|"+c.shiftId;const need=+(shMap[c.shiftId]?.people)||1;const have=grpN[k]||0;seenG[k]=(seenG[k]||0)+1;return have+seenG[k]-1<need});
   if(empty.length)$("unfilled").innerHTML=`<div class="warn">Brak obsady (${empty.length}): ${empty.map(c=>`${c.date.slice(8)}.${c.date.slice(5,7)} ${esc(shMap[c.shiftId]?.name||"?")}`).join(", ")}</div>`;
 }
 const esc=s=>String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
