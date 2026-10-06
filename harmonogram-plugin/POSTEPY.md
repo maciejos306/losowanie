@@ -213,3 +213,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v87
 - Kafelki: jedna etykieta w dniu (trasa z zapamiętaną połówką po dawnym łączeniu z dyżurem) wraca na całe pole; sam dyżur nadal po południu. Test `testy/single.js`.
+
+## v88
+- Wysyłka grafiku do FlotoMax podaje `plannedStart` (planowany wyjazd z nauki/planu) dla każdego wpisu — FlotoMax pokazywał dotąd „start orientacyjny (Harmonogram nie podał godziny)”. Sprawdzone na żywo: `set_schedule` odpowiada `ok:true, saved:1`.
