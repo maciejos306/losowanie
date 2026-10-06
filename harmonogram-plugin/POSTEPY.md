@@ -181,3 +181,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 - Okno wyboru komórki (dotknięcie) ma Urlop i L4, a gdy nieobecność już jest — kafelek „✓ Urlop/L4, dotknij, żeby zdjąć”.
 - Ostrzeżenie przy wpisywaniu nieobecności (także w Kadrach): gdy tego dnia zabraknie kierowców do obsady tras lub nie ma już wolnych miejsc na urlop, komunikat „⚠ Uwaga: …”; dodatkowo „⚠ N tras tego dnia nie ma kierowcy”, jeśli naprawa nie znalazła zastępstwa. Nie blokuje wpisu — L4 to fakt. Blokada zostaje tylko dla wniosków urlopowych.
 - Test `testy/abs2.js` (7 sprawdzeń). Cały zestaw: 24 pliki, 352 OK.
+
+## v80 — dzisiejszy dzień w planie
+- Nagłówek bieżącego dnia ma etykietę „DZIŚ” i podkreślenie w kolorze akcentu, a jego kolumna w widoku kafelków boczne obramowanie. Na osi godzin oznaczony jest nagłówek.

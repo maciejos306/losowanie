@@ -237,7 +237,7 @@
   .kal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
   .kal .kh{font-size:12px;font-weight:600;color:var(--muted);text-align:center;padding:4px 0;text-transform:uppercase;letter-spacing:.04em}
   .kal .kd{background:var(--paper);border:1px solid var(--line2);border-radius:10px;min-height:118px;padding:8px;display:flex;flex-direction:column;gap:4px;min-width:0}
-  .kal .kd.out{opacity:.45}.kal .kd.we{background:var(--weekend)}.kal .kd.today{box-shadow:inset 0 0 0 2px var(--accent)}
+  .kal .kd.out{opacity:.45}.kal .kd.we{background:var(--weekend)}.kal .kd.today{box-shadow:inset 0 0 0 2px var(--accent)}th.day.today{box-shadow:inset 0 -4px 0 var(--accent)}th.day .tdy{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:999px;background:var(--accent);color:#fff;font-size:9.5px;letter-spacing:.08em;vertical-align:middle}td.tdtoday{box-shadow:inset 3px 0 0 var(--accent),inset -3px 0 0 var(--accent)}
   .kal .kd.hol{background:#FCEBDD}.kal .kd.off{background:#EFE9F7}
   .kal .num{font-weight:700;font-size:15px;display:flex;justify-content:space-between;align-items:baseline}.kal .num small{font-size:11px;font-weight:500;color:var(--muted)}
   .kal .ev{font-size:11.5px;line-height:1.25;border-radius:6px;padding:2px 6px;overflow-wrap:anywhere}
@@ -811,7 +811,7 @@ function renderTimeline(){
   const allCells=[...s.cells,...hist].filter(c=>c.empId!=null);
   const dayN=d=>Math.round(new Date(d+"T00:00:00Z").getTime()/3600000);
   const restInfo=(empId,d)=>{const mine=allCells.filter(c=>c.empId===empId).map(c=>{const sh=shMap[c.shiftId];const b=cellBounds(c,sh,c.date);const st=dayN(c.date)+b.st-(cellPrev(c,sh)?24:0);return{c,name:sh?.name||"?",st,en:st+b.hh}});const now=dayN(d)+12;const prev=mine.filter(x=>x.en<=now).sort((a,b)=>b.en-a.en)[0];const next=mine.filter(x=>x.st>=now).sort((a,b)=>a.st-b.st)[0];if(!prev)return "";const gap=(next?next.st:null)!=null?next.st-prev.en:null;const fmtDT=t=>{const dd=Math.floor(t/24),hh=t-dd*24;const dt=new Date(dd*3600000*24);return DAYN[dt.getUTCDay()].slice(0,3).toLowerCase()+" "+fmtH(hh)};return `Odpoczynek po ${prev.name}: od ${fmtDT(prev.en)}`+(next?` do ${fmtDT(next.st)} (${next.name}) — ${String(Math.round(gap*10)/10).replace(".",",")} h wolnego`:" — następna trasa nie jest jeszcze zaplanowana")};
-  let html='<colgroup><col style="width:170px">'+days.map(()=>'<col style="width:215px">').join("")+'<col style="width:150px"></colgroup><tr><th></th>'+days.map((d,di)=>`<th data-dayhead="${d}" class="day dstart${di%2?" alt":""}${wdOf(d)===0||wdOf(d)===6?" weekend":""}">${DAYN[wdOf(d)]}<small>${d.slice(8)}.${d.slice(5,7)}</small>${estTag(s,d)}</th>`).join("")+'<th class="sum" title="Godziny pracy w bieżącym tygodniu · liczba kafelków">Σ tydz.</th></tr>';
+  let html='<colgroup><col style="width:170px">'+days.map(()=>'<col style="width:215px">').join("")+'<col style="width:150px"></colgroup><tr><th></th>'+days.map((d,di)=>`<th data-dayhead="${d}" class="day dstart${di%2?" alt":""}${d===warsawDay()?" today":""}${wdOf(d)===0||wdOf(d)===6?" weekend":""}">${DAYN[wdOf(d)]}${d===warsawDay()?'<b class="tdy">DZIŚ</b>':""}<small>${d.slice(8)}.${d.slice(5,7)}</small>${estTag(s,d)}</th>`).join("")+'<th class="sum" title="Godziny pracy w bieżącym tygodniu · liczba kafelków">Σ tydz.</th></tr>';
   html+='<tr><th style="font-weight:400;color:var(--muted);font-size:10px">godz.</th>'+days.map(()=>'<td style="padding:0"><div class="ticks"><span>0</span><span>3</span><span>6</span><span>9</span><span>12</span><span>15</span><span>18</span><span>21</span></div></td>').join("")+'<td class="sum"></td></tr>';
   let grand=0,far=0,over40=0;
   for(const e of empsShown){
@@ -867,7 +867,7 @@ function renderPlan0(){
   const balAll=balances(null);
   const empsShown=S.emps.filter(e=>e.active||byEmpDay[e.id]);
   const isSun=d=>wdOf(d)===0, isWe=d=>wdOf(d)===0||wdOf(d)===6;
-  let h='<tr><th class="corner" rowspan="2"></th>'+days.map((d,di)=>`<th data-dayhead="${d}" class="day dstart${di%2?" alt":""}${isWe(d)?" weekend":""}" colspan="${isSun(d)?1:2}">${DAYN[wdOf(d)]}<small>${d.slice(8)}.${d.slice(5,7)}</small>${estTag(s,d)}</th>`).join("")+"</tr>";
+  let h='<tr><th class="corner" rowspan="2"></th>'+days.map((d,di)=>`<th data-dayhead="${d}" class="day dstart${di%2?" alt":""}${d===warsawDay()?" today":""}${isWe(d)?" weekend":""}" colspan="${isSun(d)?1:2}">${DAYN[wdOf(d)]}${d===warsawDay()?'<b class="tdy">DZIŚ</b>':""}<small>${d.slice(8)}.${d.slice(5,7)}</small>${estTag(s,d)}</th>`).join("")+"</tr>";
   h+='<tr>'+days.map((d,di)=>{const al=di%2?" alt":"";return isSun(d)?`<th class="sub dstart${al} weekend">cały dzień</th>`:`<th class="sub dstart${al}${isWe(d)?" weekend":""}">rano</th><th class="sub${al}${isWe(d)?" weekend":""}">po poł.</th>`}).join("")+"</tr>";
   for(const e of empsShown){
     const ec=empColor(e), rowBg=`background:${tint(ec,.16)};`;
@@ -885,11 +885,11 @@ function renderPlan0(){
         else if(rest[e.id]?.[d])inner=`<div class="chip rest" data-pick="${e.id}|${d}">☾ odpoczynek</div>`;
         else if(pm[e.id]?.[d])inner=`<div class="chip wniosek" data-pick="${e.id}|${d}">wniosek urlop.</div>`;
         else inner=`<div class="chip off" data-pick="${e.id}|${d}">— wolne —</div>`;
-        h+=`<td class="cell dstart${wc}" colspan="${span}" data-drop="${e.id}|${d}" style="${we?"":rowBg}">${inner}</td>`;
+        h+=`<td class="cell${d===warsawDay()?" tdtoday":""} dstart${wc}" colspan="${span}" data-drop="${e.id}|${d}" style="${we?"":rowBg}">${inner}</td>`;
       } else {
         const emptyChip=`<div class="chip off" data-pick="${e.id}|${d}">—</div>`;
         const left=full||amC;
-        h+=`<td class="cell half dstart${wc}" data-drop="${e.id}|${d}" style="${we?"":rowBg}">${left?chip(left):emptyChip}</td><td class="cell half${wc}" data-drop="${e.id}|${d}" style="${we?"":rowBg}">${pmC?chip(pmC):emptyChip}</td>`;
+        h+=`<td class="cell${d===warsawDay()?" tdtoday":""} half dstart${wc}" data-drop="${e.id}|${d}" style="${we?"":rowBg}">${left?chip(left):emptyChip}</td><td class="cell${d===warsawDay()?" tdtoday":""} half${wc}" data-drop="${e.id}|${d}" style="${we?"":rowBg}">${pmC?chip(pmC):emptyChip}</td>`;
       }
     }
     h+="</tr>";
