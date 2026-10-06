@@ -1790,7 +1790,10 @@ function flotoWeekEntries(monday){const end=addDays(monday,6),m={};S.shifts.forE
   for(const e of S.emps){if(e.virtual||isVirtualDriver(e.name))continue;if(e.flotoId==null){if(e.active)skipped.push(e.name);continue}
     for(const d of range(monday,end)){const cs=Object.values(S.scheds).flatMap(s=>s.cells||[]).filter(c=>c.empId===e.id&&c.date===d).sort((a,b)=>cellBounds(a,m[a.shiftId],d).st-cellBounds(b,m[b.shiftId],d).st);
       if(cs.length){const b=cellBounds(cs[0],m[cs[0].shiftId],d);const st=((b.st%24)+24)%24;out.push({driverId:e.flotoId,date:d,label:cs.map(c=>m[c.shiftId]?.name||c.shiftId).join(" + "),plannedStart:fmtH(st)});continue}
-      if(!e.active)continue;const a=am[e.id]?.[d];out.push({driverId:e.flotoId,date:d,label:a?(REASONS[a]||a):"wolne"})}}
+      if(!e.active)continue;const a=am[e.id]?.[d];
+      // odpoczynek po dalekiej trasie też idzie do FlotoMax (inaczej kierowca widzi „wolne” i spedytor może go wziąć)
+      const restAfter=!a&&Object.values(S.scheds).flatMap(x=>x.cells||[]).find(c=>c.empId===e.id&&c.date<d&&!isDutyCell(c,m[c.shiftId])&&restOf(m[c.shiftId])>0&&addDays(c.date,restOf(m[c.shiftId]))>=d);
+      out.push({driverId:e.flotoId,date:d,label:a?(REASONS[a]||a):restAfter?"Odpoczynek po "+(m[restAfter.shiftId]?.name||""):"wolne"})}}
   return{entries:out,skipped}}
 async function flotoSendSchedule(){const s=S.scheds[S.current];if(!s){notice("Otwórz grafik, który chcesz wysłać.");return}
   if(FL.mcp===undefined)FL.mcp=await claude.use("mcp");if(!FL.mcp){notice("Łącznik FlotoMax niedostępny w tym widoku.");return}

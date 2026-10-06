@@ -216,3 +216,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 
 ## v88
 - Wysyłka grafiku do FlotoMax podaje `plannedStart` (planowany wyjazd z nauki/planu) dla każdego wpisu — FlotoMax pokazywał dotąd „start orientacyjny (Harmonogram nie podał godziny)”. Sprawdzone na żywo: `set_schedule` odpowiada `ok:true, saved:1`.
+
+## v89
+- Wysyłka do FlotoMax: dni odpoczynku po dalekiej trasie idą jako „Odpoczynek po Trasa X” zamiast „wolne”.
