@@ -29,3 +29,5 @@ Używa narzędzi: list_drivers, list_assignments, list_trips, list_absences, rep
    4. **Trasa przez północ:** jeden kafelek od wyjazdu do powrotu, a w następnym dniu kontynuacja „→ Trasa 11 do 15:15”. Tak już macie.
    5. **Odpoczynek 9 h w trasie** licz tylko dla tras kat. C (obecnie T10). Pokazuj go jako pasek w kafelku i odejmuj od czasu pracy.
    6. **Ręczna poprawka w planie ma wygrywać z wyliczeniem.** U nas jest to `manualT` + `locked`. Bez tego każda synchronizacja przywraca błędny dzień.
+
+7. **Odwołanie nieobecności.** Harmonogram wysyła urlop/L4 przez `report_absence`, ale nie ma jak go odwołać, gdy ktoś wpisał go przez pomyłkę albo urlop został cofnięty. Potrzebne narzędzie `cancel_absence` (np. `{id}` albo `{driverId, from, to}`), inaczej po usunięciu wpisu w Harmonogramie FlotoMax przy następnym pobraniu przywraca nieobecność (przykład: urlop Dziadury 07–11.10, id 11, nota „z Harmonogramu”).
