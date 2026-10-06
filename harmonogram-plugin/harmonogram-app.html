@@ -725,7 +725,7 @@ const saveE=()=>dbSet("app/employees",{items:S.emps.map(({rate,rateUnit,...e})=>
 // nieobecności: gdy zapis się nie uda, pamięć wraca do stanu z bazy, żeby nagłówki nie pokazywały urlopu, którego nie ma
 const saveA=()=>docA().set({items:S.abs}).catch(e=>{if(S.absDb)S.abs=structuredClone(S.absDb);try{render()}catch(_){}dbFail(e,"nieobecności")});
 S.seen={};S.seenAbs={};S.absLoaded=false;S.undo={};const absSig=()=>JSON.stringify(S.abs.map(a=>a.empId+"|"+a.date+"|"+a.reason).sort());
-const saveSched=s=>{const js=JSON.stringify(s);if(!S.noUndo&&S.seen[s.id]&&S.seen[s.id]!==js){(S.undo[s.id]??=[]).push({js:S.seen[s.id],abs:S.seenAbs[s.id]??null});if(S.undo[s.id].length>40)S.undo[s.id].shift()}S.seen[s.id]=js;S.seenAbs[s.id]=absSig();updUndo();return dbSet("schedules/"+s.id,s,"grafik")};
+const saveSched=s=>{const js=JSON.stringify(s);if(!S.noUndo&&S.seen[s.id]&&S.seen[s.id]!==js){(S.undo[s.id]??=[]).push({js:S.seen[s.id],abs:S.seenAbs[s.id]??null});if(S.undo[s.id].length>40)S.undo[s.id].shift()}S.seen[s.id]=js;S.seenAbs[s.id]=absSig();updUndo();if(!S.noUndo&&s.end>=warsawDay())flotoAutoPush();return dbSet("schedules/"+s.id,s,"grafik")};
 function updUndo(){const b=$("btn-undo");if(b){const n=(S.undo[S.current]||[]).length;b.disabled=!n;b.textContent=n?`↩ Cofnij (${n})`:"↩ Cofnij"}}
 async function undoLast(){const st=S.undo[S.current];if(!st||!st.length){notice("Nie ma czego cofać.");return}const it=st.pop();const prev=JSON.parse(it.js);let fixedUndo=0;if(it.abs!==null&&it.abs!==absSig()){const amx=absMap();const bad=prev.cells.filter(c=>c.empId!=null&&!c.locked&&amx[c.empId]?.[c.date]);if(bad.length)fixedUndo=repair(prev,bad.map(c=>c.date).sort()[0])}S.scheds[S.current]=prev;S.noUndo=true;try{S.seen[prev.id]=JSON.stringify(prev);await guard(()=>saveSched(prev))}finally{S.noUndo=false}notice(fixedUndo?`Cofnięto ostatnią zmianę. ${fixedUndo} przydziałów kolidowało z późniejszymi nieobecnościami, więc program je podmienił.`:"Cofnięto ostatnią zmianę.");renderPlan();updUndo()}
 async function guard(fn){try{await fn()}catch(e){if(!S.lastDbErr||!$("dberr")||$("dberr").hidden){try{dbFail(e)}catch(_){}}}}
@@ -1794,21 +1794,27 @@ $("floto-btn").onclick=()=>flotoSync(true);
 function flotoWeekEntries(monday){const end=addDays(monday,6),m={};S.shifts.forEach(x=>m[x.id]=x);const am=absMap(),out=[],skipped=[];
   for(const e of S.emps){if(e.virtual||isVirtualDriver(e.name))continue;if(e.flotoId==null){if(e.active)skipped.push(e.name);continue}
     for(const d of range(monday,end)){const cs=Object.values(S.scheds).flatMap(s=>s.cells||[]).filter(c=>c.empId===e.id&&c.date===d).sort((a,b)=>cellBounds(a,m[a.shiftId],d).st-cellBounds(b,m[b.shiftId],d).st);
-      if(cs.length){const b=cellBounds(cs[0],m[cs[0].shiftId],d);const st=((b.st%24)+24)%24;out.push({driverId:e.flotoId,date:d,label:cs.map(c=>m[c.shiftId]?.name||c.shiftId).join(" + "),plannedStart:fmtH(st)});continue}
+      if(cs.length){const c0=cs[0],sh0=m[c0.shiftId],b=cellBounds(c0,sh0,d);const st=((b.st%24)+24)%24;const prev=cellPrev(c0,sh0);const hours=Math.round(cs.reduce((a,c)=>a+cellBounds(c,m[c.shiftId],d).hh,0)*100)/100;
+        out.push({driverId:e.flotoId,date:d,label:cs.map(c=>m[c.shiftId]?.name||c.shiftId).join(" + "),plannedStart:fmtH(st),departAt:(prev?addDays(d,-1):d)+" "+fmtH(st),hours});continue}
       if(!e.active)continue;const a=am[e.id]?.[d];
       // odpoczynek po dalekiej trasie też idzie do FlotoMax (inaczej kierowca widzi „wolne” i spedytor może go wziąć)
       const restAfter=!a&&Object.values(S.scheds).flatMap(x=>x.cells||[]).find(c=>c.empId===e.id&&c.date<d&&!isDutyCell(c,m[c.shiftId])&&restOf(m[c.shiftId])>0&&addDays(c.date,restOf(m[c.shiftId]))>=d);
       out.push({driverId:e.flotoId,date:d,label:a?(REASONS[a]||a):restAfter?"Odpoczynek po "+(m[restAfter.shiftId]?.name||""):"wolne"})}}
   return{entries:out,skipped}}
-async function flotoSendSchedule(){const s=S.scheds[S.current];if(!s){notice("Otwórz grafik, który chcesz wysłać.");return}
+// okno tygodnia 1:1 dla FlotoMax: ten sam układ co wydruk A4, samodzielny HTML bez skryptów
+function weekViewDoc(monday){return `<!doctype html><html lang="pl"><head><meta charset="utf-8"><title>Grafik ${monday}</title><style>${PRINT_CSS()}#printview{display:block;margin:0 auto;padding:6mm;background:#fff}body{margin:0;background:#fff}</style></head><body><div id="printview">${printWeekHtml(monday)}</div></body></html>`}
+// po każdej zmianie grafiku (ręcznej lub przez naprawę) wyślij grafik i okna tygodni do FlotoMax, z opóźnieniem 20 s, żeby zebrać serię zmian
+let autoPushT=null;function flotoAutoPush(){if(!S.db||FL.mcp===null)return;clearTimeout(autoPushT);autoPushT=setTimeout(async()=>{if(FL.busy||$("floto-send")?.disabled)return;try{await flotoSendSchedule(true)}catch(e){}},20000)}
+async function flotoSendSchedule(quiet){const s=S.scheds[S.current];if(!s){notice("Otwórz grafik, który chcesz wysłać.");return}
   if(FL.mcp===undefined)FL.mcp=await claude.use("mcp");if(!FL.mcp){notice("Łącznik FlotoMax niedostępny w tym widoku.");return}
   let mon=weekKey(s.start);const cur=weekKey(warsawDay());if(mon<cur)mon=cur;const res=[];let saved=0,removed=0,unk=[],skipped=new Set();
   $("floto-send").disabled=true;
   try{for(;mon<=s.end;mon=addDays(mon,7)){const w=flotoWeekEntries(mon);w.skipped.forEach(x=>skipped.add(x));
       const r=(await FL.mcp.callTool(FLOTO,"set_schedule",{entries:w.entries,replaceFrom:mon,replaceTo:addDays(mon,6)},{cache:false})).payload||{};
-      saved+=r.saved||0;removed+=r.removed||0;(r.skippedUnknownIds||[]).forEach(x=>unk.push(x));res.push(`${mon.slice(8)}.${mon.slice(5,7)}`)}
-    notice(`Wysłano do FlotoMax tygodnie od: ${res.join(", ")||"–"}. Zapisano wpisów: ${saved}, usunięto starych: ${removed}.`+(skipped.size?` Pominięci (brak powiązania z FlotoMax): ${[...skipped].join(", ")}.`:"")+(unk.length?` FlotoMax nie zna id: ${[...new Set(unk)].join(", ")}.`:""))}
-  catch(e){notice("Nie udało się wysłać do FlotoMax: "+flotoErr(e)+(e?.code==="not_in_manifest"?" (odśwież stronę)":""))}
+      saved+=r.saved||0;removed+=r.removed||0;(r.skippedUnknownIds||[]).forEach(x=>unk.push(x));res.push(`${mon.slice(8)}.${mon.slice(5,7)}`);
+      try{await FL.mcp.callTool(FLOTO,"publish_week_view",{weekStart:mon,html:weekViewDoc(mon)},{cache:false})}catch(e){if(e?.code!=="not_in_manifest")unk.push("okno tygodnia "+mon.slice(8)+"."+mon.slice(5,7)+": "+flotoErr(e))}}
+    if(!quiet)notice(`Wysłano do FlotoMax tygodnie od: ${res.join(", ")||"–"}. Zapisano wpisów: ${saved}, usunięto starych: ${removed}.`+(skipped.size?` Pominięci (brak powiązania z FlotoMax): ${[...skipped].join(", ")}.`:"")+(unk.length?` FlotoMax nie zna id: ${[...new Set(unk)].join(", ")}.`:""))}
+  catch(e){if(!quiet)notice("Nie udało się wysłać do FlotoMax: "+flotoErr(e)+(e?.code==="not_in_manifest"?" (odśwież stronę)":""))}
   finally{$("floto-send").disabled=false}}
 $("floto-send").onclick=()=>guard(flotoSendSchedule);
 setInterval(()=>{if(document.visibilityState==="visible")flotoSync(false)},10*60*1000);

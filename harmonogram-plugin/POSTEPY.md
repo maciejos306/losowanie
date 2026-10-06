@@ -224,3 +224,8 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 - Trasa daleka bez własnych przejazdów (np. Trasa 9: FlotoMax nie ma ani jednego zakończonego przejazdu z tą etykietą) bierze wzorzec innych dalekich tras z tego dnia tygodnia (np. niedzielne 11/12/13 wyjeżdżają w niedzielę ok. 12:30–19:00), zamiast statycznych „21:00 dzień wcześniej, 20 h”. Gdy w danym dniu nie ma wzorca, zostaje ustawienie z Typów zmian.
 - Przejazd bez etykiety we FlotoMax (tak zapisano dalekie trasy z 27.09) program przypisuje po kierowcy i dniu z grafiku, jeśli ma tego dnia dokładnie jedną trasę; inaczej zgłasza „wyjazd bez etykiety”.
 - DLA-FLOTOMAX p. 9 oznaczony jako naprawiony po stronie FlotoMax.
+
+## v91 — wysyłka do FlotoMax: departAt, hours, okno tygodnia, automatycznie po zmianie
+- Każdy wpis trasy w `set_schedule` ma `departAt` („YYYY-MM-DD HH:MM”, dla dalekiej trasy dzień wcześniej), `hours` (łączny czas tras tego dnia) i `plannedStart`. Odpoczynek jako „Odpoczynek po Trasa N”.
+- Po każdym tygodniu wysyłki idzie `publish_week_view` (okno 1:1: ten sam układ co wydruk A4, samodzielny HTML bez skryptów). Deklaracja łącznika: 9 narzędzi.
+- Po każdej ręcznej zmianie grafiku (zapis grafiku od dziś) program sam wysyła grafik i okna tygodni do FlotoMax po 20 s (zbiera serię zmian); bez komunikatów. Przycisk „Wyślij grafik do FlotoMax” działa jak dotąd. Test `testy/send2.js`.
