@@ -192,3 +192,9 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 - **Kolizja na kafelku**: nieobecny kierowca z nadal przydzieloną trasą ma na kafelku czerwone „⚠ Urlop – trasa nadal przydzielona” (np. w trybie podglądu).
 - Testy: `testy/abs3.js` (8), `testy/floto3.js` (8). Cały zestaw: 26 plików, 368 OK. Symulacja na danych z bazy: bez błędów, zamrożone dni bez zmian.
 - Zgłoszenie użytkownika (06.10): urlop Dziadury 07–11.10 nie trafił do bazy (w bazie nie ma żadnej ręcznie wpisanej nieobecności, tylko 45 dni z FlotoMax) — najpewniej odmowa zapisu, wcześniej niewidoczna. Po odświeżeniu trzeba wpisać ponownie.
+
+## v82 — wydruk tygodnia na A4, nieobecność z FlotoMax usuwalna
+- **Wydruk tygodnia**: w Planie tygodnia wybór tygodnia + „🖨 Drukuj tydzień (A4)” + „⬇ Zapisz plik”. Jedna kartka A4 poziomo: wiersz na kierowcę (kolorowy pasek, nazwisko), kolumna na dzień (Pon–Ndz z datą, weekend szary), w komórce duża kolorowa etykieta trasy i pod nią „wyjazd HH:MM” (dla dalekich: „wyjazd Wt 22:00” = dzień wcześniej), dyżur „od 14:30”, URLOP/L4 w kreski, odpoczynek po dalekiej trasie, „— wolne —”. Legenda tras z godziną i czasem z nauki. Wysokość wierszy dopasowuje się do liczby kierowców. „Zapisz plik” daje samodzielny HTML (`grafik-RRRR-MM-DD.html`) przez możliwość `downloads`; bez niej otwiera nową kartę, a w ostateczności podpowiada „Zapisz jako PDF” z okna drukowania. Test `testy/print.js` sprawdza m.in., że PDF ma 1 stronę.
+- **Nieobecność z FlotoMax usunięta w Harmonogramie nie wraca**: usunięcie (Kadry ✕ albo okno komórki) dopisuje id wpisu FlotoMax do listy pominiętych (`app/hr._absIgnore`); przy pobraniu program go nie wczytuje. Komunikat przypomina, że we FlotoMax trzeba usunąć osobno (brak narzędzia odwołania — DLA-FLOTOMAX p. 7).
+- Baza: urlop Dziadury 07–11.10 (wpis FlotoMax id 11, wysłany z Harmonogramu) zdjęty i dodany do pominiętych; Trasa 1 na 07–10.10 przywrócona Dziadurze.
+- Testy: 27 plików, 376 OK.

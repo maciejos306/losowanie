@@ -32,4 +32,12 @@ const dq=await pg.evaluate(async()=>{const today=warsawDay();const s=S.scheds[S.
  S.abs.push({empId:emp,date:d,reason:'urlop'});renderPlan();await new Promise(r=>setTimeout(r,200));
  const td=document.querySelector(`[data-drop="${emp}|${d}"]`);return{html:td?.innerHTML||'',routes:s.cells.filter(x=>x.empId===emp&&x.date===d).length}});
 ok('kolizja widoczna na kafelku: „⚠ Urlop – trasa nadal przydzielona”',/abx/.test(dq.html)&&/Urlop – trasa nadal przydzielona/.test(dq.html)&&dq.routes>=1,dq.html.slice(0,200));
+// E. nieobecność z FlotoMax usunięta w oknie komórki nie wraca przy pobraniu
+await open();
+const eq=await pg.evaluate(async()=>{const today=warsawDay();const s=S.scheds[S.current];let d=null,c=null;for(let i=1;i<12&&!c;i++){const dd=addDays(today,i);const cc=s.cells.find(x=>x.date===dd&&x.empId&&!absMap()[x.empId]?.[dd]);if(cc){d=dd;c=cc}}const emp=c.empId;
+ S.abs.push({empId:emp,date:d,reason:'urlop',src:'floto',flotoAbs:777});await saveA();await new Promise(r=>setTimeout(r,500));
+ openSheet(emp,d);document.querySelector('#sheet-opts [data-abs-del]').click();await new Promise(r=>setTimeout(r,500));
+ const e=S.emps.find(x=>x.id===emp);const r=applyFlotoAbsences([{id:777,driverId:e.flotoId||1,driverName:e.name,type:'urlop',from:d,to:d}],d,d);
+ return{ign:S.hr._absIgnore,abs:S.abs.filter(x=>x.empId===emp&&x.date===d).length,added:r.added,note:$("notice").textContent}});
+ok('usunięta nieobecność z FlotoMax trafia na listę pominiętych i nie wraca',eq.ign&&eq.ign.includes('777')&&eq.abs===0&&eq.added.length===0,JSON.stringify(eq));
 console.log('ERRS',errs);await b.close()})();
