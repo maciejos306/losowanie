@@ -118,7 +118,7 @@
   .muted{color:var(--muted);font-size:12px}
   body.labels-edit [data-label]{outline:2px dashed #e0a030;outline-offset:2px;cursor:text;border-radius:4px}
   body.labels-edit [data-label]:focus{outline:2px solid #e0a030;background:rgba(224,160,48,.12)}
-  .palette{display:flex;gap:6px;overflow-x:auto;padding:6px 2px 10px;touch-action:pan-x}
+  .palette{display:flex;gap:6px;overflow-x:auto;padding:6px 8px 8px;touch-action:pan-x;position:sticky;top:0;z-index:20;background:var(--paper);border:1px solid var(--line);border-radius:10px;margin-bottom:6px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
   .palette .chip{width:auto;min-width:84px;flex:0 0 auto;min-height:36px;cursor:grab;touch-action:none}
   table.plan .chip{touch-action:pan-y}
   .chip,.palette{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}

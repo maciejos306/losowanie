@@ -198,3 +198,6 @@ Własny dzień wolny na święcie nie znosi obniżki normy, dwa wpisy na tej sam
 - **Nieobecność z FlotoMax usunięta w Harmonogramie nie wraca**: usunięcie (Kadry ✕ albo okno komórki) dopisuje id wpisu FlotoMax do listy pominiętych (`app/hr._absIgnore`); przy pobraniu program go nie wczytuje. Komunikat przypomina, że we FlotoMax trzeba usunąć osobno (brak narzędzia odwołania — DLA-FLOTOMAX p. 7).
 - Baza: urlop Dziadury 07–11.10 (wpis FlotoMax id 11, wysłany z Harmonogramu) zdjęty i dodany do pominiętych; Trasa 1 na 07–10.10 przywrócona Dziadurze.
 - Testy: 27 plików, 376 OK.
+
+## v83 — pasek kafelków przyklejony
+- Pasek kafelków (Urlop, L4, trasy) w widoku Kafelki jest przyklejony u góry ekranu przy przewijaniu, więc kafelek da się upuścić na kierowcę z dołu listy. Test `testy/sticky.js`.
