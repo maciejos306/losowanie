@@ -6,10 +6,11 @@
 <title>Kalkulator kosztów produkcji – wyroby garmażeryjne</title>
 <style>
   :root {
-    --fs: 18px; --bg: #f4f5f7; --card: #ffffff; --text: #111827; --muted: #4b5563;
-    --border: #cbd5e1; --accent: #1d4ed8; --accent-text: #ffffff; --accent-hover: #1e40af;
-    --danger: #b91c1c; --ok: #15803d; --warn: #b45309; --focus: #f59e0b; --head: #0f172a;
-    --row: #f8fafc; --soft: #e0e7ff;
+    --fs: 18px; --bg: #f7efe3; --card: #fffaf2; --text: #3e2f25; --muted: #7a5c4a;
+    --border: #e6d5bd; --accent: #b5603f; --accent-text: #ffffff; --accent-hover: #9a4f33;
+    --danger: #a83a2c; --ok: #5f7a2f; --warn: #a8722b; --focus: #e0a24a; --head: #6b4330;
+    --row: #f6e9d6; --soft: #f9e2cf;
+    --c-kuchnia: #c2694c; --c-produkty: #6d8a3c; --c-spizarnia: #b5812f; --c-zasoby: #8a6b5c; --c-ustawienia: #9a8878;
   }
   html[data-size="large"] { --fs: 22px; }
   html[data-size="xlarge"] { --fs: 27px; }
@@ -17,20 +18,44 @@
     --bg: #000; --card: #000; --text: #fff; --muted: #ffff00; --border: #fff; --accent: #ffff00;
     --accent-text: #000; --accent-hover: #ffd700; --danger: #ff6b6b; --ok: #6cff6c; --warn: #ffd700;
     --focus: #00ffff; --head: #000; --row: #111; --soft: #222;
+    --c-kuchnia: #000; --c-produkty: #000; --c-spizarnia: #000; --c-zasoby: #000; --c-ustawienia: #000;
   }
+  html[data-contrast="on"] header { background: #000; }
+  html[data-contrast="on"] .tile, html[data-contrast="on"] nav button { border: 3px solid #fff !important; color: #fff !important; }
+  html[data-contrast="on"] .tile:hover, html[data-contrast="on"] nav button[aria-selected="true"] { background: #ffff00 !important; color: #000 !important; }
   * { box-sizing: border-box; }
   html { font-size: var(--fs); }
   body { margin: 0; font-family: Arial, "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
-  header { background: var(--head); color: #fff; padding: .7rem 1rem; display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; justify-content: space-between; border-bottom: 3px solid var(--border); }
+  header { background: linear-gradient(90deg, var(--head), #8a5a40); color: #fff; padding: .7rem 1rem; display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; justify-content: space-between; border-bottom: 3px solid var(--border); }
   header h1 { margin: 0; font-size: 1.25rem; }
   .a11y { display: flex; gap: .4rem; flex-wrap: wrap; }
   .a11y button { background: #fff; color: #000; border: 2px solid #fff; font-weight: 700; }
   .a11y button[aria-pressed="true"] { background: var(--focus); border-color: var(--focus); }
   nav { display: flex; flex-wrap: wrap; gap: .4rem; padding: .7rem 1rem 0; max-width: 1400px; margin: 0 auto; }
-  nav button { font-size: 1.05rem; padding: .7rem 1.1rem; background: var(--card); color: var(--text); border: 2px solid var(--border); }
-  nav button[aria-selected="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  nav button { font-size: 1.05rem; padding: .7rem 1.1rem; background: var(--card); color: var(--text); border: 2px solid var(--border); border-left-width: .6rem; }
+  nav button[aria-selected="true"] { color: #fff; }
+  nav button[data-m="start"] { border-left-color: var(--head); } nav button[data-m="start"][aria-selected="true"] { background: var(--head); border-color: var(--head); }
+  nav button[data-m="kuchnia"] { border-left-color: var(--c-kuchnia); } nav button[data-m="kuchnia"][aria-selected="true"] { background: var(--c-kuchnia); border-color: var(--c-kuchnia); }
+  nav button[data-m="produkty"] { border-left-color: var(--c-produkty); } nav button[data-m="produkty"][aria-selected="true"] { background: var(--c-produkty); border-color: var(--c-produkty); }
+  nav button[data-m="spizarnia"] { border-left-color: var(--c-spizarnia); } nav button[data-m="spizarnia"][aria-selected="true"] { background: var(--c-spizarnia); border-color: var(--c-spizarnia); }
+  nav button[data-m="zasoby"] { border-left-color: var(--c-zasoby); } nav button[data-m="zasoby"][aria-selected="true"] { background: var(--c-zasoby); border-color: var(--c-zasoby); }
+  nav button[data-m="ustawienia"] { border-left-color: var(--c-ustawienia); } nav button[data-m="ustawienia"][aria-selected="true"] { background: var(--c-ustawienia); border-color: var(--c-ustawienia); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 1rem; }
+  .tile { display: flex; flex-direction: column; align-items: flex-start; gap: .3rem; text-align: left; padding: 1.2rem; min-height: 9rem; border-radius: 1rem; color: #fff; border: none; font-weight: 700; box-shadow: 0 4px 12px rgba(90,55,30,.18); }
+  .tile .ico { font-size: 2.6rem; line-height: 1; }
+  .tile .ttl { font-size: 1.35rem; }
+  .tile .sub { font-weight: 400; font-size: .95rem; opacity: .95; }
+  .tile:hover { filter: brightness(1.1); transform: translateY(-2px); }
+  .tile.kuchnia { background: var(--c-kuchnia); } .tile.produkty { background: var(--c-produkty); } .tile.spizarnia { background: var(--c-spizarnia); } .tile.zasoby { background: var(--c-zasoby); } .tile.ustawienia { background: var(--c-ustawienia); }
+  .tile.item { background: var(--card); color: var(--text); border: 3px solid var(--border); min-height: 6.5rem; padding: .9rem 1rem; box-shadow: none; }
+  .tile.item:hover { background: var(--row); transform: none; filter: none; }
+  .tile.item.active { border-color: var(--accent); background: var(--soft); }
+  .tile.item .ttl { font-size: 1.15rem; }
+  .tile.item.add { border-style: dashed; justify-content: center; align-items: center; color: var(--accent); }
+  .tile.item .ico { font-size: 1.8rem; }
+  .k-tiles { margin-bottom: 1rem; }
   main { padding: 1rem; max-width: 1400px; margin: 0 auto; }
-  .card { background: var(--card); border: 2px solid var(--border); border-radius: .6rem; padding: 1rem; margin-bottom: 1rem; }
+  .card { background: var(--card); border: 2px solid var(--border); border-radius: 1rem; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 2px 6px rgba(90,55,30,.08); }
   .card h2 { margin: 0 0 .8rem; font-size: 1.3rem; display: flex; justify-content: space-between; align-items: center; gap: .6rem; flex-wrap: wrap; }
   .card h3 { font-size: 1.1rem; margin: 1rem 0 .5rem; }
   button { font: inherit; padding: .55rem .9rem; border: 2px solid var(--accent); border-radius: .4rem; cursor: pointer; background: var(--accent); color: var(--accent-text); font-weight: 600; min-height: 2.6rem; }
@@ -51,8 +76,7 @@
   .row.c3 { grid-template-columns: 1fr 1fr 1fr; }
   .row.c4 { grid-template-columns: repeat(4, 1fr); }
   @media (max-width: 800px) { .row.c2, .row.c3, .row.c4 { grid-template-columns: 1fr; } }
-  .layout { display: grid; grid-template-columns: 320px 1fr; gap: 1rem; }
-  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  .layout { display: block; }
   .tbl { width: 100%; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; }
   th, td { padding: .5rem .5rem; border-bottom: 2px solid var(--border); text-align: left; vertical-align: middle; }
@@ -62,14 +86,13 @@
   tr.short td { background: #fee2e2; }
   html[data-contrast="on"] tr.short td { background: #3a0000; }
   .list { list-style: none; margin: 0; padding: 0; }
-  .list li { padding: .6rem .8rem; border: 2px solid var(--border); border-radius: .5rem; margin-bottom: .5rem; cursor: pointer; display: flex; justify-content: space-between; gap: .5rem; align-items: center; }
-  .list li:hover { background: var(--row); }
-  .list li.active { border-color: var(--accent); background: var(--soft); }
-  .list li .name { font-weight: 700; }
   .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .8rem; }
   .stat { border: 2px solid var(--border); border-radius: .5rem; padding: .7rem .9rem; background: var(--row); }
   .stat .lbl { font-weight: 600; color: var(--muted); font-size: .95rem; }
   .stat .val { font-size: 1.5rem; font-weight: 800; }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: .8rem; }
+  .steps div { background: var(--row); border-radius: .6rem; padding: .8rem; }
+  .steps b { display: block; font-size: 1.1rem; margin-bottom: .2rem; }
   .stat.primary { background: var(--soft); border-color: var(--accent); }
   .ok { color: var(--ok); font-weight: 700; } .bad { color: var(--danger); font-weight: 700; } .warn { color: var(--warn); font-weight: 700; }
   .hidden { display: none !important; }
@@ -93,20 +116,42 @@
 </header>
 
 <nav role="tablist" aria-label="Moduły" class="no-print">
-  <button role="tab" onclick="showTab('kuchnia')" id="tab-kuchnia">🍳 Kuchnia</button>
-  <button role="tab" onclick="showTab('produkty')" id="tab-produkty">📋 Produkty i przepisy</button>
-  <button role="tab" onclick="showTab('spizarnia')" id="tab-spizarnia">🧺 Spiżarnia</button>
-  <button role="tab" onclick="showTab('zasoby')" id="tab-zasoby">⚙️ Maszyny i ludzie</button>
-  <button role="tab" onclick="showTab('ustawienia')" id="tab-ustawienia">🔧 Ustawienia</button>
+  <button role="tab" data-m="start" onclick="showTab('start')" id="tab-start">🏠 Start</button>
+  <button role="tab" data-m="kuchnia" onclick="showTab('kuchnia')" id="tab-kuchnia">🍳 Kuchnia</button>
+  <button role="tab" data-m="produkty" onclick="showTab('produkty')" id="tab-produkty">📋 Produkty</button>
+  <button role="tab" data-m="spizarnia" onclick="showTab('spizarnia')" id="tab-spizarnia">🧺 Spiżarnia</button>
+  <button role="tab" data-m="zasoby" onclick="showTab('zasoby')" id="tab-zasoby">⚙️ Maszyny i ludzie</button>
+  <button role="tab" data-m="ustawienia" onclick="showTab('ustawienia')" id="tab-ustawienia">🔧 Ustawienia</button>
 </nav>
 
 <main>
+<!-- ================= START ================= -->
+<section id="view-start" class="hidden">
+  <div class="tiles">
+    <button class="tile kuchnia" onclick="showTab('kuchnia')"><span class="ico">🍳</span><span class="ttl">Kuchnia</span><span class="sub">Wybierz produkt i ilość – policzę składniki, ludzi, prąd i koszt</span></button>
+    <button class="tile produkty" onclick="showTab('produkty')"><span class="ico">📋</span><span class="ttl">Produkty i przepisy</span><span class="sub">Karty produktów z przepisem na partię</span></button>
+    <button class="tile spizarnia" onclick="showTab('spizarnia')"><span class="ico">🧺</span><span class="ttl">Spiżarnia</span><span class="sub">Zakupy z faktur, ceny i stan składników</span></button>
+    <button class="tile zasoby" onclick="showTab('zasoby')"><span class="ico">⚙️</span><span class="ttl">Maszyny i ludzie</span><span class="sub">Moc maszyn, eksploatacja, stawka pracownika</span></button>
+    <button class="tile ustawienia" onclick="showTab('ustawienia')"><span class="ico">🔧</span><span class="ttl">Ustawienia</span><span class="sub">Cena prądu, marża, VAT, kopia danych</span></button>
+  </div>
+  <div class="card" style="margin-top:1rem"><h2>Jak zacząć?</h2>
+    <div class="steps">
+      <div><b>1. Maszyny i ludzie</b>Wpisz maszyny (moc w kW) i stawkę pracownika.</div>
+      <div><b>2. Spiżarnia</b>Dodaj składniki i dostawy z faktur.</div>
+      <div><b>3. Produkty</b>Wypełnij kartę i przepis na partię, np. 100 kg.</div>
+      <div><b>4. Kuchnia</b>Wybierz produkt, wpisz ilość i odczytaj koszt.</div>
+    </div>
+    <div id="startStats" class="stats" style="margin-top:1rem"></div>
+  </div>
+</section>
 <!-- ================= KUCHNIA ================= -->
 <section id="view-kuchnia" class="hidden">
   <div class="card">
     <h2>Kuchnia – co dziś produkujemy?</h2>
-    <div class="row c3">
-      <div class="field"><label for="k_product">Produkt</label><select id="k_product" onchange="renderKitchen()"></select></div>
+    <p><b>1. Wybierz produkt:</b></p>
+    <div class="tiles k-tiles" id="k_tiles"></div>
+    <p><b>2. Podaj ilość:</b></p>
+    <div class="row c2">
       <div class="field"><label for="k_qty">Ilość do wyprodukowania</label><input type="number" id="k_qty" min="0" step="any" value="100" oninput="renderKitchen()"></div>
       <div class="field"><label for="k_date">Data produkcji</label><input type="date" id="k_date"></div>
     </div>
@@ -124,8 +169,8 @@
   <div class="layout">
     <aside>
       <div class="card">
-        <h2>Produkty <button onclick="addProduct()">+ Nowy</button></h2>
-        <ul class="list" id="productList"></ul>
+        <h2>Produkty</h2>
+        <div class="tiles" id="productList"></div>
         <p class="empty" id="productEmpty">Brak produktów. Dodaj pierwszy produkt i wypełnij jego kartę.</p>
       </div>
     </aside>
@@ -175,8 +220,8 @@
   <div class="layout">
     <aside>
       <div class="card">
-        <h2>Składniki <button onclick="addIngredient()">+ Nowy</button></h2>
-        <ul class="list" id="ingList"></ul>
+        <h2>Składniki</h2>
+        <div class="tiles" id="ingList"></div>
         <p class="empty" id="ingEmpty">Brak składników. Dodaj np. mąkę, ziemniaki, twaróg.</p>
       </div>
     </aside>
@@ -261,7 +306,7 @@ const KEY = 'kalkulator-garmazerka-v1';
 const DEF_G = { labourRate: 35, people: 3, energy: 1.2, overhead: 10, margin: 20, vat: 5, priceMode: 'avg' };
 let state = load() || { g: { ...DEF_G }, machines: [], ingredients: [], products: [], productions: [], ui: {} };
 state.g = { ...DEF_G, ...state.g }; state.ui = state.ui || {};
-let tab = state.ui.tab || 'kuchnia';
+let tab = state.ui.tab || 'start';
 
 function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
@@ -313,7 +358,7 @@ function calcProduct(p, qty) {
 }
 
 // ---------- tabs ----------
-function showTab(t) { tab = t; state.ui.tab = t; save(); ['kuchnia', 'produkty', 'spizarnia', 'zasoby', 'ustawienia'].forEach(x => { document.getElementById('view-' + x).classList.toggle('hidden', x !== t); document.getElementById('tab-' + x).setAttribute('aria-selected', String(x === t)); }); renderAll(); }
+function showTab(t) { tab = t; state.ui.tab = t; save(); ['start', 'kuchnia', 'produkty', 'spizarnia', 'zasoby', 'ustawienia'].forEach(x => { document.getElementById('view-' + x).classList.toggle('hidden', x !== t); document.getElementById('tab-' + x).setAttribute('aria-selected', String(x === t)); }); renderAll(); }
 
 // ---------- rendering helpers ----------
 function setVal(id, v) { const el = document.getElementById(id); if (el && document.activeElement !== el) el.value = v ?? ''; }
@@ -322,11 +367,11 @@ function delBtn(fn) { return `<td class="no-print"><button class="danger" onclic
 
 // ---------- KUCHNIA ----------
 function renderKitchen() {
-  const sel = document.getElementById('k_product');
-  const cur = sel.value || state.ui.kProduct || (state.products[0] && state.products[0].id);
-  sel.innerHTML = opts(state.products, cur, '— wybierz produkt —');
+  if (!byId(state.products, state.ui.kProduct)) state.ui.kProduct = state.products[0] ? state.products[0].id : null;
+  document.getElementById('k_tiles').innerHTML = state.products.map(x => `<button class="tile item ${x.id === state.ui.kProduct ? 'active' : ''}" aria-pressed="${x.id === state.ui.kProduct}" onclick="state.ui.kProduct='${x.id}';renderKitchen()"><span class="ico">🥟</span><span class="ttl">${esc(x.name)}</span><span class="sub">${pln(calcProduct(x).t.perUnit)} / ${esc(x.unit)}</span></button>`).join('')
+    || '<p class="empty">Brak produktów – dodaj je w module „Produkty”.</p>';
   if (!document.getElementById('k_date').value) document.getElementById('k_date').value = today();
-  const p = byId(state.products, sel.value); state.ui.kProduct = sel.value;
+  const p = byId(state.products, state.ui.kProduct);
   const qtyEl = document.getElementById('k_qty');
   const out = document.getElementById('k_result');
   if (!p) { out.innerHTML = '<div class="card"><p class="empty">Najpierw dodaj produkt w zakładce „Produkty i przepisy”.</p></div>'; document.getElementById('k_hint').textContent = ''; renderHistory(); return; }
@@ -375,7 +420,7 @@ function renderKitchen() {
   out.innerHTML = h; renderHistory(); save();
 }
 function saveProduction() {
-  const p = byId(state.products, document.getElementById('k_product').value); if (!p) return;
+  const p = byId(state.products, state.ui.kProduct); if (!p) return;
   const qty = num(document.getElementById('k_qty').value); if (qty <= 0) { alert('Podaj ilość większą od zera.'); return; }
   const c = calcProduct(p, qty);
   if (c.t.shortages.length && !confirm('W spiżarni brakuje składników. Zapisać mimo to (stan będzie ujemny)?')) return;
@@ -402,7 +447,8 @@ function delPL(kind, i) { const p = byId(state.products, state.ui.product); if (
 
 function renderProducts() {
   const ul = document.getElementById('productList');
-  ul.innerHTML = state.products.map(p => { const c = calcProduct(p); return `<li class="${p.id === state.ui.product ? 'active' : ''}" tabindex="0" role="button" onclick="state.ui.product='${p.id}';renderAll()" onkeydown="if(event.key==='Enter'||event.key===' '){this.click();event.preventDefault()}"><span class="name">${esc(p.name)}</span><span class="hint">${pln(c.t.perUnit)}/${esc(p.unit)}</span></li>`; }).join('');
+  ul.innerHTML = state.products.map(p => { const c = calcProduct(p); return `<button class="tile item ${p.id === state.ui.product ? 'active' : ''}" onclick="state.ui.product='${p.id}';renderAll()"><span class="ico">🥟</span><span class="ttl">${esc(p.name)}</span><span class="sub">${pln(c.t.perUnit)} / ${esc(p.unit)} · partia ${qf(num(p.batch))} ${esc(p.unit)}</span></button>`; }).join('')
+    + `<button class="tile item add" onclick="addProduct()"><span class="ico">➕</span><span class="ttl">Nowy produkt</span></button>`;
   document.getElementById('productEmpty').classList.toggle('hidden', state.products.length > 0);
   const p = byId(state.products, state.ui.product);
   document.getElementById('productEditor').classList.toggle('hidden', !p); document.getElementById('productWelcome').classList.toggle('hidden', !!p);
@@ -438,7 +484,8 @@ function addInvoice() {
 function deleteInvoice(id) { const i = byId(state.ingredients, state.ui.ing); if (!i || !confirm('Usunąć tę dostawę?')) return; i.invoices = i.invoices.filter(f => f.id !== id); save(); renderAll(); }
 function renderPantry() {
   const ul = document.getElementById('ingList');
-  ul.innerHTML = state.ingredients.map(i => { const st = ingStock(i), low = st < num(i.min) || st < 0; return `<li class="${i.id === state.ui.ing ? 'active' : ''}" tabindex="0" role="button" onclick="state.ui.ing='${i.id}';renderAll()" onkeydown="if(event.key==='Enter'||event.key===' '){this.click();event.preventDefault()}"><span class="name">${esc(i.name)}</span><span class="${low ? 'bad' : 'hint'}">${qf(st)} ${esc(i.unit)}${low ? ' ⚠' : ''}</span></li>`; }).join('');
+  ul.innerHTML = state.ingredients.map(i => { const st = ingStock(i), low = st < num(i.min) || st < 0; return `<button class="tile item ${i.id === state.ui.ing ? 'active' : ''}" onclick="state.ui.ing='${i.id}';renderAll()"><span class="ico">${low ? '⚠️' : '🧺'}</span><span class="ttl">${esc(i.name)}</span><span class="sub ${low ? 'bad' : ''}">Stan: ${qf(st)} ${esc(i.unit)} · ${pln(ingPrice(i))}/${esc(i.unit)}</span></button>`; }).join('')
+    + `<button class="tile item add" onclick="addIngredient()"><span class="ico">➕</span><span class="ttl">Nowy składnik</span></button>`;
   document.getElementById('ingEmpty').classList.toggle('hidden', state.ingredients.length > 0);
   const i = byId(state.ingredients, state.ui.ing);
   document.getElementById('ingEditor').classList.toggle('hidden', !i); document.getElementById('ingWelcome').classList.toggle('hidden', !!i);
@@ -471,7 +518,16 @@ function renderResources() {
 }
 function renderSettings() { setVal('g_energy', state.g.energy); setVal('g_overhead', state.g.overhead); setVal('g_margin', state.g.margin); setVal('g_vat', state.g.vat); setVal('g_priceMode', state.g.priceMode); }
 
-function renderAll() { renderResources(); renderSettings(); renderPantry(); renderProducts(); renderKitchen(); save(); }
+function renderStart() {
+  const low = state.ingredients.filter(i => ingStock(i) < num(i.min) || ingStock(i) < 0).length;
+  document.getElementById('startStats').innerHTML = `
+    <div class="stat"><div class="lbl">Produkty</div><div class="val">${state.products.length}</div></div>
+    <div class="stat"><div class="lbl">Składniki w spiżarni</div><div class="val">${state.ingredients.length}</div></div>
+    <div class="stat ${low ? 'primary' : ''}"><div class="lbl">Niski stan</div><div class="val ${low ? 'bad' : 'ok'}">${low}</div></div>
+    <div class="stat"><div class="lbl">Maszyny</div><div class="val">${state.machines.length}</div></div>
+    <div class="stat"><div class="lbl">Zapisane produkcje</div><div class="val">${state.productions.length}</div></div>`;
+}
+function renderAll() { renderStart(); renderResources(); renderSettings(); renderPantry(); renderProducts(); renderKitchen(); save(); }
 
 // ---------- data ----------
 function download(name, content, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
