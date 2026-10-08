@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalkulator kosztów produkcji – wyroby garażowe</title>
+<style>
+  :root {
+    --bg: #f3f4f6; --card: #fff; --text: #1f2937; --muted: #6b7280;
+    --border: #e5e7eb; --accent: #2563eb; --accent-dark: #1d4ed8;
+    --danger: #dc2626; --ok: #16a34a; --warn: #d97706;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; background: var(--bg); color: var(--text); }
+  header { background: #111827; color: #fff; padding: 14px 20px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+  header h1 { margin: 0; font-size: 20px; }
+  header .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  main { display: grid; grid-template-columns: 300px 1fr; gap: 16px; padding: 16px; max-width: 1400px; margin: 0 auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.06); margin-bottom: 16px; }
+  .card h2 { margin: 0 0 12px; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
+  button { padding: 7px 12px; font-size: 14px; border: 1px solid transparent; border-radius: 6px; cursor: pointer; background: var(--accent); color: #fff; }
+  button:hover { background: var(--accent-dark); }
+  button.secondary { background: #fff; color: var(--text); border-color: var(--border); }
+  button.secondary:hover { background: #f9fafb; }
+  button.danger { background: #fff; color: var(--danger); border-color: var(--danger); padding: 4px 8px; }
+  button.danger:hover { background: #fef2f2; }
+  button.small { padding: 4px 8px; font-size: 13px; }
+  input, select { padding: 6px 8px; font-size: 14px; border: 1px solid var(--border); border-radius: 6px; width: 100%; background: #fff; color: var(--text); }
+  input[type=number] { text-align: right; }
+  label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 3px; }
+  .field { margin-bottom: 10px; }
+  .row { display: grid; gap: 10px; }
+  .row.c2 { grid-template-columns: 1fr 1fr; }
+  .row.c3 { grid-template-columns: 1fr 1fr 1fr; }
+  .row.c4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 600px) { .row.c3, .row.c4 { grid-template-columns: 1fr 1fr; } }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 6px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  td input { padding: 5px 6px; }
+  tfoot td { font-weight: 700; }
+  .product-list { list-style: none; margin: 0; padding: 0; }
+  .product-list li { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .product-list li:hover { background: #f9fafb; }
+  .product-list li.active { border-color: var(--accent); background: #eff6ff; }
+  .product-list li .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .product-list li .price { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  .stat { background: #f9fafb; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .stat .lbl { font-size: 12px; color: var(--muted); }
+  .stat .val { font-size: 20px; font-weight: 700; margin-top: 2px; }
+  .stat.primary { background: #eff6ff; border-color: #bfdbfe; }
+  .stat.ok .val { color: var(--ok); }
+  .stat.warn .val { color: var(--warn); }
+  .stat.bad .val { color: var(--danger); }
+  .muted { color: var(--muted); font-size: 13px; }
+  .hidden { display: none; }
+  .breakdown { font-size: 14px; }
+  .breakdown div { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed var(--border); }
+  .breakdown div.total { font-weight: 700; border-bottom: none; border-top: 2px solid var(--text); margin-top: 4px; padding-top: 6px; }
+  .bar { height: 10px; border-radius: 5px; overflow: hidden; display: flex; margin: 8px 0 4px; }
+  .bar span { display: block; height: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+  .c-mat { background: #2563eb; } .c-lab { background: #16a34a; } .c-mach { background: #d97706; } .c-oth { background: #9333ea; } .c-over { background: #6b7280; }
+  @media print {
+    header, aside, .no-print { display: none !important; }
+    main { display: block; padding: 0; }
+    .card { box-shadow: none; border: none; page-break-inside: avoid; }
+    body { background: #fff; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Kalkulator kosztów produkcji – wyroby garażowe</h1>
+  <div class="actions no-print">
+    <button class="secondary" onclick="exportJSON()">Eksport JSON</button>
+    <button class="secondary" onclick="document.getElementById('importFile').click()">Import JSON</button>
+    <input type="file" id="importFile" accept="application/json" class="hidden" onchange="importJSON(event)">
+    <button class="secondary" onclick="exportCSV()">Eksport CSV (wszystkie)</button>
+    <button class="secondary" onclick="window.print()">Drukuj kalkulację</button>
+  </div>
+</header>
+
+<main>
+  <aside>
+    <div class="card">
+      <h2>Wyroby <button class="small" onclick="addProduct()">+ Nowy</button></h2>
+      <ul class="product-list" id="productList"></ul>
+      <p class="muted" id="emptyHint">Brak wyrobów. Dodaj pierwszy wyrób lub wczytaj przykładowe dane.</p>
+      <button class="secondary small" onclick="loadSample()">Wczytaj przykładowe dane</button>
+    </div>
+
+    <div class="card">
+      <h2>Ustawienia globalne</h2>
+      <div class="field"><label>Domyślna stawka robocizny (zł/h)</label><input type="number" step="0.01" min="0" id="g_labourRate" oninput="setGlobal('labourRate', this.value)"></div>
+      <div class="field"><label>Koszty ogólne / pośrednie (% kosztu bezpośredniego)</label><input type="number" step="0.1" min="0" id="g_overhead" oninput="setGlobal('overhead', this.value)"></div>
+      <div class="field"><label>Stawka VAT (%)</label><input type="number" step="1" min="0" id="g_vat" oninput="setGlobal('vat', this.value)"></div>
+      <p class="muted">Dane są zapisywane automatycznie w przeglądarce (localStorage).</p>
+    </div>
+  </aside>
+
+  <section id="editor" class="hidden">
+    <div class="card">
+      <h2>Dane wyrobu <button class="danger small no-print" onclick="deleteProduct()">Usuń wyrób</button></h2>
+      <div class="row c3">
+        <div class="field"><label>Nazwa wyrobu</label><input id="p_name" oninput="setField('name', this.value)"></div>
+        <div class="field"><label>Typ</label>
+          <select id="p_type" onchange="setField('type', this.value)">
+            <option>Garaż blaszany</option><option>Garaż drewniany</option><option>Garaż murowany</option>
+            <option>Wiata garażowa</option><option>Brama garażowa</option><option>Drzwi / okno</option>
+            <option>Domek narzędziowy</option><option>Inne</option>
+          </select></div>
+        <div class="field"><label>Wymiary (szer. × dł. × wys.)</label><input id="p_dims" placeholder="np. 3 × 5 × 2,2 m" oninput="setField('dims', this.value)"></div>
+      </div>
+      <div class="row c4">
+        <div class="field"><label>Ilość sztuk w serii</label><input type="number" min="1" step="1" id="p_qty" oninput="setField('qty', this.value)"></div>
+        <div class="field"><label>Narzut kosztów ogólnych (%) <span class="muted">(puste = globalny)</span></label><input type="number" step="0.1" min="0" id="p_overhead" oninput="setField('overhead', this.value)"></div>
+        <div class="field"><label>Marża (%)</label><input type="number" step="0.1" min="0" id="p_margin" oninput="setField('margin', this.value)"></div>
+        <div class="field"><label>Cena sprzedaży netto (zł/szt., opcjonalnie)</label><input type="number" step="0.01" min="0" id="p_salePrice" oninput="setField('salePrice', this.value)"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>1. Materiały <button class="small no-print" onclick="addLine('materials')">+ Dodaj</button></h2>
+      <table id="t_materials">
+        <thead><tr><th style="width:34%">Nazwa</th><th>Jedn.</th><th class="num">Ilość</th><th class="num">Cena jedn. (zł)</th><th class="num">Odpad (%)</th><th class="num">Koszt (zł)</th><th class="no-print"></th></tr></thead>
+        <tbody></tbody>
+        <tfoot><tr><td colspan="5">Razem materiały</td><td class="num" id="sum_materials"></td><td class="no-print"></td></tr></tfoot>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>2. Robocizna <button class="small no-print" onclick="addLine('labour')">+ Dodaj</button></h2>
+      <table id="t_labour">
+        <thead><tr><th style="width:40%">Operacja</th><th class="num">Godziny</th><th class="num">Stawka (zł/h)</th><th class="num">Koszt (zł)</th><th class="no-print"></th></tr></thead>
+        <tbody></tbody>
+        <tfoot><tr><td colspan="3">Razem robocizna</td><td class="num" id="sum_labour"></td><td class="no-print"></td></tr></tfoot>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>3. Maszyny i energia <button class="small no-print" onclick="addLine('machines')">+ Dodaj</button></h2>
+      <table id="t_machines">
+        <thead><tr><th style="width:40%">Maszyna / zasób</th><th class="num">Godziny</th><th class="num">Koszt (zł/h)</th><th class="num">Koszt (zł)</th><th class="no-print"></th></tr></thead>
+        <tbody></tbody>
+        <tfoot><tr><td colspan="3">Razem maszyny i energia</td><td class="num" id="sum_machines"></td><td class="no-print"></td></tr></tfoot>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>4. Inne koszty <span class="muted">(transport, montaż, kooperacja, ocynk, malowanie)</span> <button class="small no-print" onclick="addLine('other')">+ Dodaj</button></h2>
+      <table id="t_other">
+        <thead><tr><th style="width:60%">Opis</th><th class="num">Kwota (zł)</th><th class="no-print"></th></tr></thead>
+        <tbody></tbody>
+        <tfoot><tr><td>Razem inne</td><td class="num" id="sum_other"></td><td class="no-print"></td></tr></tfoot>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Podsumowanie kalkulacji</h2>
+      <div class="summary" id="summaryStats"></div>
+      <div class="bar" id="bar"></div>
+      <div class="legend">
+        <span><i class="c-mat"></i>Materiały</span><span><i class="c-lab"></i>Robocizna</span>
+        <span><i class="c-mach"></i>Maszyny</span><span><i class="c-oth"></i>Inne</span><span><i class="c-over"></i>Koszty ogólne</span>
+      </div>
+      <div class="row c2" style="margin-top:14px">
+        <div><h3 style="font-size:14px;margin:0 0 6px">Na 1 sztukę</h3><div class="breakdown" id="bdUnit"></div></div>
+        <div><h3 style="font-size:14px;margin:0 0 6px">Cała seria (<span id="bdQty"></span> szt.)</h3><div class="breakdown" id="bdTotal"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="welcome" class="card">
+    <h2>Witaj</h2>
+    <p>Wybierz wyrób z listy po lewej albo dodaj nowy, aby rozpocząć kalkulację kosztów produkcji.</p>
+    <p class="muted">Kalkulacja obejmuje: materiały (z odpadem), robociznę, koszty maszyn i energii, inne koszty, narzut kosztów ogólnych, marżę i VAT. Wynik liczony jest na sztukę i na całą serię.</p>
+  </section>
+</main>
+
+<script>
+const STORAGE_KEY = 'kalkulator-garaze-v1';
+const state = load() || { global: { labourRate: 45, overhead: 15, vat: 23 }, products: [], activeId: null };
+
+function load() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch (e) { return null; } }
+function save() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {} }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function num(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+function pln(v) { return (Math.round(v * 100) / 100).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' zł'; }
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function active() { return state.products.find(p => p.id === state.activeId) || null; }
+
+function newProduct(partial = {}) {
+  return Object.assign({ id: uid(), name: 'Nowy wyrób', type: 'Garaż blaszany', dims: '', qty: 1, overhead: '', margin: 20, salePrice: '',
+    materials: [], labour: [], machines: [], other: [] }, partial);
+}
+
+// ---------- calculations ----------
+function calc(p) {
+  const g = state.global;
+  const materials = p.materials.reduce((s, l) => s + num(l.qty) * num(l.price) * (1 + num(l.waste) / 100), 0);
+  const labour = p.labour.reduce((s, l) => s + num(l.hours) * (l.rate === '' || l.rate == null ? num(g.labourRate) : num(l.rate)), 0);
+  const machines = p.machines.reduce((s, l) => s + num(l.hours) * num(l.rate), 0);
+  const other = p.other.reduce((s, l) => s + num(l.amount), 0);
+  const direct = materials + labour + machines + other;
+  const overheadPct = p.overhead === '' || p.overhead == null ? num(g.overhead) : num(p.overhead);
+  const overhead = direct * overheadPct / 100;
+  const cost = direct + overhead;
+  const margin = cost * num(p.margin) / 100;
+  const priceNet = cost + margin;
+  const priceGross = priceNet * (1 + num(g.vat) / 100);
+  const qty = Math.max(1, Math.round(num(p.qty)) || 1);
+  const sale = num(p.salePrice);
+  const profit = sale > 0 ? sale - cost : null;
+  const profitPct = sale > 0 && cost > 0 ? (sale - cost) / cost * 100 : null;
+  return { materials, labour, machines, other, direct, overheadPct, overhead, cost, margin, priceNet, priceGross, qty, sale, profit, profitPct };
+}
+
+// ---------- rendering ----------
+function renderList() {
+  const ul = document.getElementById('productList');
+  ul.innerHTML = state.products.map(p => {
+    const c = calc(p);
+    return `<li class="${p.id === state.activeId ? 'active' : ''}" onclick="selectProduct('${p.id}')">
+      <span class="name">${esc(p.name)}</span><span class="price">${pln(c.cost)}/szt.</span></li>`;
+  }).join('');
+  document.getElementById('emptyHint').classList.toggle('hidden', state.products.length > 0);
+}
+
+function renderGlobals() {
+  document.getElementById('g_labourRate').value = state.global.labourRate;
+  document.getElementById('g_overhead').value = state.global.overhead;
+  document.getElementById('g_vat').value = state.global.vat;
+}
+
+function lineRow(kind, l, i) {
+  const del = `<td class="no-print"><button class="danger small" onclick="removeLine('${kind}',${i})">✕</button></td>`;
+  const inp = (f, type = 'text', extra = '') => `<input type="${type}" ${type === 'number' ? 'step="0.01" min="0"' : ''} ${extra} value="${esc(l[f])}" oninput="setLine('${kind}',${i},'${f}',this.value)">`;
+  if (kind === 'materials') {
+    const cost = num(l.qty) * num(l.price) * (1 + num(l.waste) / 100);
+    return `<tr><td>${inp('name')}</td><td>${inp('unit', 'text', 'placeholder="szt./m²/mb/kg"')}</td><td>${inp('qty', 'number')}</td><td>${inp('price', 'number')}</td><td>${inp('waste', 'number')}</td><td class="num">${pln(cost)}</td>${del}</tr>`;
+  }
+  if (kind === 'labour') {
+    const rate = l.rate === '' || l.rate == null ? num(state.global.labourRate) : num(l.rate);
+    return `<tr><td>${inp('name')}</td><td>${inp('hours', 'number')}</td><td>${inp('rate', 'number', `placeholder="${state.global.labourRate}"`)}</td><td class="num">${pln(num(l.hours) * rate)}</td>${del}</tr>`;
+  }
+  if (kind === 'machines') {
+    return `<tr><td>${inp('name')}</td><td>${inp('hours', 'number')}</td><td>${inp('rate', 'number')}</td><td class="num">${pln(num(l.hours) * num(l.rate))}</td>${del}</tr>`;
+  }
+  return `<tr><td>${inp('name')}</td><td>${inp('amount', 'number')}</td>${del}</tr>`;
+}
+
+function renderEditor() {
+  const p = active();
+  document.getElementById('editor').classList.toggle('hidden', !p);
+  document.getElementById('welcome').classList.toggle('hidden', !!p);
+  if (!p) return;
+  const set = (id, v) => { const el = document.getElementById(id); if (document.activeElement !== el) el.value = v ?? ''; };
+  set('p_name', p.name); set('p_type', p.type); set('p_dims', p.dims); set('p_qty', p.qty);
+  set('p_overhead', p.overhead); set('p_margin', p.margin); set('p_salePrice', p.salePrice);
+
+  for (const kind of ['materials', 'labour', 'machines', 'other']) {
+    document.querySelector(`#t_${kind} tbody`).innerHTML = p[kind].map((l, i) => lineRow(kind, l, i)).join('');
+  }
+  const c = calc(p);
+  document.getElementById('sum_materials').textContent = pln(c.materials);
+  document.getElementById('sum_labour').textContent = pln(c.labour);
+  document.getElementById('sum_machines').textContent = pln(c.machines);
+  document.getElementById('sum_other').textContent = pln(c.other);
+
+  let stats = `
+    <div class="stat primary"><div class="lbl">Koszt własny / szt.</div><div class="val">${pln(c.cost)}</div></div>
+    <div class="stat"><div class="lbl">Cena netto (marża ${num(p.margin)}%)</div><div class="val">${pln(c.priceNet)}</div></div>
+    <div class="stat"><div class="lbl">Cena brutto (VAT ${num(state.global.vat)}%)</div><div class="val">${pln(c.priceGross)}</div></div>
+    <div class="stat"><div class="lbl">Koszt całej serii</div><div class="val">${pln(c.cost * c.qty)}</div></div>`;
+  if (c.profit !== null) {
+    const cls = c.profit < 0 ? 'bad' : (c.profitPct < 10 ? 'warn' : 'ok');
+    stats += `<div class="stat ${cls}"><div class="lbl">Zysk przy cenie ${pln(c.sale)}</div><div class="val">${pln(c.profit)} (${c.profitPct.toFixed(1)}%)</div></div>`;
+  }
+  document.getElementById('summaryStats').innerHTML = stats;
+
+  const total = c.cost || 1;
+  document.getElementById('bar').innerHTML = [['c-mat', c.materials], ['c-lab', c.labour], ['c-mach', c.machines], ['c-oth', c.other], ['c-over', c.overhead]]
+    .map(([cls, v]) => `<span class="${cls}" style="width:${(v / total * 100).toFixed(2)}%" title="${pln(v)}"></span>`).join('');
+
+  const bd = (m) => `
+    <div><span>Materiały</span><span>${pln(c.materials * m)}</span></div>
+    <div><span>Robocizna</span><span>${pln(c.labour * m)}</span></div>
+    <div><span>Maszyny i energia</span><span>${pln(c.machines * m)}</span></div>
+    <div><span>Inne koszty</span><span>${pln(c.other * m)}</span></div>
+    <div><span>Koszt bezpośredni</span><span>${pln(c.direct * m)}</span></div>
+    <div><span>Koszty ogólne (${c.overheadPct}%)</span><span>${pln(c.overhead * m)}</span></div>
+    <div class="total"><span>Koszt własny</span><span>${pln(c.cost * m)}</span></div>
+    <div><span>Marża (${num(p.margin)}%)</span><span>${pln(c.margin * m)}</span></div>
+    <div><span>Cena netto</span><span>${pln(c.priceNet * m)}</span></div>
+    <div><span>VAT (${num(state.global.vat)}%)</span><span>${pln((c.priceGross - c.priceNet) * m)}</span></div>
+    <div class="total"><span>Cena brutto</span><span>${pln(c.priceGross * m)}</span></div>`;
+  document.getElementById('bdUnit').innerHTML = bd(1);
+  document.getElementById('bdTotal').innerHTML = bd(c.qty);
+  document.getElementById('bdQty').textContent = c.qty;
+}
+
+function renderAll() { renderGlobals(); renderList(); renderEditor(); save(); }
+
+// ---------- actions ----------
+function addProduct() { const p = newProduct(); state.products.push(p); state.activeId = p.id; renderAll(); document.getElementById('p_name').select(); }
+function selectProduct(id) { state.activeId = id; renderAll(); }
+function deleteProduct() {
+  const p = active(); if (!p) return;
+  if (!confirm(`Usunąć wyrób „${p.name}”?`)) return;
+  state.products = state.products.filter(x => x.id !== p.id);
+  state.activeId = state.products[0]?.id || null; renderAll();
+}
+function setField(f, v) { const p = active(); if (!p) return; p[f] = v; renderList(); renderEditor(); save(); }
+function setGlobal(f, v) { state.global[f] = num(v); renderList(); renderEditor(); save(); }
+function addLine(kind) {
+  const p = active(); if (!p) return;
+  const tpl = { materials: { name: '', unit: 'szt.', qty: 1, price: '', waste: 0 }, labour: { name: '', hours: '', rate: '' },
+    machines: { name: '', hours: '', rate: '' }, other: { name: '', amount: '' } };
+  p[kind].push({ ...tpl[kind] }); renderEditor(); save();
+  const rows = document.querySelectorAll(`#t_${kind} tbody tr`); rows[rows.length - 1]?.querySelector('input')?.focus();
+}
+function setLine(kind, i, f, v) { const p = active(); if (!p) return; p[kind][i][f] = v; renderList(); renderEditor(); save(); }
+function removeLine(kind, i) { const p = active(); if (!p) return; p[kind].splice(i, 1); renderAll(); }
+
+// ---------- import / export ----------
+function download(name, content, type) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function exportJSON() { download('kalkulacja-garaze.json', JSON.stringify(state, null, 2), 'application/json'); }
+function importJSON(ev) {
+  const f = ev.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const d = JSON.parse(r.result);
+      if (!d || !Array.isArray(d.products)) throw new Error('bad');
+      state.global = Object.assign({ labourRate: 45, overhead: 15, vat: 23 }, d.global || {});
+      state.products = d.products.map(p => newProduct(p));
+      state.activeId = state.products[0]?.id || null; renderAll();
+    } catch (e) { alert('Nieprawidłowy plik JSON.'); }
+  };
+  r.readAsText(f); ev.target.value = '';
+}
+function exportCSV() {
+  const h = ['Wyrób', 'Typ', 'Wymiary', 'Ilość', 'Materiały/szt', 'Robocizna/szt', 'Maszyny/szt', 'Inne/szt', 'Koszty ogólne/szt', 'Koszt własny/szt', 'Marża %', 'Cena netto/szt', 'Cena brutto/szt', 'Koszt serii', 'Wartość netto serii'];
+  const rows = state.products.map(p => { const c = calc(p); return [p.name, p.type, p.dims, c.qty, c.materials, c.labour, c.machines, c.other, c.overhead, c.cost, num(p.margin), c.priceNet, c.priceGross, c.cost * c.qty, c.priceNet * c.qty]; });
+  const fmt = v => typeof v === 'number' ? v.toFixed(2).replace('.', ',') : `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const csv = '﻿' + [h, ...rows].map(r => r.map(fmt).join(';')).join('\r\n');
+  download('kalkulacja-garaze.csv', csv, 'text/csv;charset=utf-8');
+}
+
+function loadSample() {
+  if (state.products.length && !confirm('Dodać przykładowe wyroby do obecnej listy?')) return;
+  state.products.push(
+    newProduct({ name: 'Garaż blaszany 3×5 m', type: 'Garaż blaszany', dims: '3 × 5 × 2,2 m', qty: 5, margin: 25, salePrice: 5200,
+      materials: [
+        { name: 'Blacha trapezowa T-14 ocynk (ściany)', unit: 'm²', qty: 36, price: 25, waste: 8 },
+        { name: 'Blacha trapezowa T-14 (dach)', unit: 'm²', qty: 17, price: 25, waste: 8 },
+        { name: 'Profil stalowy 40×40×1,5 (konstrukcja)', unit: 'mb', qty: 50, price: 10, waste: 5 },
+        { name: 'Brama uchylna – zestaw okuć', unit: 'kpl.', qty: 1, price: 180, waste: 0 },
+        { name: 'Wkręty farmerskie 4,8×35', unit: 'szt.', qty: 400, price: 0.18, waste: 10 },
+        { name: 'Obróbki blacharskie', unit: 'mb', qty: 20, price: 9, waste: 5 },
+      ],
+      labour: [
+        { name: 'Cięcie i spawanie konstrukcji', hours: 8, rate: '' },
+        { name: 'Obłożenie blachą', hours: 6, rate: '' },
+        { name: 'Montaż bramy', hours: 2, rate: '' },
+      ],
+      machines: [
+        { name: 'Spawarka MIG (energia + gaz)', hours: 6, rate: 12 },
+        { name: 'Gilotyna / giętarka', hours: 2, rate: 20 },
+      ],
+      other: [
+        { name: 'Transport do klienta', amount: 250 },
+        { name: 'Montaż u klienta', amount: 300 },
+      ] }),
+    newProduct({ name: 'Wiata garażowa 3×6 m', type: 'Wiata garażowa', dims: '3 × 6 × 2,5 m', qty: 2, margin: 25,
+      materials: [
+        { name: 'Słupy stalowe 80×80×3', unit: 'mb', qty: 15, price: 48, waste: 3 },
+        { name: 'Płatwie 60×40×2', unit: 'mb', qty: 36, price: 22, waste: 5 },
+        { name: 'Blacha trapezowa T-18 (dach)', unit: 'm²', qty: 20, price: 36, waste: 8 },
+        { name: 'Kotwy i śruby', unit: 'kpl.', qty: 1, price: 120, waste: 0 },
+      ],
+      labour: [
+        { name: 'Prefabrykacja konstrukcji', hours: 7, rate: '' },
+        { name: 'Montaż dachu', hours: 4, rate: '' },
+      ],
+      machines: [{ name: 'Spawarka', hours: 5, rate: 12 }],
+      other: [{ name: 'Cynkowanie ogniowe konstrukcji', amount: 650 }] })
+  );
+  state.activeId = state.products[state.products.length - 2].id;
+  renderAll();
+}
+
+renderAll();
+</script>
+</body>
+</html>
