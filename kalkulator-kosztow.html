@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#6b4330">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Garmażerka">
+<title>Dział garmażeryjny – kalkulator kosztów produkcji</title>
+<style>
+  :root {
+    --fs: 18px; --bg: #f7efe3; --card: #fffaf2; --text: #3e2f25; --muted: #7a5c4a;
+    --border: #e6d5bd; --accent: #b5603f; --accent-text: #ffffff; --accent-hover: #9a4f33;
+    --danger: #a83a2c; --ok: #5f7a2f; --warn: #a8722b; --focus: #e0a24a; --head: #6b4330;
+    --row: #f6e9d6; --soft: #f9e2cf;
+    --c-kuchnia: #c2694c; --c-produkty: #6d8a3c; --c-spizarnia: #b5812f; --c-zasoby: #8a6b5c; --c-ustawienia: #9a8878;
+  }
+  html[data-size="large"] { --fs: 22px; }
+  html[data-size="xlarge"] { --fs: 27px; }
+  html[data-contrast="on"] {
+    --bg: #000; --card: #000; --text: #fff; --muted: #ffff00; --border: #fff; --accent: #ffff00;
+    --accent-text: #000; --accent-hover: #ffd700; --danger: #ff6b6b; --ok: #6cff6c; --warn: #ffd700;
+    --focus: #00ffff; --head: #000; --row: #111; --soft: #222;
+    --c-kuchnia: #000; --c-produkty: #000; --c-spizarnia: #000; --c-zasoby: #000; --c-ustawienia: #000;
+  }
+  html[data-contrast="on"] header { background: #000; }
+  html[data-contrast="on"] .tile, html[data-contrast="on"] nav button { border: 3px solid #fff !important; color: #fff !important; }
+  html[data-contrast="on"] .tile:hover, html[data-contrast="on"] nav button[aria-selected="true"] { background: #ffff00 !important; color: #000 !important; }
+  * { box-sizing: border-box; }
+  html { font-size: var(--fs); }
+  body { margin: 0; font-family: Arial, "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+  header { background: linear-gradient(90deg, var(--head), #8a5a40); color: #fff; padding: .7rem 1rem; display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; justify-content: space-between; border-bottom: 3px solid var(--border); }
+  header h1 { margin: 0; font-size: 1.25rem; }
+  .t-short { display: none; }
+  .a11y { display: flex; gap: .4rem; flex-wrap: wrap; }
+  .a11y button { background: #fff; color: #000; border: 2px solid #fff; font-weight: 700; }
+  .a11y button[aria-pressed="true"] { background: var(--focus); border-color: var(--focus); }
+  nav { display: flex; flex-wrap: wrap; gap: .4rem; padding: .7rem 1rem 0; max-width: 1400px; margin: 0 auto; }
+  nav button .ico { margin-right: .4rem; }
+  nav button { font-size: 1.05rem; padding: .7rem 1.1rem; background: var(--card); color: var(--text); border: 2px solid var(--border); border-left-width: .6rem; }
+  nav button[aria-selected="true"] { color: #fff; }
+  nav button[data-m="start"] { border-left-color: var(--head); } nav button[data-m="start"][aria-selected="true"] { background: var(--head); border-color: var(--head); }
+  nav button[data-m="kuchnia"] { border-left-color: var(--c-kuchnia); } nav button[data-m="kuchnia"][aria-selected="true"] { background: var(--c-kuchnia); border-color: var(--c-kuchnia); }
+  nav button[data-m="produkty"] { border-left-color: var(--c-produkty); } nav button[data-m="produkty"][aria-selected="true"] { background: var(--c-produkty); border-color: var(--c-produkty); }
+  nav button[data-m="spizarnia"] { border-left-color: var(--c-spizarnia); } nav button[data-m="spizarnia"][aria-selected="true"] { background: var(--c-spizarnia); border-color: var(--c-spizarnia); }
+  nav button[data-m="zasoby"] { border-left-color: var(--c-zasoby); } nav button[data-m="zasoby"][aria-selected="true"] { background: var(--c-zasoby); border-color: var(--c-zasoby); }
+  nav button[data-m="ustawienia"] { border-left-color: var(--c-ustawienia); } nav button[data-m="ustawienia"][aria-selected="true"] { background: var(--c-ustawienia); border-color: var(--c-ustawienia); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 1rem; }
+  .tile { display: flex; flex-direction: column; align-items: flex-start; gap: .3rem; text-align: left; padding: 1.2rem; min-height: 9rem; border-radius: 1rem; color: #fff; border: none; font-weight: 700; box-shadow: 0 4px 12px rgba(90,55,30,.18); }
+  .tile .ico { font-size: 2.6rem; line-height: 1; }
+  .tile .ttl { font-size: 1.35rem; }
+  .tile .sub { font-weight: 400; font-size: .95rem; opacity: .95; }
+  .tile:hover { filter: brightness(1.1); transform: translateY(-2px); }
+  .tile.kuchnia { background: var(--c-kuchnia); } .tile.produkty { background: var(--c-produkty); } .tile.spizarnia { background: var(--c-spizarnia); } .tile.zasoby { background: var(--c-zasoby); } .tile.ustawienia { background: var(--c-ustawienia); }
+  .tile.item { background: var(--card); color: var(--text); border: 3px solid var(--border); min-height: 6.5rem; padding: .9rem 1rem; box-shadow: none; }
+  .tile.item:hover { background: var(--row); transform: none; filter: none; }
+  .tile.item.active { border-color: var(--accent); background: var(--soft); }
+  .tile.item .ttl { font-size: 1.15rem; }
+  .tile.item.add { border-style: dashed; justify-content: center; align-items: center; color: var(--accent); }
+  .tile.item .ico { font-size: 1.8rem; }
+  .k-tiles { margin-bottom: 1rem; }
+  main { padding: 1rem; max-width: 1400px; margin: 0 auto; }
+  .card { background: var(--card); border: 2px solid var(--border); border-radius: 1rem; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 2px 6px rgba(90,55,30,.08); }
+  .card h2 { margin: 0 0 .8rem; font-size: 1.3rem; display: flex; justify-content: space-between; align-items: center; gap: .6rem; flex-wrap: wrap; }
+  .card h3 { font-size: 1.1rem; margin: 1rem 0 .5rem; }
+  button { font: inherit; padding: .55rem .9rem; border: 2px solid var(--accent); border-radius: .4rem; cursor: pointer; background: var(--accent); color: var(--accent-text); font-weight: 600; min-height: 2.6rem; }
+  button:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  button.secondary { background: var(--card); color: var(--text); border-color: var(--border); }
+  button.secondary:hover { background: var(--row); }
+  button.danger { background: var(--card); color: var(--danger); border-color: var(--danger); }
+  button.danger:hover { background: var(--row); }
+  button.big { font-size: 1.15rem; padding: .8rem 1.3rem; }
+  :focus-visible { outline: 4px solid var(--focus); outline-offset: 2px; }
+  input, select, textarea { font: inherit; padding: .5rem .6rem; border: 2px solid var(--border); border-radius: .4rem; width: 100%; background: var(--card); color: var(--text); min-height: 2.6rem; }
+  input[type=number] { text-align: right; }
+  label { display: block; font-weight: 600; margin-bottom: .25rem; }
+  .hint { color: var(--muted); font-size: .9rem; }
+  .field { margin-bottom: .8rem; }
+  .row { display: grid; gap: .8rem; }
+  .row.c2 { grid-template-columns: 1fr 1fr; }
+  .row.c3 { grid-template-columns: 1fr 1fr 1fr; }
+  .row.c4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 800px) { .row.c2, .row.c3, .row.c4 { grid-template-columns: 1fr; } }
+  .layout { display: block; }
+  .tbl { width: 100%; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: .5rem .5rem; border-bottom: 2px solid var(--border); text-align: left; vertical-align: middle; }
+  th { font-weight: 700; background: var(--row); }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  tfoot td { font-weight: 700; font-size: 1.05rem; }
+  tr.short td { background: #fee2e2; }
+  html[data-contrast="on"] tr.short td { background: #3a0000; }
+  .list { list-style: none; margin: 0; padding: 0; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .8rem; }
+  .stat { border: 2px solid var(--border); border-radius: .5rem; padding: .7rem .9rem; background: var(--row); }
+  .stat .lbl { font-weight: 600; color: var(--muted); font-size: .95rem; }
+  .stat .val { font-size: 1.5rem; font-weight: 800; }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: .8rem; }
+  .steps div { background: var(--row); border-radius: .6rem; padding: .8rem; }
+  .steps b { display: block; font-size: 1.1rem; margin-bottom: .2rem; }
+  .stat.primary { background: var(--soft); border-color: var(--accent); }
+  .ok { color: var(--ok); font-weight: 700; } .bad { color: var(--danger); font-weight: 700; } .warn { color: var(--warn); font-weight: 700; }
+  .hidden { display: none !important; }
+  .breakdown div { display: flex; justify-content: space-between; padding: .35rem 0; border-bottom: 1px dashed var(--border); }
+  .breakdown div.total { font-weight: 800; font-size: 1.15rem; border-top: 3px solid var(--text); border-bottom: none; margin-top: .3rem; padding-top: .5rem; }
+  .empty { color: var(--muted); padding: .5rem 0; }
+  .toast { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); background: var(--ok); color: #fff; padding: .8rem 1.3rem; border-radius: .5rem; font-weight: 700; font-size: 1.1rem; z-index: 9; }
+  html[data-contrast="on"] .toast { color: #000; border: 3px solid #fff; }
+  /* ---------- telefon: wygląd aplikacji ---------- */
+  @media (max-width: 700px) {
+    html { font-size: calc(var(--fs) - 2px); }
+    body { padding-bottom: calc(5.2rem + env(safe-area-inset-bottom)); }
+    header { position: sticky; top: 0; z-index: 5; padding: .5rem .8rem; padding-top: calc(.5rem + env(safe-area-inset-top)); gap: .4rem; }
+    header h1 { font-size: 1.1rem; } .t-long { display: none; } .t-short { display: inline; }
+    .a11y button { min-height: 2.2rem; padding: .3rem .6rem; font-size: .9rem; }
+    nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 6; margin: 0; padding: .35rem .3rem calc(.35rem + env(safe-area-inset-bottom)); background: var(--card); border-top: 2px solid var(--border); display: grid; grid-template-columns: repeat(6, 1fr); gap: .2rem; box-shadow: 0 -4px 12px rgba(90,55,30,.12); }
+    nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem; padding: .3rem .1rem; min-height: 3.6rem; border: none; border-radius: .7rem; background: transparent; font-size: .7rem; font-weight: 700; color: var(--muted); }
+    nav button .ico { font-size: 1.5rem; margin: 0; line-height: 1; }
+    nav button .lbl { white-space: nowrap; }
+    nav button[aria-selected="true"] { color: #fff; }
+    main { padding: .8rem; }
+    .card { padding: .8rem; border-radius: .9rem; }
+    .tiles { grid-template-columns: 1fr 1fr; gap: .7rem; }
+    .tile { min-height: 7.5rem; padding: .9rem; border-radius: .9rem; }
+    .tile .ico { font-size: 2rem; } .tile .ttl { font-size: 1.05rem; } .tile .sub { font-size: .8rem; }
+    .tile.item { min-height: 5.5rem; padding: .7rem; } .tile.item .ttl { font-size: 1rem; } .tile.item .ico { font-size: 1.4rem; }
+    .stats { grid-template-columns: 1fr 1fr; gap: .6rem; }
+    .stat .val { font-size: 1.25rem; }
+    .row.c2, .row.c3, .row.c4 { grid-template-columns: 1fr; }
+    .steps { grid-template-columns: 1fr; }
+    th, td { padding: .4rem .35rem; font-size: .9rem; }
+    .card h2 { font-size: 1.15rem; }
+    .toast { bottom: calc(5.5rem + env(safe-area-inset-bottom)); width: calc(100% - 2rem); text-align: center; }
+  }
+  @media (max-width: 380px) { nav button .lbl { font-size: .62rem; } }
+  @media print { header, nav, .no-print { display: none !important; } body { background: #fff; } .card { border: 1px solid #000; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>🥩 <span class="t-long">Dział garmażeryjny – kalkulator kosztów produkcji</span><span class="t-short">Garmażerka</span></h1>
+  <div class="a11y no-print" role="group" aria-label="Ułatwienia dostępu">
+    <button onclick="setSize('normal')" id="sz-normal" aria-pressed="true" title="Normalna czcionka">A</button>
+    <button onclick="setSize('large')" id="sz-large" aria-pressed="false" title="Duża czcionka">A+</button>
+    <button onclick="setSize('xlarge')" id="sz-xlarge" aria-pressed="false" title="Bardzo duża czcionka">A++</button>
+    <button onclick="toggleContrast()" id="contrastBtn" aria-pressed="false">Wysoki kontrast</button>
+  </div>
+</header>
+
+<nav role="tablist" aria-label="Moduły" class="no-print">
+  <button role="tab" data-m="start" onclick="showTab('start')" id="tab-start"><span class="ico">🏠</span><span class="lbl">Start</span></button>
+  <button role="tab" data-m="kuchnia" onclick="showTab('kuchnia')" id="tab-kuchnia"><span class="ico">🍳</span><span class="lbl">Kuchnia</span></button>
+  <button role="tab" data-m="produkty" onclick="showTab('produkty')" id="tab-produkty"><span class="ico">📋</span><span class="lbl">Produkty</span></button>
+  <button role="tab" data-m="spizarnia" onclick="showTab('spizarnia')" id="tab-spizarnia"><span class="ico">🧺</span><span class="lbl">Spiżarnia</span></button>
+  <button role="tab" data-m="zasoby" onclick="showTab('zasoby')" id="tab-zasoby"><span class="ico">⚙️</span><span class="lbl">Maszyny</span></button>
+  <button role="tab" data-m="ustawienia" onclick="showTab('ustawienia')" id="tab-ustawienia"><span class="ico">🔧</span><span class="lbl">Ustawienia</span></button>
+</nav>
+
+<main>
+<!-- ================= START ================= -->
+<section id="view-start" class="hidden">
+  <div class="tiles">
+    <button class="tile kuchnia" onclick="showTab('kuchnia')"><span class="ico">🍳</span><span class="ttl">Kuchnia</span><span class="sub">Wybierz produkt i ilość – policzę składniki, ludzi, prąd i koszt</span></button>
+    <button class="tile produkty" onclick="showTab('produkty')"><span class="ico">📋</span><span class="ttl">Produkty i przepisy</span><span class="sub">Karty produktów z przepisem na partię</span></button>
+    <button class="tile spizarnia" onclick="showTab('spizarnia')"><span class="ico">🧺</span><span class="ttl">Spiżarnia</span><span class="sub">Zakupy z faktur, ceny i stan składników</span></button>
+    <button class="tile zasoby" onclick="showTab('zasoby')"><span class="ico">⚙️</span><span class="ttl">Maszyny i ludzie</span><span class="sub">Moc maszyn, eksploatacja, stawka pracownika</span></button>
+    <button class="tile ustawienia" onclick="showTab('ustawienia')"><span class="ico">🔧</span><span class="ttl">Ustawienia</span><span class="sub">Cena prądu, marża, VAT, kopia danych</span></button>
+  </div>
+  <div class="card" style="margin-top:1rem"><h2>Jak zacząć?</h2>
+    <div class="steps">
+      <div><b>1. Maszyny i ludzie</b>Wpisz maszyny (moc w kW) i stawkę pracownika.</div>
+      <div><b>2. Spiżarnia</b>Dodaj składniki i dostawy z faktur.</div>
+      <div><b>3. Produkty</b>Wypełnij kartę i przepis na partię, np. 100 kg.</div>
+      <div><b>4. Kuchnia</b>Wybierz produkt, wpisz ilość i odczytaj koszt.</div>
+    </div>
+    <div id="startStats" class="stats" style="margin-top:1rem"></div>
+  </div>
+</section>
+<!-- ================= KUCHNIA ================= -->
+<section id="view-kuchnia" class="hidden">
+  <div class="card">
+    <h2>Kuchnia – co dziś produkujemy?</h2>
+    <p><b>1. Wybierz produkt:</b></p>
+    <div class="tiles k-tiles" id="k_tiles"></div>
+    <p><b>2. Podaj ilość:</b></p>
+    <div class="row c2">
+      <div class="field"><label for="k_qty">Ilość do wyprodukowania</label><input type="number" id="k_qty" min="0" step="any" value="100" oninput="renderKitchen()"></div>
+      <div class="field"><label for="k_date">Data produkcji</label><input type="date" id="k_date"></div>
+    </div>
+    <p class="hint" id="k_hint"></p>
+  </div>
+  <div id="k_result"></div>
+  <div class="card">
+    <h2>Historia produkcji</h2>
+    <div class="tbl" id="k_history"></div>
+  </div>
+</section>
+
+<!-- ================= PRODUKTY ================= -->
+<section id="view-produkty" class="hidden">
+  <div class="layout">
+    <aside>
+      <div class="card">
+        <h2>Produkty</h2>
+        <div class="tiles" id="productList"></div>
+        <p class="empty" id="productEmpty">Brak produktów. Dodaj pierwszy produkt i wypełnij jego kartę.</p>
+      </div>
+    </aside>
+    <div id="productEditor" class="hidden">
+      <div class="card">
+        <h2>Karta produktu <button class="danger no-print" onclick="deleteProduct()">Usuń produkt</button></h2>
+        <div class="row c3">
+          <div class="field"><label for="p_name">Nazwa produktu</label><input id="p_name" oninput="setP('name', this.value)"></div>
+          <div class="field"><label for="p_unit">Jednostka produktu</label><select id="p_unit" onchange="setP('unit', this.value)"><option>kg</option><option>szt.</option><option>porcja</option><option>l</option><option>opak.</option></select></div>
+          <div class="field"><label for="p_batch">Wielkość partii bazowej (przepis jest na tyle)</label><input type="number" id="p_batch" min="0.001" step="any" oninput="setP('batch', this.value)"></div>
+        </div>
+        <div class="field"><label for="p_notes">Opis / sposób wykonania</label><textarea id="p_notes" rows="2" oninput="setP('notes', this.value)"></textarea></div>
+        <p class="hint">Wszystkie ilości poniżej dotyczą partii bazowej. W Kuchni program przeliczy je proporcjonalnie na zadaną ilość.</p>
+      </div>
+      <div class="card">
+        <h2>Składniki (ze spiżarni) <button class="no-print" onclick="addPL('ingredients')">+ Dodaj składnik</button></h2>
+        <div class="tbl"><table id="t_ingredients"><thead><tr><th>Składnik</th><th class="num">Ilość na partię</th><th>Jedn.</th><th class="num">Cena jedn.</th><th class="num">Koszt</th><th class="no-print"></th></tr></thead><tbody></tbody>
+        <tfoot><tr><td colspan="4">Razem składniki</td><td class="num" id="s_ingredients"></td><td class="no-print"></td></tr></tfoot></table></div>
+      </div>
+      <div class="card">
+        <h2>Ludzie (robocizna) <button class="no-print" onclick="addPL('labour')">+ Dodaj etap</button></h2>
+        <div class="tbl"><table id="t_labour"><thead><tr><th>Etap pracy</th><th class="num">Liczba osób</th><th class="num">Godzin na partię</th><th class="num">Stawka zł/h</th><th class="num">Roboczogodziny</th><th class="num">Koszt</th><th class="no-print"></th></tr></thead><tbody></tbody>
+        <tfoot><tr><td colspan="4">Razem robocizna</td><td class="num" id="s_rbh"></td><td class="num" id="s_labour"></td><td class="no-print"></td></tr></tfoot></table></div>
+        <p class="hint">Pusta stawka oznacza domyślną stawkę z Ustawień.</p>
+      </div>
+      <div class="card">
+        <h2>Maszyny <button class="no-print" onclick="addPL('machines')">+ Dodaj maszynę</button></h2>
+        <div class="tbl"><table id="t_machines"><thead><tr><th>Maszyna</th><th class="num">Godzin pracy na partię</th><th class="num">Prąd (kWh)</th><th class="num">Koszt prądu</th><th class="num">Eksploatacja</th><th class="num">Koszt</th><th class="no-print"></th></tr></thead><tbody></tbody>
+        <tfoot><tr><td colspan="5">Razem maszyny</td><td class="num" id="s_machines"></td><td class="no-print"></td></tr></tfoot></table></div>
+      </div>
+      <div class="card">
+        <h2>Inne koszty na partię <button class="no-print" onclick="addPL('other')">+ Dodaj</button></h2>
+        <div class="tbl"><table id="t_other"><thead><tr><th>Opis (opakowania, gaz, transport…)</th><th class="num">Kwota zł</th><th class="no-print"></th></tr></thead><tbody></tbody>
+        <tfoot><tr><td>Razem inne</td><td class="num" id="s_other"></td><td class="no-print"></td></tr></tfoot></table></div>
+      </div>
+      <div class="card">
+        <h2>Koszt partii bazowej</h2>
+        <div class="stats" id="p_stats"></div>
+      </div>
+    </div>
+    <div id="productWelcome" class="card"><h2>Karta produktu</h2><p>Wybierz produkt z listy po lewej lub dodaj nowy. W karcie podasz przepis: składniki, ludzi, maszyny i inne koszty na jedną partię (np. 100 kg pierogów).</p></div>
+  </div>
+</section>
+
+<!-- ================= SPIŻARNIA ================= -->
+<section id="view-spizarnia" class="hidden">
+  <div class="layout">
+    <aside>
+      <div class="card">
+        <h2>Składniki</h2>
+        <div class="tiles" id="ingList"></div>
+        <p class="empty" id="ingEmpty">Brak składników. Dodaj np. mąkę, ziemniaki, twaróg.</p>
+      </div>
+    </aside>
+    <div id="ingEditor" class="hidden">
+      <div class="card">
+        <h2>Składnik <button class="danger no-print" onclick="deleteIngredient()">Usuń składnik</button></h2>
+        <div class="row c3">
+          <div class="field"><label for="i_name">Nazwa</label><input id="i_name" oninput="setI('name', this.value)"></div>
+          <div class="field"><label for="i_unit">Jednostka</label><select id="i_unit" onchange="setI('unit', this.value)"><option>kg</option><option>l</option><option>szt.</option><option>opak.</option><option>g</option></select></div>
+          <div class="field"><label for="i_min">Minimalny stan (ostrzeżenie)</label><input type="number" id="i_min" min="0" step="any" oninput="setI('min', this.value)"></div>
+        </div>
+        <div class="stats" id="i_stats"></div>
+      </div>
+      <div class="card no-print">
+        <h2>Dodaj dostawę z faktury</h2>
+        <div class="row c4">
+          <div class="field"><label for="f_date">Data</label><input type="date" id="f_date"></div>
+          <div class="field"><label for="f_qty">Ilość</label><input type="number" id="f_qty" min="0" step="any"></div>
+          <div class="field"><label for="f_cost">Kwota z faktury (zł netto)</label><input type="number" id="f_cost" min="0" step="0.01"></div>
+          <div class="field"><label for="f_note">Nr faktury / dostawca</label><input id="f_note"></div>
+        </div>
+        <button class="big" onclick="addInvoice()">Zapisz dostawę</button>
+      </div>
+      <div class="card">
+        <h2>Dostawy (faktury)</h2>
+        <div class="tbl" id="i_invoices"></div>
+      </div>
+      <div class="card">
+        <h2>Zużycie w produkcji</h2>
+        <div class="tbl" id="i_usage"></div>
+      </div>
+    </div>
+    <div id="ingWelcome" class="card"><h2>Spiżarnia</h2><p>Tu wpisujesz zakupy z faktur: ile kupiono i za ile. Program liczy średnią cenę składnika i pilnuje stanu magazynu.</p></div>
+  </div>
+</section>
+
+<!-- ================= ZASOBY ================= -->
+<section id="view-zasoby" class="hidden">
+  <div class="card">
+    <h2>Maszyny i urządzenia <button class="no-print" onclick="addMachine()">+ Dodaj maszynę</button></h2>
+    <p class="hint">Koszt godziny maszyny = moc (kW) × cena prądu + koszt eksploatacji (serwis, amortyzacja, części) na godzinę.</p>
+    <div class="tbl"><table id="t_mach"><thead><tr><th>Nazwa</th><th class="num">Moc (kW)</th><th class="num">Eksploatacja zł/h</th><th class="num">Koszt prądu zł/h</th><th class="num">Razem zł/h</th><th class="no-print"></th></tr></thead><tbody></tbody></table></div>
+    <p class="empty" id="machEmpty">Brak maszyn. Dodaj np. pierogarkę, mikser, kocioł, piec.</p>
+  </div>
+  <div class="card">
+    <h2>Ludzie <button class="no-print" onclick="addStaff()">+ Dodaj osobę</button></h2>
+    <div class="row c2">
+      <div class="field"><label for="g_labourRate">Domyślna stawka pracownika (zł za godzinę, z narzutami)</label><input type="number" id="g_labourRate" min="0" step="0.01" oninput="setG('labourRate', this.value)"></div>
+      <div class="field"><label for="g_hoursFte">Godzin w miesiącu na pełny etat</label><input type="number" id="g_hoursFte" min="0" step="1" oninput="setG('hoursFte', this.value)"></div>
+    </div>
+    <div class="tbl"><table id="t_staff"><thead><tr><th>Osoba</th><th class="num">Etat</th><th class="num">Stawka zł/h</th><th class="num">Godzin / mies.</th><th class="num">Koszt / mies.</th><th class="no-print"></th></tr></thead><tbody></tbody>
+    <tfoot><tr><td>Razem</td><td class="num" id="st_fte"></td><td></td><td class="num" id="st_hours"></td><td class="num" id="st_cost"></td><td class="no-print"></td></tr></tfoot></table></div>
+    <p class="hint">Etat: 1 = pełny, 0.75 = 3/4 etatu, 0.5 = pół etatu. Pusta stawka oznacza stawkę domyślną.</p>
+  </div>
+</section>
+
+<!-- ================= USTAWIENIA ================= -->
+<section id="view-ustawienia" class="hidden">
+  <div class="card">
+    <h2>Parametry kosztów</h2>
+    <div class="row c3">
+      <div class="field"><label for="g_energy">Cena prądu (zł za kWh)</label><input type="number" id="g_energy" min="0" step="0.01" oninput="setG('energy', this.value)"></div>
+      <div class="field"><label for="g_overhead">Koszty ogólne zakładu (% kosztu bezpośredniego)</label><input type="number" id="g_overhead" min="0" step="0.1" oninput="setG('overhead', this.value)"></div>
+      <div class="field"><label for="g_margin">Domyślna marża (%)</label><input type="number" id="g_margin" min="0" step="0.1" oninput="setG('margin', this.value)"></div>
+      <div class="field"><label for="g_vat">VAT (%)</label><input type="number" id="g_vat" min="0" step="1" oninput="setG('vat', this.value)"></div>
+      <div class="field"><label for="g_priceMode">Cena składnika do kalkulacji</label><select id="g_priceMode" onchange="setG('priceMode', this.value)"><option value="avg">Średnia ważona z faktur</option><option value="last">Z ostatniej faktury</option></select></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Dane</h2>
+    <p class="hint">Dane zapisują się automatycznie w tej przeglądarce. Rób kopię zapasową przez eksport JSON.</p>
+    <div class="row c4">
+      <button class="secondary" onclick="exportJSON()">Eksport JSON (kopia)</button>
+      <button class="secondary" onclick="document.getElementById('importFile').click()">Import JSON</button>
+      <button class="secondary" onclick="loadSample()">Wczytaj dane zakładu</button>
+      <button class="danger" onclick="clearAll()">Wyczyść wszystko</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json" class="hidden" onchange="importJSON(event)">
+  </div>
+</section>
+</main>
+
+<script src="dane.js"></script>
+<script>
+const KEY = 'kalkulator-garmazerka-v1';
+const DEF_G = { labourRate: 35, hoursFte: 168, energy: 1.2, overhead: 10, margin: 20, vat: 5, priceMode: 'avg' };
+let state = load() || { g: { ...DEF_G }, staff: [], machines: [], ingredients: [], products: [], productions: [], ui: {} };
+state.g = { ...DEF_G, ...state.g }; state.ui = state.ui || {}; state.staff = state.staff || [];
+let tab = state.ui.tab || 'start';
+
+function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function num(v) { const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? 0 : n; }
+function pln(v) { return (Math.round(v * 100) / 100).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' zł'; }
+function qf(v) { return (Math.round(v * 1000) / 1000).toLocaleString('pl-PL', { maximumFractionDigits: 3 }); }
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function today() { return new Date().toISOString().slice(0, 10); }
+function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; t.setAttribute('role', 'status'); document.body.appendChild(t); setTimeout(() => t.remove(), 2500); }
+const byId = (arr, id) => arr.find(x => x.id === id) || null;
+
+// ---------- accessibility ----------
+function setSize(s) { document.documentElement.dataset.size = s; ['normal', 'large', 'xlarge'].forEach(x => document.getElementById('sz-' + x).setAttribute('aria-pressed', String(x === s))); try { localStorage.setItem(KEY + '-size', s); } catch (e) {} }
+function toggleContrast(force) { const on = force !== undefined ? force : document.documentElement.dataset.contrast !== 'on'; document.documentElement.dataset.contrast = on ? 'on' : 'off'; document.getElementById('contrastBtn').setAttribute('aria-pressed', String(on)); try { localStorage.setItem(KEY + '-contrast', on ? '1' : '0'); } catch (e) {} }
+try { setSize(localStorage.getItem(KEY + '-size') || 'normal'); toggleContrast(localStorage.getItem(KEY + '-contrast') === '1'); } catch (e) {}
+
+// ---------- domain ----------
+function ingPrice(ing) {
+  if (!ing || !ing.invoices.length) return 0;
+  if (state.g.priceMode === 'last') { const l = ing.invoices[ing.invoices.length - 1]; return num(l.qty) ? num(l.cost) / num(l.qty) : 0; }
+  const q = ing.invoices.reduce((s, f) => s + num(f.qty), 0), c = ing.invoices.reduce((s, f) => s + num(f.cost), 0);
+  return q ? c / q : 0;
+}
+function ingUsed(ing) { return state.productions.reduce((s, pr) => s + (pr.usage || []).filter(u => u.ingredientId === ing.id).reduce((a, u) => a + num(u.qty), 0), 0); }
+function ingStock(ing) { return ing.invoices.reduce((s, f) => s + num(f.qty), 0) - ingUsed(ing); }
+function machineHourCost(m) { const e = num(m.power) * num(state.g.energy); return { energy: e, maint: num(m.maint), total: e + num(m.maint) }; }
+
+// Full calculation of a product for a given quantity (factor = qty / batch)
+function calcProduct(p, qty) {
+  const batch = num(p.batch) || 1, f = (qty === undefined ? batch : qty) / batch;
+  const ingredients = p.ingredients.map(l => { const ing = byId(state.ingredients, l.ingredientId); const need = num(l.qty) * f; const price = ingPrice(ing); return { ing, need, price, cost: need * price, stock: ing ? ingStock(ing) : 0 }; });
+  const labour = p.labour.map(l => { const rate = l.rate === '' || l.rate == null ? num(state.g.labourRate) : num(l.rate); const hours = num(l.hours) * f; const rbh = num(l.people) * hours; return { name: l.name, people: num(l.people), hours, rate, rbh, cost: rbh * rate }; });
+  const machines = p.machines.map(l => { const m = byId(state.machines, l.machineId); const hours = num(l.hours) * f; const hc = m ? machineHourCost(m) : { energy: 0, maint: 0, total: 0 }; return { m, hours, kwh: m ? num(m.power) * hours : 0, energy: hc.energy * hours, maint: hc.maint * hours, cost: hc.total * hours }; });
+  const other = p.other.map(l => ({ name: l.name, cost: num(l.amount) * f }));
+  const sum = a => a.reduce((s, x) => s + x.cost, 0);
+  const t = { ingredients: sum(ingredients), labour: sum(labour), machines: sum(machines), other: sum(other),
+    energy: machines.reduce((s, x) => s + x.energy, 0), maint: machines.reduce((s, x) => s + x.maint, 0),
+    kwh: machines.reduce((s, x) => s + x.kwh, 0), rbh: labour.reduce((s, x) => s + x.rbh, 0), machHours: machines.reduce((s, x) => s + x.hours, 0) };
+  t.direct = t.ingredients + t.labour + t.machines + t.other;
+  t.overhead = t.direct * num(state.g.overhead) / 100;
+  t.total = t.direct + t.overhead;
+  const q = qty === undefined ? batch : qty;
+  t.perUnit = q ? t.total / q : 0;
+  t.priceNet = t.perUnit * (1 + num(state.g.margin) / 100);
+  t.priceGross = t.priceNet * (1 + num(state.g.vat) / 100);
+  t.shortages = ingredients.filter(x => x.ing && x.need > x.stock + 1e-9);
+  return { f, qty: q, ingredients, labour, machines, other, t };
+}
+
+// ---------- tabs ----------
+function showTab(t) { tab = t; state.ui.tab = t; save(); ['start', 'kuchnia', 'produkty', 'spizarnia', 'zasoby', 'ustawienia'].forEach(x => { document.getElementById('view-' + x).classList.toggle('hidden', x !== t); document.getElementById('tab-' + x).setAttribute('aria-selected', String(x === t)); }); renderAll(); }
+
+// ---------- rendering helpers ----------
+function setVal(id, v) { const el = document.getElementById(id); if (el && document.activeElement !== el) el.value = v ?? ''; }
+function opts(arr, sel, empty) { return `<option value="">${empty}</option>` + arr.map(x => `<option value="${x.id}" ${x.id === sel ? 'selected' : ''}>${esc(x.name)}</option>`).join(''); }
+function delBtn(fn) { return `<td class="no-print"><button class="danger" onclick="${fn}" aria-label="Usuń wiersz">✕</button></td>`; }
+
+// ---------- KUCHNIA ----------
+function renderKitchen() {
+  if (!byId(state.products, state.ui.kProduct)) state.ui.kProduct = state.products[0] ? state.products[0].id : null;
+  document.getElementById('k_tiles').innerHTML = state.products.map(x => `<button class="tile item ${x.id === state.ui.kProduct ? 'active' : ''}" aria-pressed="${x.id === state.ui.kProduct}" onclick="state.ui.kProduct='${x.id}';renderKitchen()"><span class="ico">🥟</span><span class="ttl">${esc(x.name)}</span><span class="sub">${pln(calcProduct(x).t.perUnit)} / ${esc(x.unit)}</span></button>`).join('')
+    || '<p class="empty">Brak produktów – dodaj je w module „Produkty”.</p>';
+  if (!document.getElementById('k_date').value) document.getElementById('k_date').value = today();
+  const p = byId(state.products, state.ui.kProduct);
+  const qtyEl = document.getElementById('k_qty');
+  const out = document.getElementById('k_result');
+  if (!p) { out.innerHTML = '<div class="card"><p class="empty">Najpierw dodaj produkt w zakładce „Produkty i przepisy”.</p></div>'; document.getElementById('k_hint').textContent = ''; renderHistory(); return; }
+  document.getElementById('k_hint').textContent = `Przepis bazowy: ${qf(num(p.batch))} ${p.unit}. Podana ilość w: ${p.unit}.`;
+  const qty = num(qtyEl.value); const c = calcProduct(p, qty);
+  const sh = c.t.shortages.length;
+  let h = `<div class="card"><h2>Wynik: ${esc(p.name)} – ${qf(qty)} ${esc(p.unit)} <span class="hint">(mnożnik przepisu ×${qf(c.f)})</span></h2>
+    <div class="stats">
+      <div class="stat primary"><div class="lbl">Koszt całkowity</div><div class="val">${pln(c.t.total)}</div></div>
+      <div class="stat"><div class="lbl">Koszt za 1 ${esc(p.unit)}</div><div class="val">${pln(c.t.perUnit)}</div></div>
+      <div class="stat"><div class="lbl">Cena netto za 1 ${esc(p.unit)} (marża ${num(state.g.margin)}%)</div><div class="val">${pln(c.t.priceNet)}</div></div>
+      <div class="stat"><div class="lbl">Cena brutto za 1 ${esc(p.unit)} (VAT ${num(state.g.vat)}%)</div><div class="val">${pln(c.t.priceGross)}</div></div>
+      <div class="stat"><div class="lbl">Roboczogodziny</div><div class="val">${qf(c.t.rbh)} h</div></div>
+      <div class="stat"><div class="lbl">Zużycie prądu</div><div class="val">${qf(c.t.kwh)} kWh</div></div>
+    </div>
+    <p class="${sh ? 'bad' : 'ok'}" style="font-size:1.1rem">${sh ? `⚠ Brakuje ${sh} składnik(ów) w spiżarni – patrz tabela.` : '✔ Wszystkie składniki są dostępne w spiżarni.'}</p>
+  </div>`;
+
+  h += `<div class="card"><h2>Składniki – proporcje</h2><div class="tbl"><table><thead><tr><th>Składnik</th><th class="num">Potrzeba</th><th class="num">Stan w spiżarni</th><th class="num">Cena jedn.</th><th class="num">Koszt</th></tr></thead><tbody>` +
+    c.ingredients.map(x => `<tr class="${x.ing && x.need > x.stock + 1e-9 ? 'short' : ''}"><td>${x.ing ? esc(x.ing.name) : '<span class="bad">(usunięty składnik)</span>'}</td><td class="num"><b>${qf(x.need)} ${x.ing ? esc(x.ing.unit) : ''}</b></td><td class="num">${x.ing ? qf(x.stock) + ' ' + esc(x.ing.unit) : '-'}${x.ing && x.need > x.stock + 1e-9 ? ` <span class="bad">(brak ${qf(x.need - x.stock)})</span>` : ''}</td><td class="num">${pln(x.price)}</td><td class="num">${pln(x.cost)}</td></tr>`).join('') +
+    `</tbody><tfoot><tr><td colspan="4">Razem składniki</td><td class="num">${pln(c.t.ingredients)}</td></tr></tfoot></table></div></div>`;
+
+  h += `<div class="card"><h2>Ludzie</h2><div class="tbl"><table><thead><tr><th>Etap</th><th class="num">Osób</th><th class="num">Czas</th><th class="num">Roboczogodziny</th><th class="num">Stawka</th><th class="num">Koszt</th></tr></thead><tbody>` +
+    c.labour.map(x => `<tr><td>${esc(x.name)}</td><td class="num">${x.people}</td><td class="num">${qf(x.hours)} h</td><td class="num">${qf(x.rbh)} h</td><td class="num">${pln(x.rate)}/h</td><td class="num">${pln(x.cost)}</td></tr>`).join('') +
+    `</tbody><tfoot><tr><td colspan="3">Razem</td><td class="num">${qf(c.t.rbh)} h</td><td></td><td class="num">${pln(c.t.labour)}</td></tr></tfoot></table></div></div>`;
+
+  h += `<div class="card"><h2>Maszyny, prąd i eksploatacja</h2><div class="tbl"><table><thead><tr><th>Maszyna</th><th class="num">Czas pracy</th><th class="num">Prąd</th><th class="num">Koszt prądu</th><th class="num">Eksploatacja</th><th class="num">Koszt</th></tr></thead><tbody>` +
+    c.machines.map(x => `<tr><td>${x.m ? esc(x.m.name) : '<span class="bad">(usunięta maszyna)</span>'}</td><td class="num">${qf(x.hours)} h</td><td class="num">${qf(x.kwh)} kWh</td><td class="num">${pln(x.energy)}</td><td class="num">${pln(x.maint)}</td><td class="num">${pln(x.cost)}</td></tr>`).join('') +
+    `</tbody><tfoot><tr><td>Razem</td><td class="num">${qf(c.t.machHours)} h</td><td class="num">${qf(c.t.kwh)} kWh</td><td class="num">${pln(c.t.energy)}</td><td class="num">${pln(c.t.maint)}</td><td class="num">${pln(c.t.machines)}</td></tr></tfoot></table></div></div>`;
+
+  h += `<div class="card"><h2>Podsumowanie kosztów</h2><div class="row c2"><div class="breakdown">
+      <div><span>Składniki</span><span>${pln(c.t.ingredients)}</span></div>
+      <div><span>Robocizna (${qf(c.t.rbh)} rbh)</span><span>${pln(c.t.labour)}</span></div>
+      <div><span>Prąd (${qf(c.t.kwh)} kWh)</span><span>${pln(c.t.energy)}</span></div>
+      <div><span>Eksploatacja maszyn</span><span>${pln(c.t.maint)}</span></div>
+      <div><span>Inne koszty</span><span>${pln(c.t.other)}</span></div>
+      <div><span>Koszt bezpośredni</span><span>${pln(c.t.direct)}</span></div>
+      <div><span>Koszty ogólne (${num(state.g.overhead)}%)</span><span>${pln(c.t.overhead)}</span></div>
+      <div class="total"><span>RAZEM</span><span>${pln(c.t.total)}</span></div>
+      <div class="total"><span>Za 1 ${esc(p.unit)}</span><span>${pln(c.t.perUnit)}</span></div>
+    </div><div class="no-print">
+      <p>Zapisanie produkcji zdejmie składniki ze spiżarni i doda wpis do historii.</p>
+      <button class="big" onclick="saveProduction()">✔ Zapisz produkcję i zdejmij ze spiżarni</button>
+      <p style="margin-top:.8rem"><button class="secondary" onclick="window.print()">🖨 Drukuj kalkulację</button></p>
+    </div></div></div>`;
+  out.innerHTML = h; renderHistory(); save();
+}
+function saveProduction() {
+  const p = byId(state.products, state.ui.kProduct); if (!p) return;
+  const qty = num(document.getElementById('k_qty').value); if (qty <= 0) { alert('Podaj ilość większą od zera.'); return; }
+  const c = calcProduct(p, qty);
+  if (c.t.shortages.length && !confirm('W spiżarni brakuje składników. Zapisać mimo to (stan będzie ujemny)?')) return;
+  state.productions.push({ id: uid(), date: document.getElementById('k_date').value || today(), productId: p.id, productName: p.name, unit: p.unit, qty, total: c.t.total, perUnit: c.t.perUnit, rbh: c.t.rbh, kwh: c.t.kwh,
+    usage: c.ingredients.filter(x => x.ing).map(x => ({ ingredientId: x.ing.id, qty: x.need, cost: x.cost })) });
+  save(); toast('Produkcja zapisana, spiżarnia zaktualizowana'); renderKitchen();
+}
+function deleteProduction(id) { if (!confirm('Usunąć wpis produkcji? Składniki wrócą do spiżarni.')) return; state.productions = state.productions.filter(x => x.id !== id); save(); renderAll(); }
+function renderHistory() {
+  const el = document.getElementById('k_history');
+  if (!state.productions.length) { el.innerHTML = '<p class="empty">Brak zapisanych produkcji.</p>'; return; }
+  el.innerHTML = `<table><thead><tr><th>Data</th><th>Produkt</th><th class="num">Ilość</th><th class="num">Koszt</th><th class="num">Za jedn.</th><th class="num">Rbh</th><th class="num">kWh</th><th class="no-print"></th></tr></thead><tbody>` +
+    [...state.productions].reverse().map(x => `<tr><td>${esc(x.date)}</td><td>${esc(x.productName)}</td><td class="num">${qf(x.qty)} ${esc(x.unit)}</td><td class="num">${pln(x.total)}</td><td class="num">${pln(x.perUnit)}</td><td class="num">${qf(x.rbh)}</td><td class="num">${qf(x.kwh)}</td>${delBtn(`deleteProduction('${x.id}')`)}</tr>`).join('') + '</tbody></table>';
+}
+
+// ---------- PRODUKTY ----------
+function newProduct(x = {}) { return Object.assign({ id: uid(), name: 'Nowy produkt', unit: 'kg', batch: 100, notes: '', ingredients: [], labour: [], machines: [], other: [] }, x); }
+function addProduct() { const p = newProduct(); state.products.push(p); state.ui.product = p.id; renderAll(); document.getElementById('p_name').select(); }
+function deleteProduct() { const p = byId(state.products, state.ui.product); if (!p || !confirm(`Usunąć produkt „${p.name}”?`)) return; state.products = state.products.filter(x => x.id !== p.id); state.ui.product = null; renderAll(); }
+function setP(f, v) { const p = byId(state.products, state.ui.product); if (p) { p[f] = v; renderProducts(); save(); } }
+function addPL(kind) { const p = byId(state.products, state.ui.product); if (!p) return; const tpl = { ingredients: { ingredientId: '', qty: '' }, labour: { name: '', people: 1, hours: '', rate: '' }, machines: { machineId: '', hours: '' }, other: { name: '', amount: '' } }; p[kind].push({ ...tpl[kind] }); renderProducts(); save(); const r = document.querySelectorAll(`#t_${kind} tbody tr`); r[r.length - 1]?.querySelector('input,select')?.focus(); }
+function setPL(kind, i, f, v) { const p = byId(state.products, state.ui.product); if (p) { p[kind][i][f] = v; renderProducts(); save(); } }
+function delPL(kind, i) { const p = byId(state.products, state.ui.product); if (p) { p[kind].splice(i, 1); renderProducts(); save(); } }
+
+function renderProducts() {
+  const ul = document.getElementById('productList');
+  ul.innerHTML = state.products.map(p => { const c = calcProduct(p); return `<button class="tile item ${p.id === state.ui.product ? 'active' : ''}" onclick="state.ui.product='${p.id}';renderAll()"><span class="ico">🥟</span><span class="ttl">${esc(p.name)}</span><span class="sub">${pln(c.t.perUnit)} / ${esc(p.unit)} · partia ${qf(num(p.batch))} ${esc(p.unit)}</span></button>`; }).join('')
+    + `<button class="tile item add" onclick="addProduct()"><span class="ico">➕</span><span class="ttl">Nowy produkt</span></button>`;
+  document.getElementById('productEmpty').classList.toggle('hidden', state.products.length > 0);
+  const p = byId(state.products, state.ui.product);
+  document.getElementById('productEditor').classList.toggle('hidden', !p); document.getElementById('productWelcome').classList.toggle('hidden', !!p);
+  if (!p) return;
+  setVal('p_name', p.name); setVal('p_unit', p.unit); setVal('p_batch', p.batch); setVal('p_notes', p.notes);
+  const c = calcProduct(p);
+  const inp = (kind, i, f, type = 'text', step = 'any') => `<input type="${type}" ${type === 'number' ? `step="${step}" min="0"` : ''} value="${esc(p[kind][i][f])}" oninput="setPL('${kind}',${i},'${f}',this.value)">`;
+  document.querySelector('#t_ingredients tbody').innerHTML = p.ingredients.map((l, i) => { const x = c.ingredients[i]; return `<tr><td><select onchange="setPL('ingredients',${i},'ingredientId',this.value)">${opts(state.ingredients, l.ingredientId, '— wybierz —')}</select></td><td>${inp('ingredients', i, 'qty', 'number')}</td><td>${x.ing ? esc(x.ing.unit) : ''}</td><td class="num">${pln(x.price)}</td><td class="num">${pln(x.cost)}</td>${delBtn(`delPL('ingredients',${i})`)}</tr>`; }).join('');
+  document.querySelector('#t_labour tbody').innerHTML = p.labour.map((l, i) => { const x = c.labour[i]; return `<tr><td>${inp('labour', i, 'name')}</td><td>${inp('labour', i, 'people', 'number', '1')}</td><td>${inp('labour', i, 'hours', 'number')}</td><td><input type="number" step="0.01" min="0" placeholder="${state.g.labourRate}" value="${esc(l.rate)}" oninput="setPL('labour',${i},'rate',this.value)"></td><td class="num">${qf(x.rbh)} h</td><td class="num">${pln(x.cost)}</td>${delBtn(`delPL('labour',${i})`)}</tr>`; }).join('');
+  document.querySelector('#t_machines tbody').innerHTML = p.machines.map((l, i) => { const x = c.machines[i]; return `<tr><td><select onchange="setPL('machines',${i},'machineId',this.value)">${opts(state.machines, l.machineId, '— wybierz —')}</select></td><td>${inp('machines', i, 'hours', 'number')}</td><td class="num">${qf(x.kwh)}</td><td class="num">${pln(x.energy)}</td><td class="num">${pln(x.maint)}</td><td class="num">${pln(x.cost)}</td>${delBtn(`delPL('machines',${i})`)}</tr>`; }).join('');
+  document.querySelector('#t_other tbody').innerHTML = p.other.map((l, i) => `<tr><td>${inp('other', i, 'name')}</td><td>${inp('other', i, 'amount', 'number', '0.01')}</td>${delBtn(`delPL('other',${i})`)}</tr>`).join('');
+  document.getElementById('s_ingredients').textContent = pln(c.t.ingredients); document.getElementById('s_labour').textContent = pln(c.t.labour); document.getElementById('s_rbh').textContent = qf(c.t.rbh) + ' h';
+  document.getElementById('s_machines').textContent = pln(c.t.machines); document.getElementById('s_other').textContent = pln(c.t.other);
+  document.getElementById('p_stats').innerHTML = `
+    <div class="stat primary"><div class="lbl">Koszt partii ${qf(num(p.batch))} ${esc(p.unit)}</div><div class="val">${pln(c.t.total)}</div></div>
+    <div class="stat"><div class="lbl">Koszt za 1 ${esc(p.unit)}</div><div class="val">${pln(c.t.perUnit)}</div></div>
+    <div class="stat"><div class="lbl">Cena netto za 1 ${esc(p.unit)}</div><div class="val">${pln(c.t.priceNet)}</div></div>
+    <div class="stat"><div class="lbl">Cena brutto za 1 ${esc(p.unit)}</div><div class="val">${pln(c.t.priceGross)}</div></div>
+    <div class="stat"><div class="lbl">Koszty ogólne (${num(state.g.overhead)}%)</div><div class="val">${pln(c.t.overhead)}</div></div>`;
+}
+
+// ---------- SPIŻARNIA ----------
+function addIngredient() { const i = { id: uid(), name: 'Nowy składnik', unit: 'kg', min: 0, invoices: [] }; state.ingredients.push(i); state.ui.ing = i.id; renderAll(); document.getElementById('i_name').select(); }
+function deleteIngredient() { const i = byId(state.ingredients, state.ui.ing); if (!i || !confirm(`Usunąć składnik „${i.name}” wraz z fakturami?`)) return; state.ingredients = state.ingredients.filter(x => x.id !== i.id); state.ui.ing = null; renderAll(); }
+function setI(f, v) { const i = byId(state.ingredients, state.ui.ing); if (i) { i[f] = v; renderPantry(); save(); } }
+function addInvoice() {
+  const i = byId(state.ingredients, state.ui.ing); if (!i) return;
+  const qty = num(document.getElementById('f_qty').value), cost = num(document.getElementById('f_cost').value);
+  if (qty <= 0) { alert('Podaj ilość większą od zera.'); document.getElementById('f_qty').focus(); return; }
+  i.invoices.push({ id: uid(), date: document.getElementById('f_date').value || today(), qty, cost, note: document.getElementById('f_note').value });
+  ['f_qty', 'f_cost', 'f_note'].forEach(x => document.getElementById(x).value = ''); save(); toast('Dostawa zapisana'); renderAll();
+}
+function deleteInvoice(id) { const i = byId(state.ingredients, state.ui.ing); if (!i || !confirm('Usunąć tę dostawę?')) return; i.invoices = i.invoices.filter(f => f.id !== id); save(); renderAll(); }
+function renderPantry() {
+  const ul = document.getElementById('ingList');
+  ul.innerHTML = state.ingredients.map(i => { const st = ingStock(i), low = st < num(i.min) || st < 0; return `<button class="tile item ${i.id === state.ui.ing ? 'active' : ''}" onclick="state.ui.ing='${i.id}';renderAll()"><span class="ico">${low ? '⚠️' : '🧺'}</span><span class="ttl">${esc(i.name)}</span><span class="sub ${low ? 'bad' : ''}">Stan: ${qf(st)} ${esc(i.unit)} · ${pln(ingPrice(i))}/${esc(i.unit)}</span></button>`; }).join('')
+    + `<button class="tile item add" onclick="addIngredient()"><span class="ico">➕</span><span class="ttl">Nowy składnik</span></button>`;
+  document.getElementById('ingEmpty').classList.toggle('hidden', state.ingredients.length > 0);
+  const i = byId(state.ingredients, state.ui.ing);
+  document.getElementById('ingEditor').classList.toggle('hidden', !i); document.getElementById('ingWelcome').classList.toggle('hidden', !!i);
+  if (!i) return;
+  setVal('i_name', i.name); setVal('i_unit', i.unit); setVal('i_min', i.min);
+  if (!document.getElementById('f_date').value) document.getElementById('f_date').value = today();
+  const st = ingStock(i), bought = i.invoices.reduce((s, f) => s + num(f.qty), 0), spent = i.invoices.reduce((s, f) => s + num(f.cost), 0);
+  const last = i.invoices[i.invoices.length - 1];
+  document.getElementById('i_stats').innerHTML = `
+    <div class="stat primary"><div class="lbl">Stan w spiżarni</div><div class="val ${st < num(i.min) || st < 0 ? 'bad' : ''}">${qf(st)} ${esc(i.unit)}</div></div>
+    <div class="stat"><div class="lbl">Cena do kalkulacji (${state.g.priceMode === 'last' ? 'ostatnia' : 'średnia'})</div><div class="val">${pln(ingPrice(i))}/${esc(i.unit)}</div></div>
+    <div class="stat"><div class="lbl">Ostatnia cena</div><div class="val">${last && num(last.qty) ? pln(num(last.cost) / num(last.qty)) : '-'}</div></div>
+    <div class="stat"><div class="lbl">Kupiono łącznie</div><div class="val">${qf(bought)} ${esc(i.unit)}</div></div>
+    <div class="stat"><div class="lbl">Wydano łącznie</div><div class="val">${pln(spent)}</div></div>`;
+  document.getElementById('i_invoices').innerHTML = i.invoices.length ? `<table><thead><tr><th>Data</th><th>Faktura / dostawca</th><th class="num">Ilość</th><th class="num">Kwota</th><th class="num">Cena jedn.</th><th class="no-print"></th></tr></thead><tbody>` +
+    [...i.invoices].reverse().map(f => `<tr><td>${esc(f.date)}</td><td>${esc(f.note)}</td><td class="num">${qf(num(f.qty))} ${esc(i.unit)}</td><td class="num">${pln(num(f.cost))}</td><td class="num">${num(f.qty) ? pln(num(f.cost) / num(f.qty)) : '-'}</td>${delBtn(`deleteInvoice('${f.id}')`)}</tr>`).join('') + '</tbody></table>' : '<p class="empty">Brak dostaw. Dodaj pierwszą fakturę powyżej.</p>';
+  const uses = state.productions.flatMap(pr => (pr.usage || []).filter(u => u.ingredientId === i.id).map(u => ({ date: pr.date, name: pr.productName, qty: u.qty })));
+  document.getElementById('i_usage').innerHTML = uses.length ? `<table><thead><tr><th>Data</th><th>Produkt</th><th class="num">Zużyto</th></tr></thead><tbody>` + uses.reverse().map(u => `<tr><td>${esc(u.date)}</td><td>${esc(u.name)}</td><td class="num">${qf(u.qty)} ${esc(i.unit)}</td></tr>`).join('') + '</tbody></table>' : '<p class="empty">Jeszcze nie zużyto w produkcji.</p>';
+}
+
+// ---------- ZASOBY ----------
+function addMachine() { state.machines.push({ id: uid(), name: '', power: '', maint: '' }); renderResources(); save(); const r = document.querySelectorAll('#t_mach tbody tr'); r[r.length - 1]?.querySelector('input')?.focus(); }
+function setM(i, f, v) { state.machines[i][f] = v; renderResources(); save(); }
+function delM(i) { if (!confirm('Usunąć maszynę?')) return; state.machines.splice(i, 1); renderResources(); save(); }
+function addStaff() { state.staff.push({ id: uid(), name: '', fte: 1, rate: '' }); renderResources(); save(); const r = document.querySelectorAll('#t_staff tbody tr'); r[r.length - 1]?.querySelector('input')?.focus(); }
+function setS(i, f, v) { state.staff[i][f] = v; renderResources(); save(); }
+function delS(i) { if (!confirm('Usunąć osobę?')) return; state.staff.splice(i, 1); renderResources(); save(); }
+function setG(f, v) { state.g[f] = f === 'priceMode' ? v : num(v); save(); renderAll(); }
+function renderResources() {
+  document.querySelector('#t_mach tbody').innerHTML = state.machines.map((m, i) => { const hc = machineHourCost(m); return `<tr><td><input value="${esc(m.name)}" placeholder="np. Pierogarka" oninput="setM(${i},'name',this.value)" aria-label="Nazwa maszyny"></td><td><input type="number" step="any" min="0" value="${esc(m.power)}" oninput="setM(${i},'power',this.value)" aria-label="Moc kW"></td><td><input type="number" step="0.01" min="0" value="${esc(m.maint)}" oninput="setM(${i},'maint',this.value)" aria-label="Eksploatacja zł/h"></td><td class="num">${pln(hc.energy)}</td><td class="num"><b>${pln(hc.total)}</b></td>${delBtn(`delM(${i})`)}</tr>`; }).join('');
+  document.getElementById('machEmpty').classList.toggle('hidden', state.machines.length > 0);
+  setVal('g_labourRate', state.g.labourRate); setVal('g_hoursFte', state.g.hoursFte);
+  let fte = 0, hrs = 0, cost = 0;
+  document.querySelector('#t_staff tbody').innerHTML = state.staff.map((x, i) => { const rate = x.rate === '' || x.rate == null ? num(state.g.labourRate) : num(x.rate); const h = num(x.fte) * num(state.g.hoursFte); fte += num(x.fte); hrs += h; cost += h * rate;
+    return `<tr><td><input value="${esc(x.name)}" placeholder="np. Pracownica 1" oninput="setS(${i},'name',this.value)" aria-label="Osoba"></td><td><input type="number" step="0.05" min="0" max="1" value="${esc(x.fte)}" oninput="setS(${i},'fte',this.value)" aria-label="Etat"></td><td><input type="number" step="0.01" min="0" placeholder="${state.g.labourRate}" value="${esc(x.rate)}" oninput="setS(${i},'rate',this.value)" aria-label="Stawka"></td><td class="num">${qf(h)} h</td><td class="num">${pln(h * rate)}</td>${delBtn(`delS(${i})`)}</tr>`; }).join('');
+  document.getElementById('st_fte').textContent = qf(fte) + ' etatu'; document.getElementById('st_hours').textContent = qf(hrs) + ' h'; document.getElementById('st_cost').textContent = pln(cost);
+}
+function renderSettings() { setVal('g_energy', state.g.energy); setVal('g_overhead', state.g.overhead); setVal('g_margin', state.g.margin); setVal('g_vat', state.g.vat); setVal('g_priceMode', state.g.priceMode); }
+
+function renderStart() {
+  const low = state.ingredients.filter(i => ingStock(i) < num(i.min) || ingStock(i) < 0).length;
+  document.getElementById('startStats').innerHTML = `
+    <div class="stat"><div class="lbl">Produkty</div><div class="val">${state.products.length}</div></div>
+    <div class="stat"><div class="lbl">Składniki w spiżarni</div><div class="val">${state.ingredients.length}</div></div>
+    <div class="stat ${low ? 'primary' : ''}"><div class="lbl">Niski stan</div><div class="val ${low ? 'bad' : 'ok'}">${low}</div></div>
+    <div class="stat"><div class="lbl">Maszyny</div><div class="val">${state.machines.length}</div></div>
+    <div class="stat"><div class="lbl">Pracownice (etaty)</div><div class="val">${state.staff.length} (${qf(state.staff.reduce((a, x) => a + num(x.fte), 0))})</div></div>
+    <div class="stat"><div class="lbl">Zapisane produkcje</div><div class="val">${state.productions.length}</div></div>`;
+}
+function renderAll() { renderStart(); renderResources(); renderSettings(); renderPantry(); renderProducts(); renderKitchen(); save(); }
+
+// ---------- data ----------
+async function download(name, content, type) {
+  const dl = window.claude && window.claude.use ? await window.claude.use('downloads').catch(() => null) : null;
+  if (dl) { try { await dl.save({ filename: name, data: content }); toast('Plik zapisany'); } catch (e) { if (e && e.code !== 'declined') alert('Nie udało się zapisać pliku: ' + (e.message || e.code || '')); } return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function exportJSON() { download('garmazerka-' + today() + '.json', JSON.stringify(state, null, 2), 'application/json'); }
+function importJSON(ev) { const f = ev.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { const d = JSON.parse(r.result); if (!d || !Array.isArray(d.products) || !Array.isArray(d.ingredients)) throw 0; state = { g: { ...DEF_G, ...(d.g || {}) }, staff: d.staff || [], machines: d.machines || [], ingredients: d.ingredients || [], products: (d.products || []).map(newProduct), productions: d.productions || [], ui: {} }; save(); toast('Dane wczytane'); renderAll(); } catch (e) { alert('Nieprawidłowy plik.'); } }; r.readAsText(f); ev.target.value = ''; }
+function clearAll() { if (!confirm('Na pewno usunąć WSZYSTKIE dane (spiżarnia, produkty, historia)?')) return; state = { g: { ...DEF_G }, staff: [], machines: [], ingredients: [], products: [], productions: [], ui: {} }; save(); renderAll(); }
+
+function loadSample() {
+  const d = window.DANE_ZAKLADU;
+  if (!d) { alert('Brak pliku dane.js z danymi zakładu.'); return; }
+  if ((state.products.length || state.ingredients.length || state.machines.length) && !confirm('Wczytać dane zakładu? Obecne maszyny, składniki i produkty zostaną zastąpione (historia produkcji zostanie zachowana).')) return;
+  const mach = {}, ing = {};
+  state.staff = (d.pracownicy || []).map(x => ({ id: uid(), name: x.osoba, fte: x.etat, rate: x.stawka ?? '' }));
+  state.machines = (d.maszyny || []).map(m => { const o = { id: uid(), name: m.nazwa, power: m.mocKw, maint: m.eksploatacjaZlH || 0 }; mach[m.nazwa] = o.id; return o; });
+  state.ingredients = (d.skladniki || []).map(i => { const o = { id: uid(), name: i.nazwa, unit: i.jedn || 'kg', min: i.minStan || 0, invoices: (i.dostawy || []).map(f => ({ id: uid(), date: f.data, qty: f.ilosc, cost: f.kwota, note: f.faktura || '' })) }; ing[i.nazwa] = o.id; return o; });
+  const warn = [];
+  state.products = (d.produkty || []).map(p => newProduct({ name: p.nazwa, unit: p.jedn || 'kg', batch: p.partia || 100, notes: p.opis || '',
+    ingredients: (p.skladniki || []).map(x => { if (!ing[x.nazwa]) warn.push('składnik: ' + x.nazwa); return { ingredientId: ing[x.nazwa] || '', qty: x.ilosc }; }),
+    labour: (p.ludzie || []).map(x => ({ name: x.etap, people: x.osob, hours: x.godzin, rate: x.stawka ?? '' })),
+    machines: (p.maszyny || []).map(x => { if (!mach[x.nazwa]) warn.push('maszyna: ' + x.nazwa); return { machineId: mach[x.nazwa] || '', hours: x.godzin }; }),
+    other: (p.inne || []).map(x => ({ name: x.opis, amount: x.kwota })) }));
+  if (d.ustawienia) state.g = { ...state.g, ...d.ustawienia };
+  state.ui.product = state.products[0]?.id || null; state.ui.ing = state.ingredients[0]?.id || null; state.ui.kProduct = state.products[0]?.id || null;
+  save(); toast('Dane zakładu wczytane'); if (warn.length) alert('Nie znaleziono w danych:\n' + [...new Set(warn)].join('\n')); showTab('start');
+}
+
+if (!state.products.length && !state.ingredients.length && !state.machines.length && window.DANE_ZAKLADU && !state.ui.seeded) { state.ui.seeded = true; loadSample(); } else showTab(tab);
+</script>
+</body>
+</html>
