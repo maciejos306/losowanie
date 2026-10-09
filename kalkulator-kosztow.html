@@ -542,7 +542,11 @@ function renderStart() {
 function renderAll() { renderStart(); renderResources(); renderSettings(); renderPantry(); renderProducts(); renderKitchen(); save(); }
 
 // ---------- data ----------
-function download(name, content, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
+async function download(name, content, type) {
+  const dl = window.claude && window.claude.use ? await window.claude.use('downloads').catch(() => null) : null;
+  if (dl) { try { await dl.save({ filename: name, data: content }); toast('Plik zapisany'); } catch (e) { if (e && e.code !== 'declined') alert('Nie udało się zapisać pliku: ' + (e.message || e.code || '')); } return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
 function exportJSON() { download('garmazerka-' + today() + '.json', JSON.stringify(state, null, 2), 'application/json'); }
 function importJSON(ev) { const f = ev.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { const d = JSON.parse(r.result); if (!d || !Array.isArray(d.products) || !Array.isArray(d.ingredients)) throw 0; state = { g: { ...DEF_G, ...(d.g || {}) }, staff: d.staff || [], machines: d.machines || [], ingredients: d.ingredients || [], products: (d.products || []).map(newProduct), productions: d.productions || [], ui: {} }; save(); toast('Dane wczytane'); renderAll(); } catch (e) { alert('Nieprawidłowy plik.'); } }; r.readAsText(f); ev.target.value = ''; }
 function clearAll() { if (!confirm('Na pewno usunąć WSZYSTKIE dane (spiżarnia, produkty, historia)?')) return; state = { g: { ...DEF_G }, staff: [], machines: [], ingredients: [], products: [], productions: [], ui: {} }; save(); renderAll(); }
