@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kalkulator kosztów produkcji – wyroby garmażeryjne</title>
+<title>Dział garmażeryjny – kalkulator kosztów produkcji</title>
 <style>
   :root {
     --fs: 18px; --bg: #f7efe3; --card: #fffaf2; --text: #3e2f25; --muted: #7a5c4a;
@@ -106,7 +106,7 @@
 </head>
 <body>
 <header>
-  <h1>Kalkulator kosztów produkcji – wyroby garmażeryjne</h1>
+  <h1>🥩 Dział garmażeryjny – kalkulator kosztów produkcji</h1>
   <div class="a11y no-print" role="group" aria-label="Ułatwienia dostępu">
     <button onclick="setSize('normal')" id="sz-normal" aria-pressed="true" title="Normalna czcionka">A</button>
     <button onclick="setSize('large')" id="sz-large" aria-pressed="false" title="Duża czcionka">A+</button>
@@ -293,7 +293,7 @@
     <div class="row c4">
       <button class="secondary" onclick="exportJSON()">Eksport JSON (kopia)</button>
       <button class="secondary" onclick="document.getElementById('importFile').click()">Import JSON</button>
-      <button class="secondary" onclick="loadSample()">Wczytaj przykładowe dane</button>
+      <button class="secondary" onclick="loadSample()">Wczytaj dane zakładu</button>
       <button class="danger" onclick="clearAll()">Wyczyść wszystko</button>
     </div>
     <input type="file" id="importFile" accept="application/json" class="hidden" onchange="importJSON(event)">
@@ -301,6 +301,7 @@
 </section>
 </main>
 
+<script src="dane.js"></script>
 <script>
 const KEY = 'kalkulator-garmazerka-v1';
 const DEF_G = { labourRate: 35, people: 3, energy: 1.2, overhead: 10, margin: 20, vat: 5, priceMode: 'avg' };
@@ -536,35 +537,24 @@ function importJSON(ev) { const f = ev.target.files[0]; if (!f) return; const r 
 function clearAll() { if (!confirm('Na pewno usunąć WSZYSTKIE dane (spiżarnia, produkty, historia)?')) return; state = { g: { ...DEF_G }, machines: [], ingredients: [], products: [], productions: [], ui: {} }; save(); renderAll(); }
 
 function loadSample() {
-  if ((state.products.length || state.ingredients.length) && !confirm('Dodać przykładowe dane do obecnych?')) return;
-  const M = (name, power, maint) => ({ id: uid(), name, power, maint });
-  const I = (name, unit, inv) => ({ id: uid(), name, unit, min: 0, invoices: inv.map(([date, qty, cost, note]) => ({ id: uid(), date, qty, cost, note })) });
-  const mixer = M('Mikser spiralny 60 l', 3, 2), piero = M('Pierogarka automatyczna', 1.5, 4), kociol = M('Kocioł warzelny 150 l', 9, 3), obier = M('Obieraczka do ziemniaków', 0.75, 1), chlod = M('Chłodnia / schładzarka', 2.2, 1.5);
-  const maka = I('Mąka pszenna typ 500', 'kg', [['2026-09-20', 500, 1450, 'FV 231/09 Młyn'], ['2026-10-01', 500, 1500, 'FV 240/10 Młyn']]);
-  const ziem = I('Ziemniaki', 'kg', [['2026-10-01', 400, 720, 'FV 12/10 Gospodarstwo']]);
-  const twar = I('Twaróg półtłusty', 'kg', [['2026-10-02', 80, 1360, 'FV 88/10 Mleczarnia']]);
-  const ceb = I('Cebula', 'kg', [['2026-10-01', 60, 150, 'FV 12/10 Gospodarstwo']]);
-  const jaja = I('Jaja', 'szt.', [['2026-10-02', 360, 252, 'FV 89/10']]);
-  const olej = I('Olej rzepakowy', 'l', [['2026-09-28', 30, 240, 'FV 101/09 Hurtownia']]);
-  const sol = I('Sól', 'kg', [['2026-09-01', 25, 40, 'FV 3/09 Hurtownia']]);
-  const kapusta = I('Kapusta kiszona', 'kg', [['2026-10-03', 100, 450, 'FV 15/10']]);
-  const grzyby = I('Grzyby suszone', 'kg', [['2026-10-03', 3, 540, 'FV 15/10']]);
-  state.machines.push(mixer, piero, kociol, obier, chlod); state.ingredients.push(maka, ziem, twar, ceb, jaja, olej, sol, kapusta, grzyby);
-  state.products.push(newProduct({ name: 'Pierogi ruskie', unit: 'kg', batch: 100, notes: 'Ciasto: mąka, woda, jaja, olej, sól. Farsz: ziemniaki, twaróg, cebula smażona.',
-    ingredients: [{ ingredientId: maka.id, qty: 40 }, { ingredientId: ziem.id, qty: 45 }, { ingredientId: twar.id, qty: 18 }, { ingredientId: ceb.id, qty: 6 }, { ingredientId: jaja.id, qty: 30 }, { ingredientId: olej.id, qty: 2 }, { ingredientId: sol.id, qty: 0.8 }],
-    labour: [{ name: 'Przygotowanie farszu', people: 2, hours: 2, rate: '' }, { name: 'Ciasto i formowanie', people: 3, hours: 3, rate: '' }, { name: 'Gotowanie, chłodzenie, pakowanie', people: 2, hours: 1.5, rate: '' }],
-    machines: [{ machineId: obier.id, hours: 0.5 }, { machineId: kociol.id, hours: 2.5 }, { machineId: mixer.id, hours: 1 }, { machineId: piero.id, hours: 3 }, { machineId: chlod.id, hours: 2 }],
-    other: [{ name: 'Opakowania (tacki, folia, etykiety)', amount: 60 }, { name: 'Gaz / woda', amount: 25 }] }));
-  state.products.push(newProduct({ name: 'Pierogi z kapustą i grzybami', unit: 'kg', batch: 100,
-    ingredients: [{ ingredientId: maka.id, qty: 40 }, { ingredientId: kapusta.id, qty: 50 }, { ingredientId: grzyby.id, qty: 1.5 }, { ingredientId: ceb.id, qty: 8 }, { ingredientId: jaja.id, qty: 30 }, { ingredientId: olej.id, qty: 3 }, { ingredientId: sol.id, qty: 0.5 }],
-    labour: [{ name: 'Przygotowanie farszu', people: 2, hours: 2.5, rate: '' }, { name: 'Ciasto i formowanie', people: 3, hours: 3, rate: '' }, { name: 'Gotowanie i pakowanie', people: 2, hours: 1.5, rate: '' }],
-    machines: [{ machineId: kociol.id, hours: 3 }, { machineId: mixer.id, hours: 1 }, { machineId: piero.id, hours: 3 }, { machineId: chlod.id, hours: 2 }],
-    other: [{ name: 'Opakowania', amount: 60 }] }));
-  state.ui.product = state.products[0].id; state.ui.ing = state.ingredients[0].id; state.ui.kProduct = state.products[0].id;
-  save(); toast('Przykładowe dane wczytane'); showTab('kuchnia');
+  const d = window.DANE_ZAKLADU;
+  if (!d) { alert('Brak pliku dane.js z danymi zakładu.'); return; }
+  if ((state.products.length || state.ingredients.length || state.machines.length) && !confirm('Wczytać dane zakładu? Obecne maszyny, składniki i produkty zostaną zastąpione (historia produkcji zostanie zachowana).')) return;
+  const mach = {}, ing = {};
+  state.machines = (d.maszyny || []).map(m => { const o = { id: uid(), name: m.nazwa, power: m.mocKw, maint: m.eksploatacjaZlH || 0 }; mach[m.nazwa] = o.id; return o; });
+  state.ingredients = (d.skladniki || []).map(i => { const o = { id: uid(), name: i.nazwa, unit: i.jedn || 'kg', min: i.minStan || 0, invoices: (i.dostawy || []).map(f => ({ id: uid(), date: f.data, qty: f.ilosc, cost: f.kwota, note: f.faktura || '' })) }; ing[i.nazwa] = o.id; return o; });
+  const warn = [];
+  state.products = (d.produkty || []).map(p => newProduct({ name: p.nazwa, unit: p.jedn || 'kg', batch: p.partia || 100, notes: p.opis || '',
+    ingredients: (p.skladniki || []).map(x => { if (!ing[x.nazwa]) warn.push('składnik: ' + x.nazwa); return { ingredientId: ing[x.nazwa] || '', qty: x.ilosc }; }),
+    labour: (p.ludzie || []).map(x => ({ name: x.etap, people: x.osob, hours: x.godzin, rate: x.stawka ?? '' })),
+    machines: (p.maszyny || []).map(x => { if (!mach[x.nazwa]) warn.push('maszyna: ' + x.nazwa); return { machineId: mach[x.nazwa] || '', hours: x.godzin }; }),
+    other: (p.inne || []).map(x => ({ name: x.opis, amount: x.kwota })) }));
+  if (d.ustawienia) state.g = { ...state.g, ...d.ustawienia };
+  state.ui.product = state.products[0]?.id || null; state.ui.ing = state.ingredients[0]?.id || null; state.ui.kProduct = state.products[0]?.id || null;
+  save(); toast('Dane zakładu wczytane'); if (warn.length) alert('Nie znaleziono w danych:\n' + [...new Set(warn)].join('\n')); showTab('start');
 }
 
-showTab(tab);
+if (!state.products.length && !state.ingredients.length && !state.machines.length && window.DANE_ZAKLADU && !state.ui.seeded) { state.ui.seeded = true; loadSample(); } else showTab(tab);
 </script>
 </body>
 </html>

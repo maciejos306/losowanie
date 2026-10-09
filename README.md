@@ -1,6 +1,6 @@
 # Kalkulator kosztów produkcji – wyroby garmażeryjne
 
-Aplikacja w jednym pliku HTML (`kalkulator-kosztow.html`), działa offline w przeglądarce,
+Dział garmażeryjny w zakładzie mięsnym. Aplikacja HTML (`kalkulator-kosztow.html`) z bazą startową w pliku `dane.js` (maszyny, składniki z fakturami, receptury). Plik `dane.js` jest uzupełniany stopniowo danymi z zakładu, działa offline w przeglądarce,
 bez instalacji. Dane zapisują się automatycznie w przeglądarce; kopię robisz przez eksport JSON.
 
 ## Ułatwienia dostępu
