@@ -2,7 +2,12 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#6b4330">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Garmażerka">
 <title>Dział garmażeryjny – kalkulator kosztów produkcji</title>
 <style>
   :root {
@@ -28,10 +33,12 @@
   body { margin: 0; font-family: Arial, "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
   header { background: linear-gradient(90deg, var(--head), #8a5a40); color: #fff; padding: .7rem 1rem; display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; justify-content: space-between; border-bottom: 3px solid var(--border); }
   header h1 { margin: 0; font-size: 1.25rem; }
+  .t-short { display: none; }
   .a11y { display: flex; gap: .4rem; flex-wrap: wrap; }
   .a11y button { background: #fff; color: #000; border: 2px solid #fff; font-weight: 700; }
   .a11y button[aria-pressed="true"] { background: var(--focus); border-color: var(--focus); }
   nav { display: flex; flex-wrap: wrap; gap: .4rem; padding: .7rem 1rem 0; max-width: 1400px; margin: 0 auto; }
+  nav button .ico { margin-right: .4rem; }
   nav button { font-size: 1.05rem; padding: .7rem 1.1rem; background: var(--card); color: var(--text); border: 2px solid var(--border); border-left-width: .6rem; }
   nav button[aria-selected="true"] { color: #fff; }
   nav button[data-m="start"] { border-left-color: var(--head); } nav button[data-m="start"][aria-selected="true"] { background: var(--head); border-color: var(--head); }
@@ -101,12 +108,39 @@
   .empty { color: var(--muted); padding: .5rem 0; }
   .toast { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); background: var(--ok); color: #fff; padding: .8rem 1.3rem; border-radius: .5rem; font-weight: 700; font-size: 1.1rem; z-index: 9; }
   html[data-contrast="on"] .toast { color: #000; border: 3px solid #fff; }
+  /* ---------- telefon: wygląd aplikacji ---------- */
+  @media (max-width: 700px) {
+    html { font-size: calc(var(--fs) - 2px); }
+    body { padding-bottom: calc(5.2rem + env(safe-area-inset-bottom)); }
+    header { position: sticky; top: 0; z-index: 5; padding: .5rem .8rem; padding-top: calc(.5rem + env(safe-area-inset-top)); gap: .4rem; }
+    header h1 { font-size: 1.1rem; } .t-long { display: none; } .t-short { display: inline; }
+    .a11y button { min-height: 2.2rem; padding: .3rem .6rem; font-size: .9rem; }
+    nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 6; margin: 0; padding: .35rem .3rem calc(.35rem + env(safe-area-inset-bottom)); background: var(--card); border-top: 2px solid var(--border); display: grid; grid-template-columns: repeat(6, 1fr); gap: .2rem; box-shadow: 0 -4px 12px rgba(90,55,30,.12); }
+    nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem; padding: .3rem .1rem; min-height: 3.6rem; border: none; border-radius: .7rem; background: transparent; font-size: .7rem; font-weight: 700; color: var(--muted); }
+    nav button .ico { font-size: 1.5rem; margin: 0; line-height: 1; }
+    nav button .lbl { white-space: nowrap; }
+    nav button[aria-selected="true"] { color: #fff; }
+    main { padding: .8rem; }
+    .card { padding: .8rem; border-radius: .9rem; }
+    .tiles { grid-template-columns: 1fr 1fr; gap: .7rem; }
+    .tile { min-height: 7.5rem; padding: .9rem; border-radius: .9rem; }
+    .tile .ico { font-size: 2rem; } .tile .ttl { font-size: 1.05rem; } .tile .sub { font-size: .8rem; }
+    .tile.item { min-height: 5.5rem; padding: .7rem; } .tile.item .ttl { font-size: 1rem; } .tile.item .ico { font-size: 1.4rem; }
+    .stats { grid-template-columns: 1fr 1fr; gap: .6rem; }
+    .stat .val { font-size: 1.25rem; }
+    .row.c2, .row.c3, .row.c4 { grid-template-columns: 1fr; }
+    .steps { grid-template-columns: 1fr; }
+    th, td { padding: .4rem .35rem; font-size: .9rem; }
+    .card h2 { font-size: 1.15rem; }
+    .toast { bottom: calc(5.5rem + env(safe-area-inset-bottom)); width: calc(100% - 2rem); text-align: center; }
+  }
+  @media (max-width: 380px) { nav button .lbl { font-size: .62rem; } }
   @media print { header, nav, .no-print { display: none !important; } body { background: #fff; } .card { border: 1px solid #000; } }
 </style>
 </head>
 <body>
 <header>
-  <h1>🥩 Dział garmażeryjny – kalkulator kosztów produkcji</h1>
+  <h1>🥩 <span class="t-long">Dział garmażeryjny – kalkulator kosztów produkcji</span><span class="t-short">Garmażerka</span></h1>
   <div class="a11y no-print" role="group" aria-label="Ułatwienia dostępu">
     <button onclick="setSize('normal')" id="sz-normal" aria-pressed="true" title="Normalna czcionka">A</button>
     <button onclick="setSize('large')" id="sz-large" aria-pressed="false" title="Duża czcionka">A+</button>
@@ -116,12 +150,12 @@
 </header>
 
 <nav role="tablist" aria-label="Moduły" class="no-print">
-  <button role="tab" data-m="start" onclick="showTab('start')" id="tab-start">🏠 Start</button>
-  <button role="tab" data-m="kuchnia" onclick="showTab('kuchnia')" id="tab-kuchnia">🍳 Kuchnia</button>
-  <button role="tab" data-m="produkty" onclick="showTab('produkty')" id="tab-produkty">📋 Produkty</button>
-  <button role="tab" data-m="spizarnia" onclick="showTab('spizarnia')" id="tab-spizarnia">🧺 Spiżarnia</button>
-  <button role="tab" data-m="zasoby" onclick="showTab('zasoby')" id="tab-zasoby">⚙️ Maszyny i ludzie</button>
-  <button role="tab" data-m="ustawienia" onclick="showTab('ustawienia')" id="tab-ustawienia">🔧 Ustawienia</button>
+  <button role="tab" data-m="start" onclick="showTab('start')" id="tab-start"><span class="ico">🏠</span><span class="lbl">Start</span></button>
+  <button role="tab" data-m="kuchnia" onclick="showTab('kuchnia')" id="tab-kuchnia"><span class="ico">🍳</span><span class="lbl">Kuchnia</span></button>
+  <button role="tab" data-m="produkty" onclick="showTab('produkty')" id="tab-produkty"><span class="ico">📋</span><span class="lbl">Produkty</span></button>
+  <button role="tab" data-m="spizarnia" onclick="showTab('spizarnia')" id="tab-spizarnia"><span class="ico">🧺</span><span class="lbl">Spiżarnia</span></button>
+  <button role="tab" data-m="zasoby" onclick="showTab('zasoby')" id="tab-zasoby"><span class="ico">⚙️</span><span class="lbl">Maszyny</span></button>
+  <button role="tab" data-m="ustawienia" onclick="showTab('ustawienia')" id="tab-ustawienia"><span class="ico">🔧</span><span class="lbl">Ustawienia</span></button>
 </nav>
 
 <main>
