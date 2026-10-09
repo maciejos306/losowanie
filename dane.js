@@ -12,14 +12,22 @@
 window.DANE_ZAKLADU = {
 
   ustawienia: {
-    labourRate: 35,   // domyślna stawka pracownika zł/h (z narzutami)
-    people: 0,        // liczba pracowników działu (informacyjnie)
+    labourRate: 35,   // domyślna stawka pracownika zł/h (z narzutami) – DO POTWIERDZENIA
+    hoursFte: 168,    // godzin w miesiącu na pełny etat
     energy: 1.2,      // cena prądu zł/kWh
     overhead: 10,     // koszty ogólne zakładu % kosztu bezpośredniego
     margin: 20,       // domyślna marża %
     vat: 5,           // VAT % (wyroby garmażeryjne – zwykle 5%)
     priceMode: 'avg'  // 'avg' = średnia z faktur, 'last' = ostatnia faktura
   },
+
+  // ---------- PRACOWNICY DZIAŁU ----------
+  // { osoba, etat (1 = pełny, 0.75 = 3/4), stawka? zł/h (puste = domyślna) }
+  pracownicy: [
+    { osoba: 'Pracownica 1', etat: 1 },
+    { osoba: 'Pracownica 2', etat: 1 },
+    { osoba: 'Pracownica 3', etat: 0.75 },
+  ],
 
   // ---------- MASZYNY DZIAŁU ----------
   // { nazwa, mocKw, eksploatacjaZlH }
