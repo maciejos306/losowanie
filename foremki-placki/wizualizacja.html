@@ -1,0 +1,1173 @@
+<title>Foremka do placków ziemniaczanych</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: hala produkcyjna — duży podgląd 3D linii z pulpitem parametrów obok, pod spodem karta techniczna jak dokumentacja warsztatowa */
+:root {
+  --bg: #f2f4f6;
+  --surface: #ffffff;
+  --ink: #16202b;
+  --muted: #586572;
+  --line: #d3dae1;
+  --accent: #1d5fd1;
+  --accent-soft: #e3ecfb;
+  --potato: #c4932f;
+  --potato-soft: #f3e6c6;
+  --stage: #e3e8ed;
+  --floor: #c9d1d9;
+  --ok: #1d7f47;
+  --warn: #a8670f;
+  --bad: #b8322a;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e141a; --surface: #151d25; --ink: #e5ebf0; --muted: #94a2af; --line: #263340;
+    --accent: #5c9bff; --accent-soft: #17283f; --potato: #e0b45a; --potato-soft: #3a2f17;
+    --stage: #18212a; --floor: #232e39; --ok: #4dc382; --warn: #e3a64b; --bad: #f06a5c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e141a; --surface: #151d25; --ink: #e5ebf0; --muted: #94a2af; --line: #263340;
+  --accent: #5c9bff; --accent-soft: #17283f; --potato: #e0b45a; --potato-soft: #3a2f17;
+  --stage: #18212a; --floor: #232e39; --ok: #4dc382; --warn: #e3a64b; --bad: #f06a5c;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.wrap {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+header.top { padding-block: 32px 20px; display: grid; gap: 10px; }
+.eyebrow {
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+}
+.eyebrow b { color: var(--accent); font-weight: 600; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.05; letter-spacing: .005em; }
+h1 { font-size: clamp(34px, 5vw, 56px); font-weight: 700; }
+h2 { font-size: clamp(26px, 3vw, 34px); font-weight: 700; }
+h3 { font-size: 21px; font-weight: 600; }
+.lead { max-width: 68ch; color: var(--muted); font-size: 17px; margin: 0; }
+
+/* Workbench */
+.bench {
+  display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start;
+}
+@media (max-width: 960px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+.viewer {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  display: grid; min-width: 0;
+}
+.stage { position: relative; height: clamp(340px, 58vh, 600px); background: var(--stage); }
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.stage .fallback {
+  position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--muted);
+}
+.tag {
+  position: absolute; left: 0; top: 0; pointer-events: none; white-space: nowrap;
+  font-family: var(--font-display); font-weight: 600; font-size: 15px; letter-spacing: .02em;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  padding: 2px 8px; border-radius: 4px; transform: translate(-50%, -100%);
+}
+.tag small { font-family: var(--font-mono); font-weight: 400; font-size: 11px; color: var(--muted); margin-left: 6px; }
+.hud-left {
+  position: absolute; top: 12px; left: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+}
+.seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 2px; }
+.seg button {
+  font: 600 14px var(--font-body); color: var(--muted); background: none; border: 0; padding: 5px 12px; border-radius: 4px; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.chk {
+  display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 6px; padding: 5px 10px; font-size: 14px; cursor: pointer;
+}
+.chk input { accent-color: var(--accent); margin: 0; }
+.readout {
+  position: absolute; top: 12px; right: 12px; width: min(250px, calc(100% - 24px));
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+  display: grid; gap: 4px; font-size: 13px;
+}
+.readout .ph { font-family: var(--font-display); font-weight: 700; font-size: 19px; line-height: 1.1; }
+.readout .temps { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.readout .temps b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) {
+  .readout { top: auto; bottom: 12px; }
+  .readout p { display: none; }
+}
+.readout p { margin: 0; color: var(--muted); line-height: 1.4; }
+
+.controls { border-top: 1px solid var(--line); padding: 12px; display: grid; gap: 10px; }
+.steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+@media (max-width: 640px) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.step {
+  text-align: left; cursor: pointer; border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  border-radius: 6px; padding: 8px 10px; display: grid; gap: 1px; font: inherit; min-width: 0;
+}
+.step .n { font-family: var(--font-mono); font-size: 11px; color: var(--muted); letter-spacing: .06em; }
+.step .t { font-family: var(--font-display); font-weight: 600; font-size: 18px; line-height: 1.1; }
+.step[aria-current="step"] { border-color: var(--accent); background: var(--accent-soft); }
+.step[aria-current="step"] .n { color: var(--accent); }
+.timeline { display: flex; align-items: center; gap: 10px; }
+.play {
+  flex: none; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 7px 14px; font: 600 14px var(--font-body);
+}
+.play svg { width: 12px; height: 12px; fill: currentColor; }
+input[type="range"] { accent-color: var(--accent); width: 100%; min-width: 0; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Panel */
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px;
+  display: grid; gap: 16px; min-width: 0;
+}
+.panel fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; min-width: 0; }
+.panel legend {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+  padding: 0; margin-bottom: 8px;
+}
+.field { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; }
+.field label { font-size: 14px; }
+.field output { font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 600; }
+.field input[type="range"] { grid-column: 1 / -1; }
+.field select { grid-column: 1 / -1; font: 14px var(--font-body); padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); width: 100%; }
+.mat-note { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.45; }
+.results { display: grid; gap: 0; border-top: 1px solid var(--line); }
+.results div {
+  display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 14px;
+}
+.results dt { color: var(--muted); margin: 0; }
+.results dd { margin: 0; font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; font-weight: 600; }
+.pill {
+  display: inline-block; font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor;
+}
+.pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); }
+.warnings { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.warnings li { padding-left: 12px; border-left: 3px solid var(--warn); color: var(--ink); line-height: 1.4; }
+.warnings li.bad { border-left-color: var(--bad); }
+
+/* Doc sections */
+.doc { display: grid; gap: 40px; padding-block: 40px 64px; }
+.sec { display: grid; gap: 16px; }
+.sec > p { max-width: 70ch; margin: 0; color: var(--muted); }
+.two { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 900px) { .two { grid-template-columns: minmax(0, 1fr); } }
+.drawing {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0;
+  display: grid; gap: 8px;
+}
+.drawing svg { width: 100%; height: auto; display: block; }
+.drawing .cap { font-family: var(--font-mono); font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.features { display: grid; gap: 14px; margin: 0; }
+.features div { display: grid; gap: 2px; }
+.features dt { font-weight: 700; }
+.features dd { margin: 0; color: var(--muted); font-size: 15px; }
+
+.reco {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px;
+  display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 760px) { .reco { grid-template-columns: minmax(0, 1fr); } }
+.reco .opt { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.reco .opt .k { font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.reco .opt p { margin: 0; color: var(--muted); font-size: 15px; }
+.reco .why { grid-column: 1 / -1; margin: 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 15px; color: var(--muted); }
+.reco .why b { color: var(--ink); }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 820px; font-size: 14px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+thead th { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody th { font-weight: 700; white-space: nowrap; }
+tbody th small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.y { color: var(--ok); } .m { color: var(--warn); } .n { color: var(--bad); }
+
+.cols3 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+@media (max-width: 760px) { .cols3 { grid-template-columns: minmax(0, 1fr); } }
+.list { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.list li { padding-left: 4px; }
+.list li::marker { color: var(--accent); font-family: var(--font-mono); font-size: 13px; }
+.qs { counter-reset: q; list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 760px) { .qs { grid-template-columns: minmax(0, 1fr); } }
+.qs li { counter-increment: q; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px; }
+.qs li::before { content: counter(q, decimal-leading-zero); font-family: var(--font-mono); font-size: 13px; color: var(--accent); padding-top: 2px; }
+.qs b { display: block; }
+.qs span { color: var(--muted); font-size: 15px; }
+.assume { font-size: 14px; color: var(--muted); border-left: 3px solid var(--potato); padding-left: 12px; margin: 0; max-width: 70ch; }
+footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow"><b>Druk 3D</b><span>·</span><span>taca-foremka do produkcji seryjnej</span></div>
+    <h1>Foremka do placków ziemniaczanych</h1>
+    <p class="lead">Taca z gniazdami do wlewania masy ziemniaczanej, mrożenia i wybijania gotowych placków. Wymiary zmieniasz w panelu obok: model 3D, przekrój i obliczenia przeliczają się na bieżąco. Zaznacz „Przekrój”, żeby zajrzeć do środka gniazda.</p>
+  </header>
+
+  <section class="bench" aria-label="Wizualizacja i parametry">
+    <div class="viewer">
+      <div class="stage" id="stage">
+        <div class="hud-left">
+          <div class="seg" role="group" aria-label="Widok" hidden>
+            <button type="button" id="view-line" aria-pressed="true">Linia</button>
+            <button type="button" id="view-tray" aria-pressed="false">Foremka</button>
+          </div>
+          <label class="chk" id="cut-wrap"><input type="checkbox" id="cut"> Przekrój</label>
+          <label class="chk" id="cakes-wrap"><input type="checkbox" id="cakes" checked> Placki</label>
+        </div>
+        <div class="readout" id="readout" aria-live="polite">
+          <div class="ph" id="ro-phase">Dozowanie masy</div>
+          <p id="ro-desc"></p>
+          <div class="temps"><span><span id="ro-core-l">Placek</span> <b id="ro-core">+12 °C</b></span><span id="ro-env-l">Otoczenie <b id="ro-env">+12 °C</b></span></div>
+        </div>
+      </div>
+      <div class="controls" hidden>
+        <div class="steps" id="steps">
+          <button type="button" class="step" data-phase="0"><span class="n">ETAP 1</span><span class="t">Dozowanie</span></button>
+          <button type="button" class="step" data-phase="1"><span class="n">ETAP 2</span><span class="t">Mroźnia</span></button>
+          <button type="button" class="step" data-phase="2"><span class="n">ETAP 3</span><span class="t">Wybijanie</span></button>
+          <button type="button" class="step" data-phase="3"><span class="n">ETAP 4</span><span class="t">Smażenie</span></button>
+        </div>
+        <div class="timeline">
+          <button type="button" class="play" id="play"><svg viewBox="0 0 12 12" aria-hidden="true"><path id="play-icon" d="M2 1l9 5-9 5z"/></svg><span id="play-label">Cały proces</span></button>
+          <input type="range" id="scrub" min="0" max="4" step="0.001" value="0" aria-label="Oś czasu procesu">
+        </div>
+      </div>
+    </div>
+
+    <aside class="panel" aria-label="Parametry foremki">
+      <fieldset>
+        <legend>Gniazda</legend>
+        <div class="field"><label for="p-rows">Rzędy</label><output id="o-rows"></output><input type="range" id="p-rows" data-param="rows" min="1" max="6" step="1"></div>
+        <div class="field"><label for="p-cols">Kolumny</label><output id="o-cols"></output><input type="range" id="p-cols" data-param="cols" min="1" max="6" step="1"></div>
+        <div class="field"><label for="p-D">Średnica placka</label><output id="o-D"></output><input type="range" id="p-D" data-param="D" min="50" max="120" step="1"></div>
+        <div class="field"><label for="p-h">Grubość placka</label><output id="o-h"></output><input type="range" id="p-h" data-param="h" min="6" max="20" step="0.5"></div>
+        <div class="field"><label for="p-draft">Pochylenie ścianek</label><output id="o-draft"></output><input type="range" id="p-draft" data-param="draft" min="2" max="12" step="0.5"></div>
+        <div class="field"><label for="p-gap">Odstęp gniazd</label><output id="o-gap"></output><input type="range" id="p-gap" data-param="gap" min="5" max="16" step="0.5"></div>
+        <div class="field"><label for="p-wall">Grubość dna</label><output id="o-wall"></output><input type="range" id="p-wall" data-param="wall" min="1" max="2.4" step="0.1"></div>
+      </fieldset>
+      <fieldset>
+        <legend>Materiał i drukarka</legend>
+        <div class="field"><label for="p-material">Materiał tacy</label>
+          <select id="p-material">
+            <option value="tpu">TPU 95A spożywczy (druk bezpośredni)</option>
+            <option value="sil">Silikon platynowy (odlew z wydrukowanej formy)</option>
+            <option value="pp">PP kopolimer</option>
+            <option value="petg">PETG</option>
+            <option value="pla">PLA</option>
+          </select>
+        </div>
+        <p class="mat-note" id="mat-note"></p>
+        <div class="field"><label for="p-bed">Stół drukarki</label>
+          <select id="p-bed">
+            <option value="256">256 × 256 mm (Bambu Lab X1 / P1 / A1)</option>
+            <option value="250">250 × 210 mm (Prusa MK4S)</option>
+            <option value="350">350 × 350 mm (Voron 2.4 350)</option>
+            <option value="360">360 × 360 mm (Prusa XL)</option>
+          </select>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Produkcja</legend>
+        <div class="field"><label for="p-rate">Wydajność linii</label><output id="o-rate"></output><input type="range" id="p-rate" data-param="rate" min="100" max="3000" step="50"></div>
+        <div class="field"><label for="p-cycle">Obieg tacy (dozowanie → powrót)</label><output id="o-cycle"></output><input type="range" id="p-cycle" data-param="cycle" min="15" max="120" step="5"></div>
+      </fieldset>
+      <dl class="results" id="results"></dl>
+      <ul class="warnings" id="warnings"></ul>
+    </aside>
+  </section>
+
+  <main class="doc">
+    <section class="sec" aria-labelledby="h-sec">
+      <h2 id="h-sec">Przekrój gniazda</h2>
+      <div class="two">
+        <figure class="drawing" style="margin:0">
+          <div id="section-svg"></div>
+          <figcaption class="cap"><span>Przekrój A–A przez oś gniazda</span><span id="sec-scale">wymiary w mm</span></figcaption>
+        </figure>
+        <dl class="features">
+          <div><dt>Pochylenie ścianek</dt><dd>Gniazdo zwęża się ku dołowi, więc zamrożony placek nie klinuje się przy wybijaniu. Dla elastycznej tacy wystarczy 5–7°, dla sztywnej daj co najmniej 7°.</dd></div>
+          <div><dt>Zaokrąglone dno</dt><dd>Brak ostrych naroży, w których zostaje skrobia i rosną bakterie. Łatwiej się myje i łatwiej się drukuje.</dd></div>
+          <div><dt>Płaska górna płyta</dt><dd>Po dozowaniu rakla zgarnia nadmiar masy po płycie. Każdy placek ma wtedy tę samą grubość i masę, a smażenie jest równe.</dd></div>
+          <div><dt>Cienkie, elastyczne dno</dt><dd>Po odwróceniu tacy wystarczy docisk od spodu, ręcznie albo listwą dociskową, i placek wypada jak kostka lodu.</dd></div>
+          <div><dt>Rama nośna</dt><dd>Elastyczna taca pełna masy się ugina. Rama ze stali nierdzewnej (albo z PETG) trzyma ją płasko i daje nóżki, dzięki którym tace stoją w wózku w mroźni z odstępem na obieg zimnego powietrza.</dd></div>
+          <div><dt>Kolor niebieski</dt><dd>Standard w przetwórstwie żywności: odprysk widać na tle masy. Są też filamenty wykrywalne detektorem metali, jeśli zakład go używa.</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="sec" aria-labelledby="h-mat">
+      <h2 id="h-mat">Z czego to wydrukować</h2>
+      <div class="reco">
+        <div class="opt">
+          <span class="k">Druk bezpośredni tacy</span>
+          <h3>TPU 95A z atestem do żywności</h3>
+          <p>Filament z deklaracją zgodności do kontaktu z żywnością (rozporządzenie WE 1935/2004 i UE 10/2011), najlepiej niebieski. Zostaje elastyczny w mroźni, więc zamrożony placek wypychasz od spodu. Dobrze znosi tłuszcz i wilgoć.</p>
+        </div>
+        <div class="opt">
+          <span class="k">Produkcja ciągła</span>
+          <h3>Wydrukowana forma-matka + silikon spożywczy</h3>
+          <p>Drukujesz pozytyw tacy (PETG albo żywica), a z niego odlewasz tace z silikonu platynowego klasy spożywczej. Gładka powierzchnia, zakres od −60 do +200 °C, myjka bez problemu. Jedna forma-matka daje dowolną liczbę tac.</p>
+        </div>
+        <p class="why"><b>Dlaczego tak.</b> Druk FDM zostawia rowki między warstwami, w których zostaje skrobia i tłuszcz. Przy druku bezpośrednim trzeba więc prasować powierzchnie, dokładnie myć i częściej wymieniać tace. Na prototyp i pierwsze serie TPU wystarczy. Jeśli linia ma pracować codziennie pod HACCP i kontrolą sanepidu, droga przez silikon jest pewniejsza. Nie używaj PLA: w mrozie pęka, a odłamki trafiają do produktu.</p>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Materiał</th><th>Mróz −35 °C</th><th>Kontakt z żywnością</th><th>Wybijanie placka</th><th>Mycie</th><th>Druk</th><th>Werdykt</th></tr></thead>
+          <tbody>
+            <tr><th>TPU 95A<small>Shore 95A</small></th><td class="y">Elastyczny do ok. −40 °C</td><td class="y">Są gatunki z deklaracją</td><td class="y">Bardzo dobre, elastyczne dno</td><td class="m">Do ok. 70 °C</td><td class="m">Wolno, 25–40 mm/s</td><td class="y"><b>Polecam do druku</b></td></tr>
+            <tr><th>Silikon platynowy<small>odlew z formy 3D</small></th><td class="y">Do −60 °C</td><td class="y">Atesty LFGB / FDA</td><td class="y">Najlepsze</td><td class="y">Do 200 °C, myjka</td><td class="y">Drukujesz tylko formę-matkę</td><td class="y"><b>Najlepszy do produkcji</b></td></tr>
+            <tr><th>PP kopolimer<small>polipropylen</small></th><td class="m">Dobrze do ok. −20 °C, homopolimer kruchy</td><td class="y">Standard opakowań spożywczych</td><td class="m">Nic nie przywiera, ale taca sztywna</td><td class="y">Bardzo dobre, zmywarka</td><td class="n">Trudny: wypaczanie, stół z taśmą PP</td><td class="m">Alternatywa dla sztywnych tac</td></tr>
+            <tr><th>PETG</th><td class="m">Znosi, ale jest sztywny</td><td class="m">Są gatunki z deklaracją</td><td class="n">Słabe, placek się klinuje</td><td class="m">Do ok. 65 °C</td><td class="y">Łatwy</td><td class="m">Na ramy nośne i formę-matkę</td></tr>
+            <tr><th>PLA</th><td class="n">Kruchy, pęka</td><td class="n">Nie do produkcji</td><td class="n">Słabe</td><td class="n">Mięknie od ok. 55 °C</td><td class="y">Łatwy</td><td class="n"><b>Nie używać</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="sec" aria-labelledby="h-print">
+      <h2 id="h-print">Ustawienia druku i higiena</h2>
+      <div class="cols3">
+        <div class="sec">
+          <h3>Druk tacy z TPU</h3>
+          <ul class="list">
+            <li>Dysza 0,4 mm ze stali nierdzewnej lub hartowanej, używana tylko do druku dla żywności. Mosiężne dysze mogą zawierać ołów.</li>
+            <li>Warstwa 0,16 mm i 4 obrysy: ścianka 1,6 mm jest wtedy pełnym materiałem, bez wypełnienia w środku.</li>
+            <li>Prędkość 25–40 mm/s, minimalna retrakcja. Filament suszony 4–6 h w 50 °C przed drukiem.</li>
+            <li>Drukuj dnem gniazd do stołu i włącz prasowanie (ironing) górnych powierzchni: góra płyty i dna gniazd stykają się z masą.</li>
+          </ul>
+        </div>
+        <div class="sec">
+          <h3>Użytkowanie</h3>
+          <ul class="list">
+            <li>Mycie w wodzie do ok. 70 °C, bez szczotek drucianych i ostrych skrobaków, które rysują powierzchnię.</li>
+            <li>Codzienne oględziny pod światło. Tacę z pęknięciem, rozwarstwieniem albo trwałym przebarwieniem wycofaj.</li>
+            <li>Deklaracja producenta filamentu dotyczy surowca, nie gotowej tacy. Za wyrób w zakładzie odpowiada producent placków, więc warto to omówić z technologiem żywności przed wdrożeniem.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" aria-labelledby="h-q">
+      <h2 id="h-q">Pytania, zanim wydrukujesz serię</h2>
+      <p class="assume">Na razie przyjąłem: placek Ø75 mm i 12 mm grubości (ok. 55 g), taca 3 × 3 gniazda mieszcząca się na stole 256 × 256 mm, mroźnia szokowa −35 °C, smażenie w oleju 175 °C. Odpowiedzi na pytania niżej zmienią głównie wymiary tacy i ramy.</p>
+      <ol class="qs">
+        <li><div><b>Jaki placek?</b><span>Średnica, grubość i docelowa masa. Okrągły, owalny, a może z wytłoczonym logo?</span></div></li>
+        <li><div><b>Ile na godzinę?</b><span>Wydajność linii decyduje o liczbie tac w obiegu i o tym, czy opłaca się droga przez silikon.</span></div></li>
+        <li><div><b>Jaka mroźnia?</b><span>Tunel szokowy czy komora, temperatura, czas. Jak tace jadą: wózek regałowy, taśma, półki GN 1/1 (530 × 325) albo euro 600 × 400?</span></div></li>
+        <li><div><b>Jak wyjmujecie placki?</b><span>Ręcznie czy automatycznie (listwa dociskowa, stemple)? Od tego zależy grubość dna i kształt ramy.</span></div></li>
+        <li><div><b>Jaki smażalnik?</b><span>Szerokość taśmy i sposób podawania, żeby rozstaw placków na tacy pasował do taśmy.</span></div></li>
+        <li><div><b>Jak myjecie?</b><span>Myjka tunelowa czy ręcznie, temperatura wody, rodzaj chemii (zasadowa, chlorowa). To weryfikuje wybór materiału.</span></div></li>
+        <li><div><b>Na czym drukujecie?</b><span>Model drukarki i pole robocze. Większa taca może wymagać druku w częściach albo większej maszyny.</span></div></li>
+        <li><div><b>Jakie wymagania zakładu?</b><span>HACCP, BRC, IFS: czy tworzywa muszą być wykrywalne, w określonym kolorze, z konkretnymi atestami?</span></div></li>
+      </ol>
+    </section>
+  </main>
+  <footer>Wartości czasów, temperatur i mas są orientacyjne i służą do planowania. Przed wdrożeniem sprawdź je na własnej linii.</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const P = { rows: 3, cols: 3, D: 75, h: 12, draft: 7, gap: 6, wall: 1.6, rate: 600, cycle: 45, material: 'tpu', bed: '256' };
+  const FIXED = { margin: 6, top: 2.5, skirt: 2, fillet: 2, corner: 6 };
+  const DENSITY_MASS = 1.05; // g/cm³ masy ziemniaczanej
+
+  const MATERIALS = {
+    tpu:  { color: 0x2b66cc, rough: 0.55, metal: 0, density: 1.21, flex: true,  label: 'TPU',
+            note: 'Elastyczny także w mroźni. Placek wypychasz od spodu. Wymaga ramy nośnej i wolnego druku.' },
+    sil:  { color: 0x3f86c9, rough: 0.8,  metal: 0, density: 1.12, flex: true,  label: 'silikon',
+            note: 'Drukujesz formę-matkę, odlewasz tace z silikonu spożywczego. Najłatwiejsze mycie i wybijanie.' },
+    pp:   { color: 0xdde4e8, rough: 0.4,  metal: 0, density: 0.90, flex: false, label: 'PP',
+            note: 'Nic do niego nie przywiera i dobrze znosi zmywarkę, ale taca jest sztywna i trudno ją wydrukować bez wypaczeń.' },
+    petg: { color: 0x2f74d6, rough: 0.25, metal: 0, density: 1.27, flex: false, label: 'PETG',
+            note: 'Łatwy w druku, ale sztywny: zamrożony placek się klinuje. Dobry na ramę nośną i formę-matkę.' },
+    pla:  { color: 0xc3c9cf, rough: 0.45, metal: 0, density: 1.24, flex: false, label: 'PLA',
+            note: 'Nie polecam: w mrozie pęka, mięknie w ciepłej wodzie i nie nadaje się do kontaktu z żywnością w produkcji.' }
+  };
+  const BEDS = { '256': [256, 256], '250': [250, 210], '350': [350, 350], '360': [360, 360] };
+
+  const PHASES = [
+    { name: 'Dozowanie masy', desc: 'Dozownik napełnia gniazda, rakla zgarnia nadmiar po górnej płycie tacy.' },
+    { name: 'Mroźnia szokowa', desc: 'Powietrze −35 °C. Placek 12 mm zamarza w rdzeniu do −18 °C w ok. 20–30 min.' },
+    { name: 'Wybijanie', desc: 'Taca obraca się nad taśmą, elastyczne dno wypycha zamrożone placki.' },
+    { name: 'Smażenie', desc: 'Taśma przeprowadza placki przez olej 175 °C, ok. 3–4 min do złotego koloru.' }
+  ];
+
+  const fmt = (v, d = 0) => v.toLocaleString('pl-PL', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+  function derive() {
+    const R = P.D / 2, d = P.draft * Math.PI / 180;
+    const r = R - P.h * Math.tan(d);
+    const W = P.cols * P.D + (P.cols - 1) * P.gap + 2 * FIXED.margin;
+    const L = P.rows * P.D + (P.rows - 1) * P.gap + 2 * FIXED.margin;
+    const H = P.h + P.wall;
+    const n = P.rows * P.cols;
+    const V = Math.PI * P.h / 3 * (R * R + R * r + r * r);
+    const mass = V / 1000 * DENSITY_MASS;
+    const slant = P.h / Math.cos(d);
+    const vTray = (W * L - n * Math.PI * R * R) * FIXED.top
+      + 2 * (W + L) * FIXED.skirt * (H - FIXED.top)
+      + n * (Math.PI * (R + r) * slant * P.wall + Math.PI * r * r * P.wall);
+    return { R, r, d, W, L, H, n, V, mass, vTray };
+  }
+
+  /* ---------- Panel ---------- */
+  const units = { rows: '', cols: '', D: ' mm', h: ' mm', draft: '°', gap: ' mm', wall: ' mm', rate: ' szt./h', cycle: ' min' };
+  document.querySelectorAll('[data-param]').forEach((el) => {
+    const k = el.dataset.param;
+    el.value = P[k];
+    el.addEventListener('input', () => { P[k] = Number(el.value); scheduleUpdate(); });
+  });
+  $('#p-material').value = P.material;
+  $('#p-bed').value = P.bed;
+  $('#p-material').addEventListener('change', (e) => { P.material = e.target.value; scheduleUpdate(); });
+  $('#p-bed').addEventListener('change', (e) => { P.bed = e.target.value; scheduleUpdate(); });
+
+  let pending = false;
+  function scheduleUpdate() {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => { pending = false; update(); });
+  }
+
+  function update() {
+    const dv = derive();
+    Object.keys(units).forEach((k) => {
+      const o = $('#o-' + k);
+      if (o) o.textContent = (Number.isInteger(P[k]) ? fmt(P[k]) : fmt(P[k], 1)) + units[k];
+    });
+    const M = MATERIALS[P.material];
+    $('#mat-note').textContent = M.note;
+
+    const [bx, by] = BEDS[P.bed];
+    const fitStraight = dv.W + 4 <= bx && dv.L + 4 <= by;
+    const fitRotated = dv.L + 4 <= bx && dv.W + 4 <= by;
+    const fits = fitStraight || fitRotated;
+    const trays = Math.ceil(P.rate * (P.cycle / 60) / dv.n * 1.2);
+    const matG = P.material === 'sil' ? dv.vTray / 1000 * M.density * 1.15 : dv.vTray / 1000 * M.density;
+    const matLabel = P.material === 'sil' ? 'Silikon na 1 tacę' : 'Filament na 1 tacę';
+
+    const rows = [
+      ['Wymiary tacy', `${fmt(dv.W)} × ${fmt(dv.L)} × ${fmt(dv.H, 1)} mm`],
+      ['Placków na tacę', fmt(dv.n)],
+      ['Placek', `Ø${fmt(P.D)} → Ø${fmt(dv.r * 2, 1)} × ${fmt(P.h, 1)} mm`],
+      ['Masa placka', `ok. ${fmt(dv.mass)} g`],
+      ['Masy na tacę', `${fmt(dv.mass * dv.n / 1000, 2)} kg`],
+      [matLabel, `ok. ${fmt(matG)} g`],
+      ['Stół drukarki', fits
+        ? `<span class="pill ok">${fitStraight ? 'MIEŚCI SIĘ' : 'MIEŚCI SIĘ PO OBROCIE'}</span>`
+        : '<span class="pill bad">NIE MIEŚCI SIĘ</span>'],
+      ['Tace w obiegu', `${fmt(trays)} szt. <span style="color:var(--muted);font-weight:400">(+20% zapasu)</span>`]
+    ];
+    $('#results').innerHTML = rows.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join('');
+
+    const warns = [];
+    if (P.material === 'pla') warns.push(['bad', 'PLA pęka w mrozie. Odprysk w produkcie to poważna niezgodność.']);
+    if (!fits) warns.push(['bad', `Taca ${fmt(dv.W)} × ${fmt(dv.L)} mm nie zmieści się na stole ${bx} × ${by} mm. Zmniejsz liczbę gniazd albo wybierz większą drukarkę.`]);
+    if (!M.flex && P.draft < 7) warns.push(['warn', 'Przy sztywnej tacy daj pochylenie co najmniej 7°, inaczej zamrożony placek się zaklinuje.']);
+    if (M.flex && P.wall > 2) warns.push(['warn', 'Grube dno jest mniej elastyczne. Dla TPU i silikonu 1,4–1,8 mm daje najłatwiejsze wypychanie.']);
+    if (P.gap < 6) warns.push(['warn', 'Wąski odstęp między gniazdami osłabia płytę i utrudnia mycie.']);
+    $('#warnings').innerHTML = warns.map(([c, t]) => `<li class="${c}">${t}</li>`).join('');
+
+    drawSection(dv);
+    if (three) rebuildScene(dv);
+  }
+
+  /* ---------- Przekrój SVG ---------- */
+  function drawSection(dv) {
+    const { R, r, d, H } = dv;
+    const h = P.h, w = P.wall, f = FIXED.fillet, top = FIXED.top, g = P.gap;
+    const s = Math.sin(d), c = Math.cos(d), tn = Math.tan(d);
+    const ro = r + w;
+    const xR = R + g / 2, xL = -xR;
+    const Ro = Math.min(ro + (H - top) * tn, xR - 0.2);
+    const pt = (x, y) => `${x.toFixed(2)},${(-y).toFixed(2)}`;
+    const inner = `L${pt(-R, 0)} L${pt(-(r + f * s), -h + f * c)} Q${pt(-r, -h)} ${pt(-(r - f), -h)} L${pt(r - f, -h)} Q${pt(r, -h)} ${pt(r + f * s, -h + f * c)} L${pt(R, 0)}`;
+    const tray = `M${pt(xL, 0)} ${inner} L${pt(xR, 0)} L${pt(xR, -top)} L${pt(Ro, -top)} L${pt(ro + f * s, -H + f * c)} Q${pt(ro, -H)} ${pt(ro - f, -H)} L${pt(-(ro - f), -H)} Q${pt(-ro, -H)} ${pt(-(ro + f * s), -H + f * c)} L${pt(-Ro, -top)} L${pt(xL, -top)} Z`;
+    const cake = `M${pt(-R, 0)} ${inner.replace(/^L[^ ]+ /, '')} Z`;
+
+    const x0 = xL - 16, x1 = xR + 18, y0 = -14, y1 = H + 16;
+    const vw = x1 - x0, vh = y1 - y0;
+    const fs = Math.max(2.6, vw / 34);
+    const a = fs * 0.55;
+    const arrow = (x, y, ang) => {
+      const ca = Math.cos(ang), sa = Math.sin(ang);
+      const p1 = [x - a * ca + a * 0.35 * sa, y - a * sa - a * 0.35 * ca];
+      const p2 = [x - a * ca - a * 0.35 * sa, y - a * sa + a * 0.35 * ca];
+      return `<path class="ar" d="M${x.toFixed(2)},${y.toFixed(2)} L${p1[0].toFixed(2)},${p1[1].toFixed(2)} L${p2[0].toFixed(2)},${p2[1].toFixed(2)} Z"/>`;
+    };
+    // poziomy wymiar w układzie SVG (y w dół)
+    const hdim = (xa, xb, y, label, ext) => {
+      let o = `<line class="th" x1="${xa}" y1="${y}" x2="${xb}" y2="${y}"/>` + arrow(xa, y, Math.PI) + arrow(xb, y, 0);
+      ext.forEach(([ex, ey]) => { o += `<line class="th" x1="${ex}" y1="${ey}" x2="${ex}" y2="${(y + Math.sign(y - ey) * 1.5).toFixed(2)}"/>`; });
+      return o + `<text class="dt" x="${((xa + xb) / 2).toFixed(2)}" y="${(y - fs * 0.45).toFixed(2)}" text-anchor="middle">${label}</text>`;
+    };
+    const vdim = (x, ya, yb, label, ext) => {
+      let o = `<line class="th" x1="${x}" y1="${ya}" x2="${x}" y2="${yb}"/>` + arrow(x, ya, -Math.PI / 2) + arrow(x, yb, Math.PI / 2);
+      ext.forEach(([ex, ey]) => { o += `<line class="th" x1="${ex}" y1="${ey}" x2="${(x + Math.sign(x - ex) * 1.5).toFixed(2)}" y2="${ey}"/>`; });
+      const ty = (ya + yb) / 2;
+      return o + `<text class="dt" x="${(x + fs * 0.5).toFixed(2)}" y="${ty.toFixed(2)}" text-anchor="middle" dominant-baseline="hanging" transform="rotate(-90 ${(x + fs * 0.5).toFixed(2)} ${ty.toFixed(2)})">${label}</text>`;
+    };
+
+    let dims = '';
+    dims += hdim(-R, R, -8, `Ø${fmt(P.D)}`, [[-R, 0], [R, 0]]);
+    dims += hdim(-r, r, H + 8, `Ø${fmt(r * 2, 1)}`, [[-r, h], [r, h]]);
+    dims += vdim(xR + 7, 0, h, fmt(h, 1), [[R, 0], [r + 1, h]]);
+    dims += vdim(xL - 7, 0, H, fmt(H, 1), [[xL, 0], [-ro, H]]);
+    // kąt pochylenia
+    const ay = h * 0.75, ar = h * 0.62;
+    dims += `<line class="th dash" x1="${R}" y1="0" x2="${R}" y2="${ay}"/>`;
+    const ex = R - ar * s, ey = ar * c;
+    dims += `<path class="th" fill="none" d="M${R},${ar.toFixed(2)} A${ar.toFixed(2)},${ar.toFixed(2)} 0 0 1 ${ex.toFixed(2)},${ey.toFixed(2)}"/>`;
+    dims += `<text class="dt" x="${(ex - 1).toFixed(2)}" y="${(ar + fs * 0.9).toFixed(2)}" text-anchor="end">${fmt(P.draft, P.draft % 1 ? 1 : 0)}°</text>`;
+    // dno i zaokrąglenie – odnośniki
+    const lx = -r * 0.45, ly = h + w / 2;
+    dims += `<line class="th" x1="${lx}" y1="${ly}" x2="${lx - 10}" y2="${H + 12}"/><text class="dt" x="${(lx - 10.5).toFixed(2)}" y="${(H + 12 + fs * 0.4).toFixed(2)}" text-anchor="end">dno ${fmt(w, 1)}</text>`;
+    const fx = -(r - f * 0.3), fy = h - f * 0.3;
+    dims += `<line class="th" x1="${fx.toFixed(2)}" y1="${fy.toFixed(2)}" x2="${(fx + 7).toFixed(2)}" y2="${(fy - 6).toFixed(2)}"/><text class="dt" x="${(fx + 7.5).toFixed(2)}" y="${(fy - 6.4).toFixed(2)}">R${fmt(f)}</text>`;
+
+    $('#section-svg').innerHTML = `
+      <svg viewBox="${x0.toFixed(2)} ${y0.toFixed(2)} ${vw.toFixed(2)} ${vh.toFixed(2)}" role="img" aria-label="Przekrój gniazda tacy z wymiarami">
+        <style>
+          .tr { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.6px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+          .hatch line { stroke: var(--accent); stroke-width: 0.8px; vector-effect: non-scaling-stroke; opacity: .55; }
+          .ck { fill: var(--potato-soft); stroke: var(--potato); stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-dasharray: 3 2; }
+          .th { stroke: var(--muted); stroke-width: 0.9px; vector-effect: non-scaling-stroke; }
+          .dash { stroke-dasharray: 4 3; }
+          .axis { stroke: var(--muted); stroke-width: 0.8px; vector-effect: non-scaling-stroke; stroke-dasharray: 10 3 2 3; }
+          .ar { fill: var(--muted); }
+          .dt { fill: var(--ink); font-family: var(--font-mono); font-size: ${fs.toFixed(2)}px; }
+          .cl { fill: var(--potato); font-family: var(--font-body); font-weight: 600; font-size: ${(fs * 0.95).toFixed(2)}px; }
+        </style>
+        <defs>
+          <pattern id="hatch" patternUnits="userSpaceOnUse" width="2.2" height="2.2" patternTransform="rotate(45)" class="hatch">
+            <line x1="0" y1="0" x2="0" y2="2.2"/>
+          </pattern>
+          <clipPath id="trayclip"><path d="${tray}"/></clipPath>
+        </defs>
+        <path class="ck" d="${cake}"/>
+        <path class="tr" d="${tray}"/>
+        <rect x="${x0}" y="${y0}" width="${vw}" height="${vh}" fill="url(#hatch)" clip-path="url(#trayclip)"/>
+        <text class="cl" x="${(R * 0.42).toFixed(2)}" y="${(h * 0.6).toFixed(2)}" text-anchor="middle">placek</text>
+        <line class="axis" x1="0" y1="-12" x2="0" y2="${(H + 4).toFixed(2)}"/>
+        ${dims}
+      </svg>`;
+  }
+
+  /* ---------- Scena 3D ---------- */
+  let three = null;
+  const stageEl = $('#stage');
+  try {
+    if (!window.THREE || !THREE.OrbitControls) throw new Error('no three');
+    three = initThree();
+  } catch (e) {
+    const fb = document.createElement('div');
+    fb.className = 'fallback';
+    fb.textContent = 'Podgląd 3D nie mógł się uruchomić w tej przeglądarce (brak WebGL). Przekrój i obliczenia poniżej działają normalnie.';
+    stageEl.appendChild(fb);
+    $('#readout').hidden = true;
+  }
+
+  function initThree() {
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.localClippingEnabled = true;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    stageEl.prepend(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(38, 1, 5, 20000);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.maxPolarAngle = Math.PI * 0.49;
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a3, 0.75));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.85);
+    sun.position.set(500, 1500, 900);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    Object.assign(sun.shadow.camera, { left: -1700, right: 1700, top: 1000, bottom: -1000, near: 200, far: 4000 });
+    sun.shadow.bias = -0.0005;
+    scene.add(sun, sun.target);
+
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0xc9d1d9, roughness: 0.95 });
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(9000, 4000), floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(1200, -400, 0);
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const lineGroup = new THREE.Group();
+    const trayGroup = new THREE.Group();
+    const holder = new THREE.Group();
+    scene.add(lineGroup, trayGroup, holder);
+
+    const ro = new ResizeObserver(() => {
+      const w = stageEl.clientWidth, h = stageEl.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / Math.max(1, h);
+      camera.updateProjectionMatrix();
+    });
+    ro.observe(stageEl);
+
+    return { renderer, scene, camera, controls, sun, floor, floorMat, lineGroup, trayGroup, holder,
+             cakes: [], streams: [], tags: [], frost: null, bubbles: null, beltTex: null, dims: null, trayMat: null, frame: null };
+  }
+
+  const V2 = (x, y) => new THREE.Vector2(x, y);
+  function bez(p0, p1, p2, n) {
+    const out = [];
+    for (let k = 0; k <= n; k++) {
+      const t = k / n, u = 1 - t;
+      out.push(V2(u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0], u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1]));
+    }
+    return out;
+  }
+  function rrShape(w, l, rad) {
+    const s = new THREE.Shape(), x = -w / 2, y = -l / 2;
+    s.moveTo(x + rad, y); s.lineTo(x + w - rad, y); s.quadraticCurveTo(x + w, y, x + w, y + rad);
+    s.lineTo(x + w, y + l - rad); s.quadraticCurveTo(x + w, y + l, x + w - rad, y + l);
+    s.lineTo(x + rad, y + l); s.quadraticCurveTo(x, y + l, x, y + l - rad);
+    s.lineTo(x, y + rad); s.quadraticCurveTo(x, y, x + rad, y);
+    return s;
+  }
+  function rrHole(w, l, rad) {
+    const p = new THREE.Path(), x = -w / 2, y = -l / 2;
+    p.moveTo(x + rad, y); p.quadraticCurveTo(x, y, x, y + rad); p.lineTo(x, y + l - rad);
+    p.quadraticCurveTo(x, y + l, x + rad, y + l); p.lineTo(x + w - rad, y + l);
+    p.quadraticCurveTo(x + w, y + l, x + w, y + l - rad); p.lineTo(x + w, y + rad);
+    p.quadraticCurveTo(x + w, y, x + w - rad, y); p.lineTo(x + rad, y);
+    return p;
+  }
+  function extrude(shape, depth, y0) {
+    const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 48 });
+    g.rotateX(-Math.PI / 2);
+    g.translate(0, y0, 0);
+    return g;
+  }
+  function noise(x, z) {
+    return 0.55 * Math.sin(x * 0.55 + Math.sin(z * 0.21) * 3) * Math.sin(z * 0.47 + x * 0.13)
+         + 0.35 * Math.sin((x + z) * 1.3) * Math.cos(x * 0.9 - z * 0.4)
+         + 0.25 * Math.sin(x * 2.7 + z * 0.3) * Math.sin(z * 2.1 - x * 0.5);
+  }
+  function disposeGroup(g) {
+    g.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose());
+    });
+    g.clear();
+  }
+  function steel(c = 0xb4bdc6, rough = 0.4) { return new THREE.MeshStandardMaterial({ color: c, metalness: 0.35, roughness: rough }); }
+  function box(w, h, d, mat, x, y, z) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
+    return m;
+  }
+
+  // Stałe linii (mm)
+  const X_FILL = 0, X_FRZ = 760, FRZ_LEN = 640, X_DEM = 1500, FRY_A = 1880, FRY_LEN = 820, LIFT = 170, Y_BELT = -70, TRAVEL = 1450;
+  const FRZ_EXIT = X_FRZ + FRZ_LEN / 2 + 120;
+
+  let COL = null;
+
+  function rebuildScene(dv) {
+    const T = three;
+    if (!COL) COL = { raw: new THREE.Color('#d6c393'), frozen: new THREE.Color('#e8eef1'), fried: new THREE.Color('#b06d24') };
+    const { R, r, d, W, L, H } = dv;
+    const h = P.h, w = P.wall, f = FIXED.fillet, top = FIXED.top;
+    const s = Math.sin(d), c = Math.cos(d), tn = Math.tan(d);
+    const M = MATERIALS[P.material];
+    T.dims = dv;
+
+    disposeGroup(T.trayGroup);
+    disposeGroup(T.holder);
+    disposeGroup(T.lineGroup);
+    T.cakes = []; T.streams = [];
+    T.tags.forEach((el) => el.remove());
+    T.tags = [];
+
+    const centers = [];
+    for (let j = 0; j < P.rows; j++) for (let i = 0; i < P.cols; i++) {
+      centers.push([-W / 2 + FIXED.margin + R + i * (P.D + P.gap), -L / 2 + FIXED.margin + R + j * (P.D + P.gap)]);
+    }
+
+    /* Taca */
+    const trayMat = new THREE.MeshStandardMaterial({ color: M.color, roughness: M.rough, metalness: M.metal, side: THREE.DoubleSide });
+    T.trayMat = trayMat;
+    const plate = rrShape(W, L, FIXED.corner);
+    centers.forEach(([x, z]) => { const p = new THREE.Path(); p.absarc(x, -z, R, 0, Math.PI * 2, true); plate.holes.push(p); });
+    const plateMesh = new THREE.Mesh(extrude(plate, top, -top), trayMat);
+    const sk = rrShape(W, L, FIXED.corner);
+    sk.holes.push(rrHole(W - 2 * FIXED.skirt, L - 2 * FIXED.skirt, FIXED.corner - FIXED.skirt));
+    const skirtMesh = new THREE.Mesh(extrude(sk, H - top, -H), trayMat);
+    [plateMesh, skirtMesh].forEach((m) => { m.castShadow = true; m.receiveShadow = true; T.trayGroup.add(m); });
+
+    const innerPts = [V2(0, -h), ...bez([r - f, -h], [r, -h], [r + f * s, -h + f * c], 8), V2(R, 0)];
+    const rO = r + w;
+    const outerPts = [V2(0, -H), ...bez([rO - f, -H], [rO, -H], [rO + f * s, -H + f * c], 8), V2(rO + (H - top) * tn, -top)];
+    const gIn = new THREE.LatheGeometry(innerPts, 64);
+    const gOut = new THREE.LatheGeometry(outerPts, 64);
+    centers.forEach(([x, z]) => {
+      const a = new THREE.Mesh(gIn, trayMat); a.position.set(x, 0, z); a.receiveShadow = true;
+      const b = new THREE.Mesh(gOut, trayMat); b.position.set(x, 0, z); b.castShadow = true;
+      T.trayGroup.add(a, b);
+    });
+
+    /* Rama nośna dla elastycznych tac */
+    const frame = new THREE.Group();
+    const fm = steel(0xaab4be, 0.35);
+    const o = 5, ry = -top - 6, legH = 16;
+    frame.add(box(W + 2 * o + 8, 8, 8, fm, 0, ry, L / 2 + o));
+    frame.add(box(W + 2 * o + 8, 8, 8, fm, 0, ry, -L / 2 - o));
+    frame.add(box(8, 8, L + 2 * o, fm, W / 2 + o, ry, 0));
+    frame.add(box(8, 8, L + 2 * o, fm, -W / 2 - o, ry, 0));
+    frame.add(box(W * 0.98, 4, 10, fm, 0, -H - 2, 0));
+    [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sz]) => {
+      frame.add(box(8, H + legH - 4, 8, fm, sx * (W / 2 + o), -top - 2 - (H + legH - 4) / 2, sz * (L / 2 + o)));
+    });
+    frame.visible = M.flex;
+    T.frame = frame;
+    T.trayGroup.add(frame);
+
+    /* Placki */
+    // placek minimalnie mniejszy od gniazda, żeby powierzchnie nie migotały
+    const hp = h - 0.6;
+    const rc = r - 0.3;
+    const Rt = rc + hp * tn;
+    const ptsC = [V2(0, 0), V2((rc - f) * 0.5, 0), ...bez([rc - f, 0], [rc, 0], [rc + f * s, f * c], 6)];
+    const yw = hp - 1.6;
+    ptsC.push(V2(rc + yw * tn, yw));
+    ptsC.push(...bez([rc + yw * tn, yw], [Rt, hp], [Rt - 2.2, hp], 5).slice(1));
+    for (let k = 1; k <= 10; k++) ptsC.push(V2((Rt - 2.2) * (1 - k / 10), hp));
+    const gC = new THREE.LatheGeometry(ptsC, 72);
+    const pos = gC.attributes.position;
+    const cols = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+      const nv = noise(x, z);
+      if (y > hp - 0.01) pos.setY(i, y + nv * 0.55);
+      else if (y > 0.5) { const k = 1 + 0.006 * noise(z * 1.7, y * 3); pos.setX(i, x * k); pos.setZ(i, z * k); }
+      const v = 0.86 + 0.16 * nv + 0.06 * Math.sin(x * 4.1 + z * 3.3);
+      cols[i * 3] = v; cols[i * 3 + 1] = v * 0.98; cols[i * 3 + 2] = v * 0.94;
+    }
+    gC.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+    gC.computeVertexNormals();
+    const capMat = new THREE.MeshBasicMaterial({ color: 0xc2a468, side: THREE.BackSide });
+    centers.forEach(([x, z]) => {
+      const mat = new THREE.MeshStandardMaterial({ color: COL.raw.clone(), vertexColors: true, roughness: 0.85 });
+      const m = new THREE.Mesh(gC, mat);
+      // tylne ściany w jednolitym kolorze udają zamknięty przekrój placka
+      const cap = new THREE.Mesh(gC, capMat);
+      cap.visible = false;
+      m.add(cap);
+      m.castShadow = true; m.receiveShadow = true;
+      m.userData = { x, z };
+      T.cakes.push(m);
+      T.holder.add(m);
+    });
+
+    /* Linia produkcyjna */
+    const LG = T.lineGroup;
+    const rollerTop = -H - (M.flex ? legH - 2 : 0);
+    T.rollerTop = rollerTop;
+    const st = steel();
+    const dark = steel(0x5d6873, 0.55);
+    // przenośnik rolkowy tac
+    const rx0 = -760, rx1 = X_DEM - 260;
+    [1, -1].forEach((sz) => LG.add(box(rx1 - rx0, 24, 10, st, (rx0 + rx1) / 2, rollerTop - 12, sz * (L / 2 + 30))));
+    const rollerG = new THREE.CylinderGeometry(9, 9, L + 50, 18);
+    rollerG.rotateX(Math.PI / 2);
+    for (let x = rx0 + 30; x < rx1; x += 70) {
+      const rm = new THREE.Mesh(rollerG, st); rm.position.set(x, rollerTop - 9, 0); rm.castShadow = true; LG.add(rm);
+    }
+    for (let x = rx0 + 60; x < rx1; x += 520) {
+      [1, -1].forEach((sz) => LG.add(box(16, rollerTop + 400 - 24, 16, dark, x, (rollerTop - 24 - 400) / 2, sz * (L / 2 + 30))));
+    }
+    // dozownik
+    const hopW = Math.max(W * 0.9, 120), hopL = Math.max(L * 0.9, 120);
+    LG.add(box(hopW, 120, hopL, st, X_FILL, 300, 0));
+    const hopTop = new THREE.Mesh(new THREE.CylinderGeometry(Math.max(hopW, hopL) * 0.55, Math.max(hopW, hopL) * 0.42, 110, 4, 1, true), st);
+    hopTop.rotation.y = Math.PI / 4; hopTop.position.set(X_FILL, 415, 0); hopTop.material.side = THREE.DoubleSide; LG.add(hopTop);
+    [1, -1].forEach((sx) => [1, -1].forEach((sz) => LG.add(box(14, 760, 14, dark, X_FILL + sx * (hopW / 2 + 20), -20, sz * (L / 2 + 60)))));
+    LG.add(box(hopW + 54, 14, 14, dark, X_FILL, 300, L / 2 + 60));
+    LG.add(box(hopW + 54, 14, 14, dark, X_FILL, 300, -L / 2 - 60));
+    const nozG = new THREE.CylinderGeometry(7, 4, 60, 14);
+    const strG = new THREE.CylinderGeometry(3.2, 3.2, 1, 10);
+    strG.translate(0, -0.5, 0);
+    const strMat = new THREE.MeshStandardMaterial({ color: COL.raw, roughness: 0.7 });
+    centers.forEach(([x, z]) => {
+      const n = new THREE.Mesh(nozG, st); n.position.set(X_FILL + x, 210, z); LG.add(n);
+      const sm = new THREE.Mesh(strG, strMat); sm.position.set(X_FILL + x, 180, z); sm.visible = false;
+      T.streams.push(sm); LG.add(sm);
+    });
+    // mroźnia
+    const fzH = 460, fzD = L + 260, fzY = rollerTop - 40 + fzH / 2;
+    const ice = new THREE.MeshStandardMaterial({ color: 0x9ccaf2, transparent: true, opacity: 0.16, roughness: 0.2, depthWrite: false, side: THREE.DoubleSide });
+    const fzBox = new THREE.Mesh(new THREE.BoxGeometry(FRZ_LEN, fzH, fzD), ice);
+    fzBox.position.set(X_FRZ, fzY, 0); LG.add(fzBox);
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(fzBox.geometry), new THREE.LineBasicMaterial({ color: 0x5f9fd8 }));
+    edges.position.copy(fzBox.position); LG.add(edges);
+    LG.add(box(FRZ_LEN * 0.5, 90, fzD * 0.6, steel(0xdfe5ea, 0.5), X_FRZ, fzY + fzH / 2 + 45, 0));
+    const fzN = 420, fp = new Float32Array(fzN * 3);
+    for (let i = 0; i < fzN; i++) {
+      fp[i * 3] = X_FRZ + (Math.random() - 0.5) * FRZ_LEN * 0.95;
+      fp[i * 3 + 1] = fzY + (Math.random() - 0.5) * fzH * 0.95;
+      fp[i * 3 + 2] = (Math.random() - 0.5) * fzD * 0.95;
+    }
+    const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.BufferAttribute(fp, 3));
+    T.frost = new THREE.Points(fg, new THREE.PointsMaterial({ color: 0xffffff, size: 5, transparent: true, opacity: 0.85, depthWrite: false }));
+    T.frost.userData = { y0: fzY - fzH / 2 * 0.95, y1: fzY + fzH / 2 * 0.95 };
+    LG.add(T.frost);
+    // stanowisko wybijania: słupy z osią obrotu
+    [1, -1].forEach((sz) => {
+      LG.add(box(30, LIFT + 400, 30, dark, X_DEM, (LIFT - 400) / 2, sz * (L / 2 + 70)));
+      const piv = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 40, 20), st);
+      piv.rotation.x = Math.PI / 2; piv.position.set(X_DEM, LIFT, sz * (L / 2 + 45)); LG.add(piv);
+    });
+    // taśma produktowa
+    const bx0 = X_DEM - 260, bx1 = FRY_A + FRY_LEN + 420, bW = L + 70;
+    const cv = document.createElement('canvas'); cv.width = 128; cv.height = 32;
+    const cx = cv.getContext('2d');
+    cx.fillStyle = '#3c4650'; cx.fillRect(0, 0, 128, 32);
+    cx.fillStyle = '#56616c'; for (let k = 0; k < 128; k += 16) cx.fillRect(k, 0, 6, 32);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set((bx1 - bx0) / 80, 1);
+    tex.encoding = THREE.sRGBEncoding;
+    T.beltTex = tex;
+    const belt = box(bx1 - bx0, 18, bW, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 }), (bx0 + bx1) / 2, Y_BELT - 9, 0);
+    LG.add(belt);
+    [bx0, bx1].forEach((x) => {
+      const dr = new THREE.Mesh(new THREE.CylinderGeometry(12, 12, bW + 10, 20), st);
+      dr.rotation.x = Math.PI / 2; dr.position.set(x, Y_BELT - 9, 0); LG.add(dr);
+    });
+    for (let x = bx0 + 80; x < bx1; x += 600) {
+      [1, -1].forEach((sz) => LG.add(box(16, 400 + Y_BELT - 18, 16, dark, x, (Y_BELT - 18 - 400) / 2, sz * (bW / 2 + 10))));
+    }
+    // smażalnik
+    const fx = FRY_A + FRY_LEN / 2, fyB = -300, fyT = Y_BELT + 50, fD = bW + 60;
+    const tank = steel(0x6c7782, 0.45);
+    LG.add(box(FRY_LEN, 14, fD, tank, fx, fyB, 0));
+    LG.add(box(FRY_LEN, fyT - fyB, 14, tank, fx, (fyB + fyT) / 2, fD / 2));
+    const backWall = box(FRY_LEN, fyT - fyB, 14, tank, fx, (fyB + fyT) / 2, -fD / 2);
+    LG.add(backWall);
+    [FRY_A, FRY_A + FRY_LEN].forEach((x) => LG.add(box(14, Y_BELT - 30 - fyB, fD, tank, x, (fyB + Y_BELT - 30) / 2, 0)));
+    const oil = new THREE.Mesh(new THREE.BoxGeometry(FRY_LEN - 14, Y_BELT + 20 - fyB, fD - 14),
+      new THREE.MeshStandardMaterial({ color: 0xd08a22, transparent: true, opacity: 0.42, roughness: 0.15, depthWrite: false }));
+    oil.position.set(fx, (fyB + Y_BELT + 20) / 2, 0); LG.add(oil);
+    const hood = box(FRY_LEN + 40, 40, fD + 40, steel(0x8d98a3, 0.4), fx, Y_BELT + 260, 0);
+    LG.add(hood);
+    [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sz]) => LG.add(box(14, 190, 14, tank, fx + sx * (FRY_LEN / 2 + 10), Y_BELT + 145, sz * (fD / 2 + 10))));
+    const bN = 260, bp = new Float32Array(bN * 3);
+    for (let i = 0; i < bN; i++) {
+      bp[i * 3] = FRY_A + 20 + Math.random() * (FRY_LEN - 40);
+      bp[i * 3 + 1] = Y_BELT - 40 + Math.random() * 60;
+      bp[i * 3 + 2] = (Math.random() - 0.5) * (fD - 40);
+    }
+    const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(bp, 3));
+    T.bubbles = new THREE.Points(bg, new THREE.PointsMaterial({ color: 0xfff1c9, size: 4, transparent: true, opacity: 0.8, depthWrite: false }));
+    T.bubbles.userData = { y0: Y_BELT - 40, y1: Y_BELT + 20 };
+    LG.add(T.bubbles);
+
+    // etykiety stanowisk
+    const tagDefs = [
+      ['1 · Dozownik', '+12 °C', [X_FILL, 480, 0]],
+      ['2 · Mroźnia', '−35 °C', [X_FRZ, fzY + fzH / 2 + 110, 0]],
+      ['3 · Wybijanie', '', [X_DEM, LIFT + 120, 0]],
+      ['4 · Smażalnik', '175 °C', [fx, Y_BELT + 320, 0]]
+    ];
+    tagDefs.forEach(([t, sub, p]) => {
+      const el = document.createElement('div');
+      el.className = 'tag';
+      el.innerHTML = t + (sub ? `<small>${sub}</small>` : '');
+      el.userData = new THREE.Vector3(...p);
+      stageEl.appendChild(el);
+      T.tags.push(el);
+    });
+
+    applyView(false);
+    applyClip();
+    poseAt(t);
+  }
+
+  /* ---------- Oś czasu ---------- */
+  let t = 0.55, playing = false, playEnd = 4, loop = true, holdUntil = 0;
+  const PHASE_SEC = 6;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
+  const lin = (x, a, b) => clamp01((x - a) / (b - a));
+  const seg = (x, a, b) => { const u = lin(x, a, b); return u * u * (3 - 2 * u); };
+  let view = 'tray';
+  const focus = { x: 0, y: 0, z: 0 };
+  let liveCore = 12, liveEnv = 12;
+
+  function poseAt(tt) {
+    const T = three; if (!T || !T.dims) return;
+    const { H } = T.dims;
+    const h = P.h;
+    let tx = -620, ty = 0, rot = 0, fill = 0, frozen = 0, drop = 0, travel = 0, streams = false;
+    if (view === 'tray') {
+      tx = 0; fill = $('#cakes').checked ? 1 : 0;
+    } else if (tt < 1) {
+      tx = -620 + 620 * seg(tt, 0, 0.25);
+      fill = lin(tt, 0.3, 0.86);
+      streams = tt > 0.27 && tt < 0.86;
+    } else if (tt < 2) {
+      tx = X_FILL + (X_FRZ - X_FILL) * seg(tt, 1, 1.25) + (FRZ_EXIT - X_FRZ) * seg(tt, 1.82, 2);
+      fill = 1; frozen = lin(tt, 1.25, 1.8);
+    } else {
+      fill = 1; frozen = 1;
+      tx = FRZ_EXIT + (X_DEM - FRZ_EXIT) * seg(tt, 2, 2.22);
+      ty = LIFT * seg(tt, 2, 2.22);
+      rot = Math.PI * seg(tt, 2.24, 2.5);
+      if (tt > 2.75) rot = Math.PI * (1 - seg(tt, 2.75, 3));
+      const dMax = LIFT + 0.4 - Y_BELT;
+      drop = dMax * Math.pow(lin(tt, 2.52, 2.7), 2);
+      travel = TRAVEL * seg(tt, 3, 3.98);
+    }
+    T.trayGroup.position.set(tx, ty, 0);
+    T.trayGroup.rotation.x = rot;
+    if (view === 'line' && tt >= 2.52) { T.holder.position.set(X_DEM, LIFT, 0); T.holder.rotation.x = Math.PI; }
+    else { T.holder.position.copy(T.trayGroup.position); T.holder.rotation.x = rot; }
+
+    let sumFry = 0;
+    T.cakes.forEach((m) => {
+      const { x, z } = m.userData;
+      m.visible = fill > 0.002;
+      m.position.set(x + travel, -h + 0.2 + drop, z);
+      m.scale.y = Math.max(0.002, fill);
+      let col;
+      if (view === 'tray') col = COL.raw;
+      else if (tt < 3) col = COL.raw.clone().lerp(COL.frozen, frozen);
+      else {
+        const wx = X_DEM + x + travel;
+        const fr = clamp01((wx - FRY_A - 40) / (FRY_LEN * 0.85));
+        sumFry += fr;
+        col = COL.frozen.clone().lerp(COL.fried, fr);
+        m.material.roughness = 0.85 - 0.4 * fr;
+      }
+      m.material.color.copy(col);
+      if (tt < 3 || view === 'tray') m.material.roughness = 0.85 - 0.25 * frozen;
+    });
+    T.streams.forEach((sm) => {
+      sm.visible = streams;
+      const len = 180 - (-h + h * fill);
+      sm.scale.y = Math.max(1, len);
+    });
+    if (T.beltTex) T.beltTex.offset.x = -travel / 80;
+
+    // odczyty
+    const phase = Math.min(3, Math.floor(tt));
+    const fryAvg = T.cakes.length ? sumFry / T.cakes.length : 0;
+    if (phase === 0) { liveCore = 12; liveEnv = 12; }
+    else if (phase === 1) { liveCore = 12 - 30 * frozen; liveEnv = tx > X_FRZ - FRZ_LEN / 2 && tx < X_FRZ + FRZ_LEN / 2 ? -35 : 12; }
+    else if (phase === 2) { liveCore = -18; liveEnv = 12; }
+    else { liveCore = -18 + 93 * fryAvg; liveEnv = fryAvg > 0 && fryAvg < 1 ? 175 : 12; }
+
+    // ognisko kamery
+    if (tt < 2.6) { focus.x = tx; focus.y = ty * 0.6; }
+    else { focus.x = X_DEM + travel * 0.92; focus.y = Y_BELT + 20; }
+    focus.z = 0;
+    updateHud(tt);
+  }
+
+  const fmtT = (v) => (v > 0.5 ? '+' : v < -0.5 ? '−' : '') + fmt(Math.abs(Math.round(v))) + ' °C';
+  let lastPhase = -1;
+  function updateHud(tt) {
+    const phase = Math.min(3, Math.floor(tt));
+    if (view === 'tray') {
+      $('#ro-phase').textContent = 'Foremka';
+      $('#ro-desc').textContent = `${P.rows} × ${P.cols} gniazd, ${MATERIALS[P.material].label}. Obracaj myszą, kółkiem przybliżaj.`;
+      $('#ro-core-l').textContent = 'Taca';
+      $('#ro-core').textContent = fmt(three.dims.W) + ' × ' + fmt(three.dims.L) + ' mm';
+      $('#ro-env-l').innerHTML = `Wys. <b id="ro-env">${fmt(three.dims.H, 1)} mm</b>`;
+      return;
+    }
+    if (phase !== lastPhase) {
+      lastPhase = phase;
+      $('#ro-phase').textContent = PHASES[phase].name;
+      $('#ro-desc').textContent = PHASES[phase].desc;
+      document.querySelectorAll('.step').forEach((b) => {
+        if (Number(b.dataset.phase) === phase) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
+      });
+    }
+    $('#ro-core-l').textContent = 'Placek';
+    $('#ro-core').textContent = fmtT(liveCore);
+    $('#ro-env-l').innerHTML = `Otoczenie <b id="ro-env">${fmtT(liveEnv)}</b>`;
+    $('#scrub').value = tt;
+  }
+
+  function setPlaying(v) {
+    playing = v;
+    $('#play-label').textContent = v ? 'Pauza' : 'Cały proces';
+    $('#play-icon').setAttribute('d', v ? 'M2 1h3v10H2zM7 1h3v10H7z' : 'M2 1l9 5-9 5z');
+  }
+  document.querySelectorAll('.step').forEach((b) => b.addEventListener('click', () => {
+    if (view !== 'line') setView('line');
+    const i = Number(b.dataset.phase);
+    t = i; playEnd = i + 1; loop = false; setPlaying(true);
+    lastPhase = -1; poseAt(t);
+  }));
+  $('#play').addEventListener('click', () => {
+    if (view !== 'line') setView('line');
+    if (playing) { setPlaying(false); return; }
+    if (t >= 3.99) t = 0;
+    playEnd = 4; loop = true; setPlaying(true);
+  });
+  $('#scrub').addEventListener('input', (e) => {
+    if (view !== 'line') setView('line');
+    setPlaying(false); t = Number(e.target.value); poseAt(t);
+  });
+
+  /* ---------- Widoki ---------- */
+  function setView(v) {
+    view = v;
+    $('#view-line').setAttribute('aria-pressed', String(v === 'line'));
+    $('#view-tray').setAttribute('aria-pressed', String(v === 'tray'));
+    $('#cut-wrap').hidden = v !== 'tray';
+    $('#cakes-wrap').hidden = v !== 'tray';
+    if (v === 'tray') setPlaying(false);
+    lastPhase = -1;
+    applyView(true);
+    applyClip();
+    poseAt(t);
+  }
+  function applyView(resetCam) {
+    const T = three; if (!T || !T.dims) return;
+    const isLine = view === 'line';
+    T.lineGroup.visible = isLine;
+    T.floor.visible = isLine;
+    T.tags.forEach((el) => { el.hidden = !isLine; });
+    T.controls.maxPolarAngle = isLine ? Math.PI * 0.49 : Math.PI * 0.95;
+    if (!resetCam) return;
+    if (isLine) {
+      poseAt(t);
+      T.controls.target.set(focus.x, focus.y, focus.z);
+      T.camera.position.set(focus.x - 520, focus.y + 600, focus.z + 1080);
+    } else {
+      const s = Math.max(T.dims.W, T.dims.L);
+      T.controls.target.set(0, -P.h / 2, 0);
+      T.camera.position.set(s * 0.55, s * 0.95, s * 1.15);
+    }
+    T.controls.update();
+  }
+  let initialCam = false;
+  function applyClip() {
+    const T = three; if (!T || !T.dims) return;
+    const on = view === 'tray' && $('#cut').checked;
+    const { R, L } = T.dims;
+    const j = Math.floor(P.rows / 2);
+    const zc = -L / 2 + FIXED.margin + R + j * (P.D + P.gap);
+    const planes = on ? [new THREE.Plane(new THREE.Vector3(0, 0, -1), zc)] : [];
+    T.trayGroup.traverse((o) => { if (o.material) o.material.clippingPlanes = planes; });
+    T.cakes.forEach((m) => {
+      m.material.clippingPlanes = planes;
+      m.children[0].visible = on;
+      m.children[0].material.clippingPlanes = planes;
+    });
+  }
+  $('#view-line').addEventListener('click', () => setView('line'));
+  $('#view-tray').addEventListener('click', () => setView('tray'));
+  $('#cut').addEventListener('change', applyClip);
+  $('#cakes').addEventListener('change', () => poseAt(t));
+
+  /* ---------- Motyw ---------- */
+  function applyTheme() {
+    if (!three) return;
+    const cs = getComputedStyle(document.documentElement);
+    three.scene.background = new THREE.Color(cs.getPropertyValue('--stage').trim() || '#e3e8ed');
+    three.floorMat.color.set(cs.getPropertyValue('--floor').trim() || '#c9d1d9');
+  }
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+  new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  /* ---------- Pętla ---------- */
+  let last = performance.now();
+  const tmpV = three ? new THREE.Vector3() : null;
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    const T = three;
+    if (playing && now > holdUntil) {
+      t += dt / PHASE_SEC;
+      if (t >= playEnd) {
+        if (loop) { t = 0; holdUntil = now + 900; }
+        else { t = playEnd; setPlaying(false); }
+      }
+      poseAt(t);
+    }
+    if (view === 'line') {
+      const k = 1 - Math.pow(0.02, dt);
+      const dx = (focus.x - T.controls.target.x) * k, dy = (focus.y - T.controls.target.y) * k;
+      T.controls.target.x += dx; T.controls.target.y += dy;
+      T.camera.position.x += dx; T.camera.position.y += dy;
+      T.sun.position.set(T.controls.target.x + 500, 1500, 900);
+      T.sun.target.position.set(T.controls.target.x, 0, 0);
+    }
+    if (T.frost && T.lineGroup.visible && !reduceMotion) {
+      const a = T.frost.geometry.attributes.position, { y0, y1 } = T.frost.userData;
+      for (let i = 0; i < a.count; i++) { let y = a.getY(i) - dt * 40; if (y < y0) y = y1; a.setY(i, y); }
+      a.needsUpdate = true;
+      const b = T.bubbles.geometry.attributes.position, bu = T.bubbles.userData;
+      for (let i = 0; i < b.count; i++) { let y = b.getY(i) + dt * 70; if (y > bu.y1) y = bu.y0; b.setY(i, y); }
+      b.needsUpdate = true;
+    }
+    if (view === 'tray' && !reduceMotion && !playing) {
+      // delikatny obrót tylko dopóki użytkownik nie dotknie widoku
+      if (!T.userTouched) {
+        const ang = dt * 0.25, c = Math.cos(ang), s = Math.sin(ang);
+        const p = T.camera.position, tg = T.controls.target;
+        const x = p.x - tg.x, z = p.z - tg.z;
+        p.x = tg.x + x * c - z * s; p.z = tg.z + x * s + z * c;
+      }
+    }
+    T.controls.update();
+    T.renderer.render(T.scene, T.camera);
+    if (view === 'line') {
+      const w = stageEl.clientWidth, h = stageEl.clientHeight;
+      T.tags.forEach((el) => {
+        tmpV.copy(el.userData).project(T.camera);
+        const vis = tmpV.z < 1 && Math.abs(tmpV.x) < 1.1 && Math.abs(tmpV.y) < 1.1;
+        el.style.visibility = vis ? 'visible' : 'hidden';
+        el.style.transform = `translate(${((tmpV.x + 1) / 2 * w).toFixed(1)}px, ${((1 - tmpV.y) / 2 * h).toFixed(1)}px) translate(-50%, -100%)`;
+      });
+    }
+    requestAnimationFrame(frame);
+  }
+
+  update();
+  if (three) {
+    three.renderer.domElement.addEventListener('pointerdown', () => { three.userTouched = true; });
+    applyTheme();
+    applyView(true);
+    requestAnimationFrame(frame);
+  }
+})();
+</script>
