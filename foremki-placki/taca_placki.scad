@@ -3,9 +3,12 @@
 // Wszystkie wymiary w mm. Zmień parametry i wyeksportuj STL (F6, potem F7).
 
 /* [Gniazda] */
-rows   = 3;     // liczba rzędów
-cols   = 3;     // liczba kolumn
-D      = 75;    // średnica placka na górze gniazda
+mode   = "taca";   // "taca" albo "foremka" (pojedyncze gniazdo)
+shape  = "okragly"; // "okragly" albo "owalny"
+Lo     = 130;   // długość owalu (dla shape = "owalny")
+rows   = 3;     // liczba rzędów (tryb "taca")
+cols   = 2;     // liczba kolumn (tryb "taca")
+D      = 100;   // średnica placka na górze gniazda (szerokość owalu)
 h      = 12;    // grubość placka (głębokość gniazda)
 draft  = 7;     // pochylenie ścianek [stopnie], ułatwia wybicie
 fillet = 2;     // promień zaokrąglenia dna gniazda
@@ -17,20 +20,24 @@ wall   = 1.6;   // grubość dna i ścianek gniazda (4 obrysy z dyszy 0,4)
 top    = 2.5;   // grubość górnej płyty
 skirt  = 2;     // grubość obrzeża
 corner = 6;     // promień narożników tacy
+stack  = 8;     // prześwit nad plackami przy układaniu w stos (skrzynka E2)
 
 $fn = 96;
 
+nr = mode == "foremka" ? 1 : rows;
+nc = mode == "foremka" ? 1 : cols;
+kx = shape == "owalny" ? max(1, Lo / D) : 1;   // rozciągnięcie gniazda w osi X
 R  = D / 2;
 r  = R - h * tan(draft);                 // promień dna gniazda
-W  = cols * D + (cols - 1) * gap + 2 * margin;
-L  = rows * D + (rows - 1) * gap + 2 * margin;
+W  = nc * D * kx + (nc - 1) * gap + 2 * margin;
+L  = nr * D + (nr - 1) * gap + 2 * margin;
 H  = h + wall;
 ro = r + wall;                           // promień zewnętrzny dna
 Ro = ro + (H - top) * tan(draft);        // promień zewnętrzny pod płytą
 
-echo(str("Taca: ", W, " x ", L, " x ", H, " mm, gniazd: ", rows * cols));
+echo(str("Taca: ", W, " x ", L, " x ", H, " mm, gniazd: ", nr * nc));
 
-function cx(i) = -W / 2 + margin + R + i * (D + gap);
+function cx(i) = -W / 2 + margin + R * kx + i * (D * kx + gap);
 function cy(j) = -L / 2 + margin + R + j * (D + gap);
 
 // Krzywa Béziera 2. stopnia jako lista punktów (zaokrąglenie dna)
@@ -43,7 +50,7 @@ module rrect(w, l, rad, hh) {
 
 // Wnętrze gniazda (bryła odejmowana)
 module cavity_inner() {
-    rotate_extrude()
+    scale([kx, 1, 1]) rotate_extrude()
         polygon(concat(
             [[0, -h]],
             bez([r - fillet, -h], [r, -h], [r + fillet * sin(draft), -h + fillet * cos(draft)]),
@@ -53,7 +60,7 @@ module cavity_inner() {
 
 // Zewnętrzna skorupa gniazda
 module cavity_outer() {
-    rotate_extrude()
+    scale([kx, 1, 1]) rotate_extrude()
         polygon(concat(
             [[0, -H]],
             bez([ro - fillet, -H], [ro, -H], [ro + fillet * sin(draft), -H + fillet * cos(draft)]),
@@ -69,10 +76,13 @@ module tray() {
                 rrect(W, L, corner, H - top + 0.01);
                 translate([0, 0, -1]) rrect(W - 2 * skirt, L - 2 * skirt, corner - skirt, H + 2);
             }
-            for (i = [0:cols - 1], j = [0:rows - 1])
+            for (i = [0:nc - 1], j = [0:nr - 1])
                 translate([cx(i), cy(j), 0]) cavity_outer();
+            // słupki w narożnikach: następna taca opiera się na nich, nie na plackach
+            for (sx = [-1, 1], sy = [-1, 1])
+                translate([sx * (W / 2 - 8), sy * (L / 2 - 8), -top]) cylinder(r = 4, h = top + stack + H - top);
         }
-        for (i = [0:cols - 1], j = [0:rows - 1])
+        for (i = [0:nc - 1], j = [0:nr - 1])
             translate([cx(i), cy(j), 0]) cavity_inner();
     }
 }

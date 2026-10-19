@@ -259,13 +259,19 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; }
     <aside class="panel" aria-label="Parametry foremki">
       <fieldset>
         <legend>Gniazda</legend>
-        <div class="field"><label for="p-rows">Rzędy</label><output id="o-rows"></output><input type="range" id="p-rows" data-param="rows" min="1" max="6" step="1"></div>
-        <div class="field"><label for="p-cols">Kolumny</label><output id="o-cols"></output><input type="range" id="p-cols" data-param="cols" min="1" max="6" step="1"></div>
-        <div class="field"><label for="p-D">Średnica placka</label><output id="o-D"></output><input type="range" id="p-D" data-param="D" min="50" max="120" step="1"></div>
+        <div class="field"><label for="p-mode">Rodzaj</label>
+          <select id="p-mode"><option value="tray">Taca z wieloma gniazdami</option><option value="single">Pojedyncza foremka</option></select></div>
+        <div class="field"><label for="p-shape">Kształt placka</label>
+          <select id="p-shape"><option value="round">Okrągły</option><option value="oval">Owalny</option></select></div>
+        <div class="field" id="f-Lo" hidden><label for="p-Lo">Długość owalu</label><output id="o-Lo"></output><input type="range" id="p-Lo" data-param="Lo" min="100" max="180" step="1"></div>
+        <div class="field" id="f-rows"><label for="p-rows">Rzędy</label><output id="o-rows"></output><input type="range" id="p-rows" data-param="rows" min="1" max="6" step="1"></div>
+        <div class="field" id="f-cols"><label for="p-cols">Kolumny</label><output id="o-cols"></output><input type="range" id="p-cols" data-param="cols" min="1" max="6" step="1"></div>
+        <div class="field"><label for="p-D" id="l-D">Średnica placka</label><output id="o-D"></output><input type="range" id="p-D" data-param="D" min="50" max="140" step="1"></div>
         <div class="field"><label for="p-h">Grubość placka</label><output id="o-h"></output><input type="range" id="p-h" data-param="h" min="6" max="20" step="0.5"></div>
         <div class="field"><label for="p-draft">Pochylenie ścianek</label><output id="o-draft"></output><input type="range" id="p-draft" data-param="draft" min="2" max="12" step="0.5"></div>
         <div class="field"><label for="p-gap">Odstęp gniazd</label><output id="o-gap"></output><input type="range" id="p-gap" data-param="gap" min="5" max="16" step="0.5"></div>
         <div class="field"><label for="p-wall">Grubość dna</label><output id="o-wall"></output><input type="range" id="p-wall" data-param="wall" min="1" max="2.4" step="0.1"></div>
+        <div class="field"><label for="p-stack">Prześwit przy układaniu w stos</label><output id="o-stack"></output><input type="range" id="p-stack" data-param="stack" min="4" max="20" step="1"></div>
       </fieldset>
       <fieldset>
         <legend>Materiał i drukarka</legend>
@@ -288,11 +294,6 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; }
           </select>
         </div>
       </fieldset>
-      <fieldset>
-        <legend>Produkcja</legend>
-        <div class="field"><label for="p-rate">Wydajność linii</label><output id="o-rate"></output><input type="range" id="p-rate" data-param="rate" min="100" max="3000" step="50"></div>
-        <div class="field"><label for="p-cycle">Obieg tacy (dozowanie → powrót)</label><output id="o-cycle"></output><input type="range" id="p-cycle" data-param="cycle" min="15" max="120" step="5"></div>
-      </fieldset>
       <dl class="results" id="results"></dl>
       <ul class="warnings" id="warnings"></ul>
     </aside>
@@ -311,7 +312,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; }
           <div><dt>Zaokrąglone dno</dt><dd>Brak ostrych naroży, w których zostaje skrobia i rosną bakterie. Łatwiej się myje i łatwiej się drukuje.</dd></div>
           <div><dt>Płaska górna płyta</dt><dd>Po dozowaniu rakla zgarnia nadmiar masy po płycie. Każdy placek ma wtedy tę samą grubość i masę, a smażenie jest równe.</dd></div>
           <div><dt>Cienkie, elastyczne dno</dt><dd>Po odwróceniu tacy wystarczy docisk od spodu, ręcznie albo listwą dociskową, i placek wypada jak kostka lodu.</dd></div>
-          <div><dt>Rama nośna</dt><dd>Elastyczna taca pełna masy się ugina. Rama ze stali nierdzewnej (albo z PETG) trzyma ją płasko i daje nóżki, dzięki którym tace stoją w wózku w mroźni z odstępem na obieg zimnego powietrza.</dd></div>
+          <div><dt>Słupki do układania w stos</dt><dd>Cztery słupki w narożnikach podtrzymują następną tacę w skrzynce E2. Dno wyższej tacy nie dotyka placków, a między warstwami krąży zimne powietrze.</dd></div>
           <div><dt>Kolor niebieski</dt><dd>Standard w przetwórstwie żywności: odprysk widać na tle masy. Są też filamenty wykrywalne detektorem metali, jeśli zakład go używa.</dd></div>
         </dl>
       </div>
@@ -371,7 +372,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; }
 
     <section class="sec" aria-labelledby="h-q">
       <h2 id="h-q">Pytania, zanim wydrukujesz serię</h2>
-      <p class="assume">Na razie przyjąłem: placek Ø75 mm i 12 mm grubości (ok. 55 g), taca 3 × 3 gniazda mieszcząca się na stole 256 × 256 mm, mroźnia szokowa −35 °C, smażenie w oleju 175 °C. Odpowiedzi na pytania niżej zmienią głównie wymiary tacy i ramy.</p>
+      <p class="assume">Przyjęte założenia: placek Ø100 mm (albo owal), 12 mm grubości, dozowanie ręczne chochlą, przechowywanie w skrzynkach E2 (wnętrze ok. 570 × 370 × 185 mm), mycie wodą z płynem, wymagana odporność na mróz. Domyślnie taca 3 × 2 gniazda: dwie takie tace leżą obok siebie w jednej warstwie skrzynki.</p>
       <ol class="qs">
         <li><div><b>Jaki placek?</b><span>Średnica, grubość i docelowa masa. Okrągły, owalny, a może z wytłoczonym logo?</span></div></li>
         <li><div><b>Ile na godzinę?</b><span>Wydajność linii decyduje o liczbie tac w obiegu i o tym, czy opłaca się droga przez silikon.</span></div></li>
@@ -392,13 +393,14 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; }
 <script>
 (function () {
   const $ = (s) => document.querySelector(s);
-  const P = { rows: 3, cols: 3, D: 75, h: 12, draft: 7, gap: 6, wall: 1.6, rate: 600, cycle: 45, material: 'tpu', bed: '256' };
+  const P = { shape: 'round', mode: 'tray', Lo: 130, stack: 8, rows: 3, cols: 2, D: 100, h: 12, draft: 7, gap: 6, wall: 1.6, rate: 600, cycle: 45, material: 'tpu', bed: '360' };
+  const E2 = { x: 570, y: 370, z: 185 }; // wnętrze skrzynki E2 600 × 400 × 200
   const FIXED = { margin: 6, top: 2.5, skirt: 2, fillet: 2, corner: 6 };
   const DENSITY_MASS = 1.05; // g/cm³ masy ziemniaczanej
 
   const MATERIALS = {
     tpu:  { color: 0x2b66cc, rough: 0.55, metal: 0, density: 1.21, flex: true,  label: 'TPU',
-            note: 'Elastyczny także w mroźni. Placek wypychasz od spodu. Wymaga ramy nośnej i wolnego druku.' },
+            note: 'Elastyczny także w mroźni. Placek wypychasz od spodu. Drukuje się wolno, 25–40 mm/s.' },
     sil:  { color: 0x3f86c9, rough: 0.8,  metal: 0, density: 1.12, flex: true,  label: 'silikon',
             note: 'Drukujesz formę-matkę, odlewasz tace z silikonu spożywczego. Najłatwiejsze mycie i wybijanie.' },
     pp:   { color: 0xdde4e8, rough: 0.4,  metal: 0, density: 0.90, flex: false, label: 'PP',
@@ -422,27 +424,36 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; }
   function derive() {
     const R = P.D / 2, d = P.draft * Math.PI / 180;
     const r = R - P.h * Math.tan(d);
-    const W = P.cols * P.D + (P.cols - 1) * P.gap + 2 * FIXED.margin;
-    const L = P.rows * P.D + (P.rows - 1) * P.gap + 2 * FIXED.margin;
+    const kx = P.shape === 'oval' ? Math.max(1, P.Lo / P.D) : 1;
+    const nr = P.mode === 'single' ? 1 : P.rows, nc = P.mode === 'single' ? 1 : P.cols;
+    const W = nc * P.D * kx + (nc - 1) * P.gap + 2 * FIXED.margin;
+    const L = nr * P.D + (nr - 1) * P.gap + 2 * FIXED.margin;
     const H = P.h + P.wall;
-    const n = P.rows * P.cols;
-    const V = Math.PI * P.h / 3 * (R * R + R * r + r * r);
+    const n = nr * nc;
+    const V = kx * Math.PI * P.h / 3 * (R * R + R * r + r * r);
     const mass = V / 1000 * DENSITY_MASS;
     const slant = P.h / Math.cos(d);
-    const vTray = (W * L - n * Math.PI * R * R) * FIXED.top
+    const vTray = (W * L - n * kx * Math.PI * R * R) * FIXED.top
       + 2 * (W + L) * FIXED.skirt * (H - FIXED.top)
-      + n * (Math.PI * (R + r) * slant * P.wall + Math.PI * r * r * P.wall);
-    return { R, r, d, W, L, H, n, V, mass, vTray };
+      + n * kx * (Math.PI * (R + r) * slant * P.wall + Math.PI * r * r * P.wall)
+      + 4 * Math.PI * 16 * (H - FIXED.top + P.stack);
+    const perLayer = Math.max(Math.floor(E2.x / W) * Math.floor(E2.y / L), Math.floor(E2.x / L) * Math.floor(E2.y / W));
+    const layers = Math.max(0, Math.floor((E2.z - H) / (H + P.stack)) + 1);
+    return { R, r, d, W, L, H, n, V, mass, vTray, kx, nr, nc, perLayer, layers };
   }
 
   /* ---------- Panel ---------- */
-  const units = { rows: '', cols: '', D: ' mm', h: ' mm', draft: '°', gap: ' mm', wall: ' mm', rate: ' szt./h', cycle: ' min' };
+  const units = { Lo: ' mm', stack: ' mm', rows: '', cols: '', D: ' mm', h: ' mm', draft: '°', gap: ' mm', wall: ' mm', rate: ' szt./h', cycle: ' min' };
   document.querySelectorAll('[data-param]').forEach((el) => {
     const k = el.dataset.param;
     el.value = P[k];
     el.addEventListener('input', () => { P[k] = Number(el.value); scheduleUpdate(); });
   });
   $('#p-material').value = P.material;
+  $('#p-mode').value = P.mode;
+  $('#p-shape').value = P.shape;
+  $('#p-mode').addEventListener('change', (e) => { P.mode = e.target.value; scheduleUpdate(); });
+  $('#p-shape').addEventListener('change', (e) => { P.shape = e.target.value; scheduleUpdate(); });
   $('#p-bed').value = P.bed;
   $('#p-material').addEventListener('change', (e) => { P.material = e.target.value; scheduleUpdate(); });
   $('#p-bed').addEventListener('change', (e) => { P.bed = e.target.value; scheduleUpdate(); });
@@ -462,26 +473,29 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; }
     });
     const M = MATERIALS[P.material];
     $('#mat-note').textContent = M.note;
+    $('#f-Lo').hidden = P.shape !== 'oval';
+    $('#f-rows').hidden = $('#f-cols').hidden = P.mode === 'single';
+    $('#l-D').textContent = P.shape === 'oval' ? 'Szerokość owalu' : 'Średnica placka';
 
     const [bx, by] = BEDS[P.bed];
     const fitStraight = dv.W + 4 <= bx && dv.L + 4 <= by;
     const fitRotated = dv.L + 4 <= bx && dv.W + 4 <= by;
     const fits = fitStraight || fitRotated;
-    const trays = Math.ceil(P.rate * (P.cycle / 60) / dv.n * 1.2);
     const matG = P.material === 'sil' ? dv.vTray / 1000 * M.density * 1.15 : dv.vTray / 1000 * M.density;
     const matLabel = P.material === 'sil' ? 'Silikon na 1 tacę' : 'Filament na 1 tacę';
 
     const rows = [
-      ['Wymiary tacy', `${fmt(dv.W)} × ${fmt(dv.L)} × ${fmt(dv.H, 1)} mm`],
+      [P.mode === 'single' ? 'Wymiary foremki' : 'Wymiary tacy', `${fmt(dv.W)} × ${fmt(dv.L)} × ${fmt(dv.H, 1)} mm`],
       ['Placków na tacę', fmt(dv.n)],
-      ['Placek', `Ø${fmt(P.D)} → Ø${fmt(dv.r * 2, 1)} × ${fmt(P.h, 1)} mm`],
+      ['Słupki do stosu', `4 × Ø8 mm, prześwit ${fmt(P.stack)} mm`],
+      ['Placek', P.shape === 'oval' ? `${fmt(P.D * dv.kx)} × ${fmt(P.D)} × ${fmt(P.h, 1)} mm` : `Ø${fmt(P.D)} → Ø${fmt(dv.r * 2, 1)} × ${fmt(P.h, 1)} mm`],
+      ['Skrzynka E2', dv.perLayer ? `${fmt(dv.perLayer)} × ${fmt(dv.layers)} warstw = ${fmt(dv.perLayer * dv.layers * dv.n)} placków` : '<span class="pill bad">NIE MIEŚCI SIĘ</span>'],
       ['Masa placka', `ok. ${fmt(dv.mass)} g`],
       ['Masy na tacę', `${fmt(dv.mass * dv.n / 1000, 2)} kg`],
       [matLabel, `ok. ${fmt(matG)} g`],
       ['Stół drukarki', fits
         ? `<span class="pill ok">${fitStraight ? 'MIEŚCI SIĘ' : 'MIEŚCI SIĘ PO OBROCIE'}</span>`
         : '<span class="pill bad">NIE MIEŚCI SIĘ</span>'],
-      ['Tace w obiegu', `${fmt(trays)} szt. <span style="color:var(--muted);font-weight:400">(+20% zapasu)</span>`]
     ];
     $('#results').innerHTML = rows.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join('');
 
@@ -714,15 +728,16 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; }
     T.tags = [];
 
     const centers = [];
-    for (let j = 0; j < P.rows; j++) for (let i = 0; i < P.cols; i++) {
-      centers.push([-W / 2 + FIXED.margin + R + i * (P.D + P.gap), -L / 2 + FIXED.margin + R + j * (P.D + P.gap)]);
+    const kx = dv.kx;
+    for (let j = 0; j < dv.nr; j++) for (let i = 0; i < dv.nc; i++) {
+      centers.push([-W / 2 + FIXED.margin + R * kx + i * (P.D * kx + P.gap), -L / 2 + FIXED.margin + R + j * (P.D + P.gap)]);
     }
 
     /* Taca */
     const trayMat = new THREE.MeshStandardMaterial({ color: M.color, roughness: M.rough, metalness: M.metal, side: THREE.DoubleSide });
     T.trayMat = trayMat;
     const plate = rrShape(W, L, FIXED.corner);
-    centers.forEach(([x, z]) => { const p = new THREE.Path(); p.absarc(x, -z, R, 0, Math.PI * 2, true); plate.holes.push(p); });
+    centers.forEach(([x, z]) => { const p = new THREE.Path(); p.absellipse(x, -z, R * kx, R, 0, Math.PI * 2, true); plate.holes.push(p); });
     const plateMesh = new THREE.Mesh(extrude(plate, top, -top), trayMat);
     const sk = rrShape(W, L, FIXED.corner);
     sk.holes.push(rrHole(W - 2 * FIXED.skirt, L - 2 * FIXED.skirt, FIXED.corner - FIXED.skirt));
@@ -735,9 +750,17 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; }
     const gIn = new THREE.LatheGeometry(innerPts, 64);
     const gOut = new THREE.LatheGeometry(outerPts, 64);
     centers.forEach(([x, z]) => {
-      const a = new THREE.Mesh(gIn, trayMat); a.position.set(x, 0, z); a.receiveShadow = true;
-      const b = new THREE.Mesh(gOut, trayMat); b.position.set(x, 0, z); b.castShadow = true;
+      const a = new THREE.Mesh(gIn, trayMat); a.position.set(x, 0, z); a.scale.x = kx; a.receiveShadow = true;
+      const b = new THREE.Mesh(gOut, trayMat); b.position.set(x, 0, z); b.scale.x = kx; b.castShadow = true;
       T.trayGroup.add(a, b);
+    });
+    // słupki w narożnikach: następna taca w skrzynce opiera się na nich, nie na plackach
+    const postH = P.stack + H - top;
+    const postG = new THREE.CylinderGeometry(4, 4, postH, 20);
+    [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sz]) => {
+      const pm = new THREE.Mesh(postG, trayMat);
+      pm.position.set(sx * (W / 2 - 8), postH / 2, sz * (L / 2 - 8)); pm.castShadow = true;
+      T.trayGroup.add(pm);
     });
 
     /* Rama nośna dla elastycznych tac */
@@ -752,7 +775,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; }
     [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sz]) => {
       frame.add(box(8, H + legH - 4, 8, fm, sx * (W / 2 + o), -top - 2 - (H + legH - 4) / 2, sz * (L / 2 + o)));
     });
-    frame.visible = M.flex;
+    frame.visible = false;
     T.frame = frame;
     T.trayGroup.add(frame);
 
@@ -788,6 +811,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; }
       cap.visible = false;
       m.add(cap);
       m.castShadow = true; m.receiveShadow = true;
+      m.scale.x = kx;
       m.userData = { x, z };
       T.cakes.push(m);
       T.holder.add(m);
@@ -1004,7 +1028,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; }
     const phase = Math.min(3, Math.floor(tt));
     if (view === 'tray') {
       $('#ro-phase').textContent = 'Foremka';
-      $('#ro-desc').textContent = `${P.rows} × ${P.cols} gniazd, ${MATERIALS[P.material].label}. Obracaj myszą, kółkiem przybliżaj.`;
+      $('#ro-desc').textContent = `${three.dims.n === 1 ? 'Pojedyncza foremka' : three.dims.nr + ' × ' + three.dims.nc + ' gniazd'}, ${P.shape === 'oval' ? 'owal' : 'okrąg'}, ${MATERIALS[P.material].label}. Obracaj myszą, kółkiem przybliżaj.`;
       $('#ro-core-l').textContent = 'Taca';
       $('#ro-core').textContent = fmt(three.dims.W) + ' × ' + fmt(three.dims.L) + ' mm';
       $('#ro-env-l').innerHTML = `Wys. <b id="ro-env">${fmt(three.dims.H, 1)} mm</b>`;
@@ -1083,8 +1107,8 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; }
     const T = three; if (!T || !T.dims) return;
     const on = view === 'tray' && $('#cut').checked;
     const { R, L } = T.dims;
-    const j = Math.floor(P.rows / 2);
-    const zc = -L / 2 + FIXED.margin + R + j * (P.D + P.gap);
+    const j = Math.floor(T.dims.nr / 2);
+    const zc = -L / 2 + FIXED.margin + R + Math.min(j, T.dims.nr - 1) * (P.D + P.gap);
     const planes = on ? [new THREE.Plane(new THREE.Vector3(0, 0, -1), zc)] : [];
     T.trayGroup.traverse((o) => { if (o.material) o.material.clippingPlanes = planes; });
     T.cakes.forEach((m) => {
